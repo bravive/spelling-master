@@ -868,7 +868,7 @@ export default function App() {
           <button style={{ ...s.btn('rgba(255,255,255,0.1)', 'sm'), color: C.muted }} onClick={() => setGameScreen('home')}>← Back</button>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontWeight: 700, fontSize: 18 }}>🏆 Collection</div>
-            <div style={{ color: C.muted, fontSize: 13 }}>{regular} / 60 caught · {shiny} ✨ shiny</div>
+            <div style={{ color: C.muted, fontSize: 13 }}>{regular} / {ALL_POKEMON.length} caught · {shiny} ✨ shiny</div>
           </div>
           <div style={{ width: 60 }} />
         </div>

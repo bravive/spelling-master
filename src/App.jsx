@@ -248,11 +248,26 @@ export default function App() {
   const [screen, setScreen] = useState('selectUser');
   const [gameScreen, setGameScreen] = useState('home');
   const [users, setUsers] = useState({});
+  const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
-    fetch('/api/users').then(r => r.json()).then(setUsers).catch(() => {});
+    fetch('/api/users').then(r => r.json()).then(data => {
+      setUsers(data);
+      // Restore session if one exists
+      const savedUser = sessionStorage.getItem('currentUser');
+      const savedScreen = sessionStorage.getItem('screen');
+      const savedGameScreen = sessionStorage.getItem('gameScreen');
+      if (savedUser && data[savedUser]) {
+        setCurrentUser(savedUser);
+        if (savedScreen === 'parentMenu') {
+          setScreen('parentMenu');
+        } else {
+          setScreen('game');
+          setGameScreen(savedGameScreen || 'home');
+        }
+      }
+    }).catch(() => {});
   }, []);
-  const [currentUser, setCurrentUser] = useState(null);
   const [unlockQueue, setUnlockQueue] = useState([]);
   const [showConfetti, setShowConfetti] = useState(false);
   const confettiTimer = useRef(null);
@@ -273,6 +288,19 @@ export default function App() {
   const [words, setWords] = useState([]);
   const [retryCount, setRetryCount] = useState(0);
   const [roundResults, setRoundResults] = useState(null);
+
+  // Persist session whenever screen/user changes
+  useEffect(() => {
+    if (currentUser) {
+      sessionStorage.setItem('currentUser', currentUser);
+      sessionStorage.setItem('screen', screen);
+      sessionStorage.setItem('gameScreen', gameScreen);
+    } else {
+      sessionStorage.removeItem('currentUser');
+      sessionStorage.removeItem('screen');
+      sessionStorage.removeItem('gameScreen');
+    }
+  }, [currentUser, screen, gameScreen]);
 
   const saveUsers = (u) => { setUsers(u); save(u); };
 
@@ -407,7 +435,7 @@ export default function App() {
         <img src={pkImg(user.starterSlug)} alt="" style={{ width: 100, height: 100, objectFit: 'contain', animation: 'float 3s ease-in-out infinite' }} />
         <h2 style={{ color: C.yellow, margin: '8px 0 24px' }}>{user.name}</h2>
         <NumPad value={loginPin} onChange={setLoginPin} onSubmit={(pin) => {
-          if (loginTarget === 'test' && pin === '0000') { setScreen('parentMenu'); return; }
+          if (loginTarget === 'test' && pin === '0000') { setCurrentUser('test'); setScreen('parentMenu'); return; }
           if (users[loginTarget]?.pin === pin) {
             setCurrentUser(loginTarget); setScreen('game'); setGameScreen('home');
           } else {
@@ -445,8 +473,12 @@ export default function App() {
           onClick={() => { setCreateStep(0); setNewName(''); setNewStarter(null); setNewPin(''); setConfirmPin(''); setScreen('createUser'); }}>
           ➕ Create New Profile
         </button>
+        <button style={{ ...s.btn(C.purple), width: '100%', marginTop: 8 }}
+          onClick={() => { setScreen('game'); setGameScreen('collection'); }}>
+          🏆 Preview Full Collection
+        </button>
         <button style={{ ...s.btn('rgba(255,255,255,0.1)', 'sm'), color: C.muted, marginTop: 12 }}
-          onClick={() => setScreen('selectUser')}>← Back</button>
+          onClick={() => { setCurrentUser(null); setScreen('selectUser'); }}>← Back</button>
       </div>
     );
   };
@@ -859,16 +891,18 @@ export default function App() {
   // ── Collection ──────────────────────────────────────────────────────────────
   const CollectionScreen = () => {
     const user = getUser();
+    const isAdmin = currentUser === 'test';
     const col = user?.collection || {};
-    const regular = Object.values(col).filter(c => c.regular).length;
-    const shiny = Object.values(col).filter(c => c.shiny).length;
+    const regular = isAdmin ? ALL_POKEMON.length : Object.values(col).filter(c => c.regular).length;
+    const shiny = isAdmin ? ALL_POKEMON.length : Object.values(col).filter(c => c.shiny).length;
     return (
       <div style={{ width: '100%', maxWidth: 600 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <button style={{ ...s.btn('rgba(255,255,255,0.1)', 'sm'), color: C.muted }} onClick={() => setGameScreen('home')}>← Back</button>
+          <button style={{ ...s.btn('rgba(255,255,255,0.1)', 'sm'), color: C.muted }} onClick={() => isAdmin ? setScreen('parentMenu') : setGameScreen('home')}>← Back</button>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontWeight: 700, fontSize: 18 }}>🏆 Collection</div>
             <div style={{ color: C.muted, fontSize: 13 }}>{regular} / {ALL_POKEMON.length} caught · {shiny} ✨ shiny</div>
+            {isAdmin && <div style={{ color: C.yellow, fontSize: 11, fontWeight: 700, marginTop: 2 }}>👑 Admin preview — all unlocked</div>}
           </div>
           <div style={{ width: 60 }} />
         </div>
@@ -878,8 +912,8 @@ export default function App() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
           {ALL_POKEMON.map(pk => {
             const owned = col[pk.id] || {};
-            const isShiny = owned.shiny;
-            const isRegular = owned.regular;
+            const isShiny = isAdmin || owned.shiny;
+            const isRegular = isAdmin || owned.regular;
             return (
               <div key={pk.id} style={{
                 background: C.card, borderRadius: 12, padding: 8, textAlign: 'center', position: 'relative',

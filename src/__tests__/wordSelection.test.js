@@ -42,10 +42,14 @@ describe('selectWords', () => {
   });
 
   it('includes words after the 3-round cooldown has expired', () => {
-    const wordStats = {
-      cat: { attempts: 1, correct: 1, weight: 0.75, lastPassedRound: 1 },
-    };
-    // roundCount=4 means 3 rounds have passed since lastPassedRound=1 (4-1=3, not <3)
+    // Retire all level-1 words except cat + 9 others so cat is guaranteed to be selected
+    const allLevel1 = ['cat','dog','hat','sun','bed','cup','bus','pig','hop','wet','fox','log','jam','mud','nap','pan','web','zip','box','van'];
+    const wordStats = {};
+    allLevel1.slice(10).forEach(w => {
+      wordStats[w] = { attempts: 3, correct: 0, weight: 5, lastPassedRound: null };
+    });
+    // cat passed in round 1; roundCount=4 means 4-1=3 rounds ago → cooldown expired
+    wordStats['cat'] = { attempts: 1, correct: 1, weight: 0.75, lastPassedRound: 1 };
     const user = makeUser({ roundCount: 4, wordStats });
     const result = selectWords(user);
     const selected = result.map(e => e.w);

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ALL_POKEMON, STARTER_POKEMON, pkImg, pkShiny } from './data/pokemon';
+import { WORD_POOL } from './data/words';
 import POKEMON_STATS from './data/pokemon-stats.json';
-import { selectWords, updateWordStats, checkLevelUp } from './wordSelection';
 import POKEMON_EVOLUTIONS from './data/pokemon-evolutions.json';
 
 // ─── Storage ─────────────────────────────────────────────────────────────────
@@ -42,66 +42,6 @@ const newUser = (name, pin, starterId, starterSlug) => ({
   roundCount: 0,
   createdAt: new Date().toISOString(),
 });
-
-// Weighted word selection
-export const selectWords = (user) => {
-  const pool = WORD_POOL[user.level] || WORD_POOL[1];
-  const roundCount = user.roundCount || 0;
-
-  const isRetired = (ws) => ws && ws.attempts >= 3 && ws.correct === 0;
-  const isOnCooldown = (ws) => ws && ws.lastPassedRound != null && roundCount - ws.lastPassedRound < 3;
-
-  // Prefer words that aren't retired and aren't on cooldown
-  let candidates = pool.filter(entry => {
-    const ws = user.wordStats[entry.w];
-    return !isRetired(ws) && !isOnCooldown(ws);
-  });
-
-  // If too few remain after cooldown, relax cooldown (keep retirement filter)
-  if (candidates.length < 10) {
-    candidates = pool.filter(entry => !isRetired(user.wordStats[entry.w]));
-  }
-
-  const weighted = candidates.map(entry => {
-    const ws = user.wordStats[entry.w];
-    let weight = 1;
-    if (ws) {
-      const rate = ws.attempts > 0 ? ws.correct / ws.attempts : 0;
-      if (ws.attempts >= 3 && rate >= 0.8) weight = 0.3;
-      else if (ws.attempts > 0 && rate < 0.5) weight = Math.min(ws.weight || 1, 5);
-    }
-    return { ...entry, weight };
-  });
-
-  const used = new Set();
-  const selected = [];
-  const n = Math.min(10, weighted.length);
-
-  // Weighted random sampling without replacement
-  while (selected.length < n && used.size < weighted.length) {
-    const available = weighted.filter(e => !used.has(e.w));
-    const total = available.reduce((s, e) => s + e.weight, 0);
-    let r = Math.random() * total;
-    for (const e of available) {
-      r -= e.weight;
-      if (r <= 0) { selected.push(e); used.add(e.w); break; }
-    }
-  }
-  return selected;
-};
-
-const checkLevelUp = (user) => {
-  const pool = WORD_POOL[user.level] || [];
-  if (pool.length === 0) return user;
-  const mastered = pool.filter(e => {
-    const ws = user.wordStats[e.w];
-    return ws && ws.attempts >= 3 && ws.correct / ws.attempts >= 0.8;
-  });
-  if (mastered.length / pool.length >= 0.7 && user.level < 5) {
-    return { ...user, level: user.level + 1 };
-  }
-  return user;
-};
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 const C = {
@@ -293,6 +233,24 @@ export default function App() {
   const [loginTarget, setLoginTarget] = useState(null);
   const [loginError, setLoginError] = useState('');
 
+  // Per-user word stats (loaded separately from users.json)
+  const [wordStats, setWordStats] = useState({});
+
+  useEffect(() => {
+    if (!currentUser) { setWordStats({}); return; }
+    fetch(`/api/wordstats/${encodeURIComponent(currentUser)}`)
+      .then(r => r.json())
+      .then(data => setWordStats(data || {}))
+      .catch(() => setWordStats({}));
+  }, [currentUser]);
+
+  const saveWordStats = (username, stats) =>
+    fetch(`/api/wordstats/${encodeURIComponent(username)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(stats),
+    });
+
   // Game state
   const [words, setWords] = useState([]);
   const [retryCount, setRetryCount] = useState(0);
@@ -373,25 +331,15 @@ export default function App() {
     }
 
     const newRoundCount = (user.roundCount || 0) + 1;
-    const wordStats = { ...user.wordStats };
-    for (const r of results) {
-      const ws = wordStats[r.word] || { attempts: 0, correct: 0, weight: 1, lastPassedRound: null };
-      ws.attempts += 1;
-      if (r.correct) {
-        ws.correct += 1;
-        ws.weight = Math.max(0.3, (ws.weight || 1) * 0.75);
-        ws.lastPassedRound = newRoundCount;
-      } else {
-        ws.weight = Math.min(5, (ws.weight || 1) * 1.6);
-      }
-      wordStats[r.word] = ws;
-    }
+    const newWordStats = updateWordStats(wordStats, results, newRoundCount);
+    const newLevel = checkLevelUp(newWordStats, user.level);
 
     const roundHistory = [...(user.roundHistory || []), { date: today, score, earned, pass: score >= 6 }].slice(-200);
 
-    let updated = { ...user, streak, lastPlayed: today, streakDates: newDates.slice(-90), creditBank, totalCredits, collection: col, shinyEligible, consecutiveRegular, wordStats, roundHistory, roundCount: newRoundCount };
-    updated = checkLevelUp(updated);
+    const updated = { ...user, streak, lastPlayed: today, streakDates: newDates.slice(-90), creditBank, totalCredits, collection: col, shinyEligible, consecutiveRegular, roundHistory, roundCount: newRoundCount, level: newLevel };
 
+    setWordStats(newWordStats);
+    saveWordStats(currentUser, newWordStats);
     setUsers(prev => { const next = { ...prev, [currentUser]: updated }; save(next); return next; });
     if (newUnlocks.length) setUnlockQueue(newUnlocks);
     if (score === 10) {
@@ -400,7 +348,7 @@ export default function App() {
       confettiTimer.current = setTimeout(() => setShowConfetti(false), 4000);
     }
     return { earned, pass: score >= 6, shouldRetry: score < 6 };
-  }, [users, currentUser]);
+  }, [users, currentUser, wordStats]);
 
   // ── SelectUser ──────────────────────────────────────────────────────────────
   const SelectUserScreen = () => {

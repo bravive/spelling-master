@@ -38,13 +38,30 @@ const newUser = (name, pin, starterId, starterSlug) => ({
   wordStats: {},
   roundHistory: [],
   bestScores: {},
+  roundCount: 0,
   createdAt: new Date().toISOString(),
 });
 
 // Weighted word selection
-const selectWords = (user) => {
+export const selectWords = (user) => {
   const pool = WORD_POOL[user.level] || WORD_POOL[1];
-  const weighted = pool.map(entry => {
+  const roundCount = user.roundCount || 0;
+
+  const isRetired = (ws) => ws && ws.attempts >= 3 && ws.correct === 0;
+  const isOnCooldown = (ws) => ws && ws.lastPassedRound != null && roundCount - ws.lastPassedRound < 3;
+
+  // Prefer words that aren't retired and aren't on cooldown
+  let candidates = pool.filter(entry => {
+    const ws = user.wordStats[entry.w];
+    return !isRetired(ws) && !isOnCooldown(ws);
+  });
+
+  // If too few remain after cooldown, relax cooldown (keep retirement filter)
+  if (candidates.length < 10) {
+    candidates = pool.filter(entry => !isRetired(user.wordStats[entry.w]));
+  }
+
+  const weighted = candidates.map(entry => {
     const ws = user.wordStats[entry.w];
     let weight = 1;
     if (ws) {
@@ -54,6 +71,7 @@ const selectWords = (user) => {
     }
     return { ...entry, weight };
   });
+
   const used = new Set();
   const selected = [];
   const n = Math.min(10, weighted.length);
@@ -317,18 +335,24 @@ export default function App() {
       }
     }
 
+    const newRoundCount = (user.roundCount || 0) + 1;
     const wordStats = { ...user.wordStats };
     for (const r of results) {
-      const ws = wordStats[r.word] || { attempts: 0, correct: 0, weight: 1 };
+      const ws = wordStats[r.word] || { attempts: 0, correct: 0, weight: 1, lastPassedRound: null };
       ws.attempts += 1;
-      if (r.correct) { ws.correct += 1; ws.weight = Math.max(0.3, (ws.weight || 1) * 0.75); }
-      else { ws.weight = Math.min(5, (ws.weight || 1) * 1.6); }
+      if (r.correct) {
+        ws.correct += 1;
+        ws.weight = Math.max(0.3, (ws.weight || 1) * 0.75);
+        ws.lastPassedRound = newRoundCount;
+      } else {
+        ws.weight = Math.min(5, (ws.weight || 1) * 1.6);
+      }
       wordStats[r.word] = ws;
     }
 
     const roundHistory = [...(user.roundHistory || []), { date: today, score, earned, pass: score >= 6 }].slice(-200);
 
-    let updated = { ...user, streak, lastPlayed: today, streakDates: newDates.slice(-90), creditBank, totalCredits, collection: col, shinyEligible, consecutiveRegular, wordStats, roundHistory };
+    let updated = { ...user, streak, lastPlayed: today, streakDates: newDates.slice(-90), creditBank, totalCredits, collection: col, shinyEligible, consecutiveRegular, wordStats, roundHistory, roundCount: newRoundCount };
     updated = checkLevelUp(updated);
 
     setUsers(prev => { const next = { ...prev, [currentUser]: updated }; save(next); return next; });

@@ -511,8 +511,8 @@ export default function App() {
           onClick={() => { setScreen('game'); setGameScreen('collection'); }}>
           🏆 Preview Full Collection
         </button>
-        <button style={{ ...s.btn('rgba(255,255,255,0.1)', 'sm'), color: C.muted, marginTop: 12 }}
-          onClick={() => { setCurrentUser(null); setScreen('selectUser'); }}>← Back</button>
+        <button style={{ ...s.btn(C.red, 'sm'), marginTop: 12 }}
+          onClick={() => { setCurrentUser(null); setScreen('selectUser'); }}>🚪 Logout</button>
       </div>
     );
   };

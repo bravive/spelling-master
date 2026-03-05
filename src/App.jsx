@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ALL_POKEMON, STARTER_POKEMON, pkImg, pkShiny } from './data/pokemon';
 import { WORD_POOL } from './data/words';
+import POKEMON_STATS from './data/pokemon-stats.json';
 
 // ─── Storage ─────────────────────────────────────────────────────────────────
 const save = (users) => fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(users) });
@@ -144,6 +145,10 @@ const injectCSS = () => {
     @keyframes shimmer { 0%{filter:drop-shadow(0 0 6px #a78bfa)} 50%{filter:drop-shadow(0 0 16px #60a5fa)} 100%{filter:drop-shadow(0 0 6px #a78bfa)} }
     @keyframes sparkle { 0%,100%{opacity:0;transform:scale(0)} 50%{opacity:1;transform:scale(1)} }
     @keyframes fall    { 0%{transform:translateY(-10px) rotate(0deg);opacity:1} 100%{transform:translateY(100vh) rotate(720deg);opacity:0} }
+    .pk-card-inner { transition: transform 0.45s; transform-style: preserve-3d; }
+    .pk-card-inner.flipped { transform: rotateY(180deg); }
+    .pk-face { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+    .pk-back  { backface-visibility: hidden; -webkit-backface-visibility: hidden; transform: rotateY(180deg); }
     * { box-sizing: border-box; }
     body { margin: 0; }
   `;
@@ -923,12 +928,25 @@ export default function App() {
   };
 
   // ── Collection ──────────────────────────────────────────────────────────────
+  const STAT_META = [
+    { key: 'hp',  label: 'HP',  color: '#ef4444' },
+    { key: 'atk', label: 'ATK', color: '#f97316' },
+    { key: 'def', label: 'DEF', color: '#eab308' },
+    { key: 'spa', label: 'SpA', color: '#60a5fa' },
+    { key: 'spd', label: 'SpD', color: '#10b981' },
+    { key: 'spe', label: 'SPE', color: '#c4b5fd' },
+  ];
+
   const CollectionScreen = () => {
     const user = getUser();
     const isAdmin = currentUser === 'test';
     const col = user?.collection || {};
     const regular = isAdmin ? ALL_POKEMON.length : Object.values(col).filter(c => c.regular).length;
-    const shiny = isAdmin ? ALL_POKEMON.length : Object.values(col).filter(c => c.shiny).length;
+    const shiny   = isAdmin ? ALL_POKEMON.length : Object.values(col).filter(c => c.shiny).length;
+    const [flippedId, setFlippedId] = useState(null);
+
+    const handleClick = (id) => setFlippedId(prev => prev === id ? null : id);
+
     return (
       <div style={{ width: '100%', maxWidth: 600 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -946,24 +964,77 @@ export default function App() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
           {ALL_POKEMON.map(pk => {
             const owned = col[pk.id] || {};
-            const isShiny = isAdmin || owned.shiny;
+            const isShiny   = isAdmin || owned.shiny;
             const isRegular = isAdmin || owned.regular;
+            const isFlipped = flippedId === pk.id;
+            const stats     = POKEMON_STATS[pk.slug];
+            const unlocked  = isRegular || isShiny;
+            const border    = isShiny ? '2px solid #a78bfa' : isRegular ? '2px solid #b45309' : `1px solid ${C.border}`;
+
             return (
-              <div key={pk.id} style={{
-                background: C.card, borderRadius: 12, padding: 8, textAlign: 'center', position: 'relative',
-                border: isShiny ? '2px solid #a78bfa' : isRegular ? '2px solid #b45309' : `1px solid ${C.border}`,
-                animation: isShiny ? 'shimmer 2s ease infinite' : 'none',
-              }}>
-                {isShiny && <div style={{ position: 'absolute', top: 2, right: 4, fontSize: 12 }}>✨</div>}
-                <img
-                  src={isShiny ? pkShiny(pk.slug) : pkImg(pk.slug)}
-                  alt={pk.name}
-                  style={{ width: 48, height: 48, objectFit: 'contain', filter: !isRegular && !isShiny ? 'brightness(0) opacity(0.3)' : 'none' }}
-                />
-                <div style={{ fontSize: 10, color: isRegular || isShiny ? '#fff' : C.muted, marginTop: 2 }}>
-                  {isRegular || isShiny ? pk.name : '???'}
+              <div
+                key={pk.id}
+                onClick={() => handleClick(pk.id)}
+                style={{ perspective: '600px', cursor: 'pointer', height: 118 }}
+              >
+                <div
+                  className={`pk-card-inner${isFlipped ? ' flipped' : ''}`}
+                  style={{ position: 'relative', width: '100%', height: '100%' }}
+                >
+                  {/* ── Front ── */}
+                  <div
+                    className="pk-face"
+                    style={{
+                      position: 'absolute', inset: 0,
+                      background: C.card, borderRadius: 12, padding: 8,
+                      textAlign: 'center', border,
+                      animation: isShiny ? 'shimmer 2s ease infinite' : 'none',
+                    }}
+                  >
+                    {isShiny && <div style={{ position: 'absolute', top: 2, right: 4, fontSize: 11 }}>✨</div>}
+                    <img
+                      src={isShiny ? pkShiny(pk.slug) : pkImg(pk.slug)}
+                      alt={pk.name}
+                      style={{ width: 48, height: 48, objectFit: 'contain', filter: !unlocked ? 'brightness(0) opacity(0.3)' : 'none' }}
+                    />
+                    <div style={{ fontSize: 10, color: unlocked ? '#fff' : C.muted, marginTop: 2, lineHeight: 1.2 }}>
+                      {unlocked ? pk.name : '???'}
+                    </div>
+                    {isShiny && <div style={{ fontSize: 9, fontWeight: 700, color: '#a78bfa', marginTop: 1 }}>✨ SHINY</div>}
+                  </div>
+
+                  {/* ── Back ── */}
+                  <div
+                    className="pk-back"
+                    style={{
+                      position: 'absolute', inset: 0,
+                      background: '#1e1b3a', borderRadius: 12, padding: '6px 8px',
+                      border,
+                    }}
+                  >
+                    <div style={{ fontSize: 9, fontWeight: 700, color: unlocked ? '#fff' : C.muted, marginBottom: 4, textAlign: 'center', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                      {unlocked ? pk.name : '???'}
+                    </div>
+                    {stats && unlocked ? (
+                      STAT_META.map(({ key, label, color }) => {
+                        const val = stats[key] ?? 0;
+                        return (
+                          <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 3, marginBottom: 2 }}>
+                            <div style={{ fontSize: 7, color: C.muted, width: 18, textAlign: 'right', flexShrink: 0 }}>{label}</div>
+                            <div style={{ flex: 1, background: 'rgba(255,255,255,0.1)', borderRadius: 3, height: 6, overflow: 'hidden' }}>
+                              <div style={{ width: `${(val / 255) * 100}%`, height: '100%', background: color, borderRadius: 3 }} />
+                            </div>
+                            <div style={{ fontSize: 7, color: '#fff', width: 18, flexShrink: 0 }}>{val}</div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div style={{ color: C.muted, fontSize: 9, textAlign: 'center', marginTop: 16 }}>
+                        {unlocked ? 'No data' : '???'}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                {isShiny && <div style={{ fontSize: 9, fontWeight: 700, color: '#a78bfa', marginTop: 1 }}>✨ SHINY</div>}
               </div>
             );
           })}

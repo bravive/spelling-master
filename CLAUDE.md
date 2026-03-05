@@ -1,33 +1,67 @@
 # Spell Master — Project Guide for Claude Code
 
+## Development Workflow
+
+Follow these steps for every change, no matter how small:
+
+### 1. Commit each edit separately
+- Make one focused commit per logical change (bug fix, feature, refactor, docs)
+- Keep commit messages brief and descriptive (what + why)
+- Stage only the files relevant to that change — never bulk-commit unrelated edits
+
+### 2. Write tests for every change
+- All new logic must have corresponding tests in `src/__tests__/`
+- Run tests before committing: `npm test`
+- Bug fixes must include a regression test
+- Use Vitest (`npm test`) for unit tests; test pure logic functions (scoring, word selection, level-up, streak, Pokémon unlock) directly without a browser
+
+### 3. Update README.md for feature or requirement changes
+- Any change that affects how users interact with the app, the tech stack, or how to run it must be reflected in `README.md`
+- Keep the README accurate — it is the source of truth for anyone setting up the project
+
+### 4. Push after committing
+- After each commit (or a small batch of related commits), push to `origin main`
+
+---
+
 ## Project Overview
 
 A daily spelling practice web app for elementary school kids (K–5). Kids memorise words, listen to them spoken aloud, then type the spelling. Progress is rewarded with a Pokémon collection system.
 
 ## Tech Stack
 
-- **Framework**: React 18 + Vite
+- **Framework**: React 19 + Vite
 - **Styling**: Inline styles only (no CSS framework)
-- **Storage**: `localStorage` with key `spellmaster_v3`
+- **Storage**: `data/users.json` via Express REST API (`GET/POST /api/users`)
 - **Speech**: Web Speech API (`window.speechSynthesis`)
-- **Images**: `https://img.pokemondb.net/sprites/home/normal/2x/{slug}.png` (regular) and `.../shiny/2x/{slug}.png` (shiny)
-- **No backend** — fully client-side
+- **Images**: `https://img.pokemondb.net/sprites/home/normal/{slug}.png` (regular) and `.../shiny/{slug}.png` (shiny)
+- **Backend**: Express (port 3001); Vite proxies `/api` to it
 
 ## File Structure
 
 ```
+server.js        — Express API server (reads/writes data/users.json)
+data/
+  users.json     — persistent user storage (gitignored)
 src/
-  App.jsx          — main app (all logic + screens)
+  App.jsx        — main app (all logic + screens)
   data/
-    words.js       — word bank (5 levels, keys 1–5, each { w, s }[])
-    pokemon.js     — 60 Pokémon roster, pkImg/pkShiny helpers
+    words.js     — word bank (5 levels, keys 1–5, each { w, s }[])
+    pokemon.js   — 60 Pokémon roster, pkImg/pkShiny helpers
 ```
 
 ## Running the App
 
 ```bash
 npm install
-npm run dev     # http://localhost:5173
+
+# Start both backend and frontend together:
+npm start        # backend on :3001, frontend on :5173
+
+# Or separately:
+npm run server   # Express API only
+npm run dev      # Vite dev server only
+
 npm run build
 ```
 
@@ -150,7 +184,7 @@ npm run build
 
 ---
 
-## User State Shape (localStorage `spellmaster_v3`)
+## User State Shape (stored in `data/users.json`)
 
 ```js
 {

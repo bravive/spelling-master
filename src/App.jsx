@@ -245,22 +245,17 @@ const NumPad = ({ value, onChange, onSubmit }) => {
 export default function App() {
   injectCSS();
 
-  const [screen, setScreen] = useState('selectUser');
+  const isAdminBackdoor = new URLSearchParams(window.location.search).get('admin') === '1';
+
+  const [screen, setScreen] = useState(() => isAdminBackdoor ? 'parentMenu' : 'selectUser');
   const [gameScreen, setGameScreen] = useState('home');
   const [users, setUsers] = useState({});
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(() => isAdminBackdoor ? 'test' : null);
 
   useEffect(() => {
     fetch('/api/users').then(r => r.json()).then(data => {
       setUsers(data);
-
-      // URL backdoor: ?admin=1 auto-logs in as test
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('admin') === '1') {
-        setCurrentUser('test');
-        setScreen('parentMenu');
-        return;
-      }
+      if (isAdminBackdoor) return;
 
       // Restore session if one exists
       const savedUser = sessionStorage.getItem('currentUser');

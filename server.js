@@ -15,7 +15,12 @@ const readUsers = () => {
 };
 
 const writeUsers = (data) => {
-  writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
+  const clean = {};
+  for (const [k, v] of Object.entries(data)) {
+    const { wordStats: _ws, ...rest } = v;
+    clean[k] = rest;
+  }
+  writeFileSync(DATA_FILE, JSON.stringify(clean, null, 2), 'utf8');
 };
 
 const wordStatsFile = (username) =>
@@ -32,6 +37,25 @@ const readWordStats = (username) => {
 const writeWordStats = (username, data) => {
   writeFileSync(wordStatsFile(username), JSON.stringify(data, null, 2), 'utf8');
 };
+
+// One-time migration: extract embedded wordStats from users.json into per-user files
+const migrateWordStats = () => {
+  const users = readUsers();
+  let dirty = false;
+  for (const [username, user] of Object.entries(users)) {
+    if (user.wordStats && Object.keys(user.wordStats).length > 0) {
+      const dest = wordStatsFile(username);
+      if (!existsSync(dest)) {
+        writeWordStats(username, user.wordStats);
+      }
+      delete user.wordStats;
+      dirty = true;
+    }
+  }
+  if (dirty) writeFileSync(DATA_FILE, JSON.stringify(users, null, 2), 'utf8');
+};
+
+migrateWordStats();
 
 const app = express();
 app.use(express.json({ limit: '4mb' }));

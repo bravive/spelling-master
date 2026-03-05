@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ALL_POKEMON, STARTER_POKEMON, pkImg, pkShiny } from './data/pokemon';
-import { WORD_POOL } from './data/words';
 import POKEMON_STATS from './data/pokemon-stats.json';
+import { selectWords, updateWordStats, checkLevelUp } from './wordSelection';
 import POKEMON_EVOLUTIONS from './data/pokemon-evolutions.json';
 
 // ─── Storage ─────────────────────────────────────────────────────────────────
@@ -37,7 +37,6 @@ const newUser = (name, pin, starterId, starterSlug) => ({
   collection: {},
   shinyEligible: false,
   consecutiveRegular: 0,
-  wordStats: {},
   roundHistory: [],
   bestScores: {},
   roundCount: 0,
@@ -945,6 +944,20 @@ export default function App() {
     const regular = isAdmin ? ALL_POKEMON.length : Object.values(col).filter(c => c.regular).length;
     const shiny   = isAdmin ? ALL_POKEMON.length : Object.values(col).filter(c => c.shiny).length;
     const [selectedId, setSelectedId] = useState(null);
+    const [layout, setLayout] = useState('compact'); // 'compact' | 'large' | 'collected'
+
+    const LAYOUTS = [
+      { key: 'compact',   icon: '⊞', label: '5 per row' },
+      { key: 'large',     icon: '⊟', label: 'Full width' },
+      { key: 'collected', icon: '⭐', label: 'Collected' },
+    ];
+    const cycleLayout = () => {
+      const idx = LAYOUTS.findIndex(l => l.key === layout);
+      setLayout(LAYOUTS[(idx + 1) % LAYOUTS.length].key);
+      setSelectedId(null);
+    };
+    const currentLayout = LAYOUTS.find(l => l.key === layout);
+    const nextLayout = LAYOUTS[(LAYOUTS.findIndex(l => l.key === layout) + 1) % LAYOUTS.length];
 
     const selectedPk = selectedId != null ? ALL_POKEMON.find(p => p.id === selectedId) : null;
 
@@ -1058,7 +1071,13 @@ export default function App() {
             <div style={{ color: C.muted, fontSize: 13 }}>{regular} / {ALL_POKEMON.length} caught · {shiny} ✨ shiny</div>
             {isAdmin && <div style={{ color: C.yellow, fontSize: 11, fontWeight: 700, marginTop: 2 }}>👑 Admin preview — all unlocked</div>}
           </div>
-          <div style={{ width: 60 }} />
+          <button
+            title={`Switch to: ${nextLayout.label}`}
+            style={{ ...s.btn('rgba(255,255,255,0.12)', 'sm'), color: '#fff', minWidth: 60 }}
+            onClick={cycleLayout}
+          >
+            {currentLayout.icon} {currentLayout.label}
+          </button>
         </div>
         {user?.shinyEligible && (
           <div style={{ color: '#a78bfa', textAlign: 'center', animation: 'pulse 1.5s ease infinite', marginBottom: 12, fontWeight: 700 }}>✨ Shiny chance active!</div>
@@ -1066,42 +1085,57 @@ export default function App() {
 
         <DetailOverlay />
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
-          {ALL_POKEMON.map(pk => {
-            const owned = col[pk.id] || {};
-            const isShiny   = isAdmin || owned.shiny;
-            const isRegular = isAdmin || owned.regular;
-            const unlocked  = isRegular || isShiny;
-            const isSelected = selectedId === pk.id;
-            const border    = isShiny ? '2px solid #a78bfa' : isRegular ? '2px solid #b45309' : `1px solid ${C.border}`;
+        {(() => {
+          const cols     = layout === 'compact' ? 5 : 3;
+          const imgSize  = layout === 'compact' ? 48 : 72;
+          const fontSize = layout === 'compact' ? 10 : 13;
+          const visiblePokemon = layout === 'collected'
+            ? ALL_POKEMON.filter(pk => { const o = col[pk.id] || {}; return isAdmin || o.regular || o.shiny; })
+            : ALL_POKEMON;
 
-            return (
-              <div
-                key={pk.id}
-                onClick={() => handleCardClick(pk.id)}
-                style={{
-                  background: C.card, borderRadius: 12, padding: 8, textAlign: 'center',
-                  position: 'relative', cursor: 'pointer', border,
-                  animation: isShiny ? 'shimmer 2s ease infinite' : 'none',
-                  transform: isSelected ? 'scale(1.08)' : 'scale(1)',
-                  transition: 'transform 0.15s',
-                  outline: isSelected ? `2px solid ${C.yellow}` : 'none',
-                }}
-              >
-                {isShiny && <div style={{ position: 'absolute', top: 2, right: 4, fontSize: 11 }}>✨</div>}
-                <img
-                  src={isShiny ? pkShiny(pk.slug) : pkImg(pk.slug)}
-                  alt={pk.name}
-                  style={{ width: 48, height: 48, objectFit: 'contain', filter: !unlocked ? 'brightness(0) opacity(0.3)' : 'none' }}
-                />
-                <div style={{ fontSize: 10, color: unlocked ? '#fff' : C.muted, marginTop: 2, lineHeight: 1.2 }}>
-                  {unlocked ? pk.name : '???'}
-                </div>
-                {isShiny && <div style={{ fontSize: 9, fontWeight: 700, color: '#a78bfa', marginTop: 1 }}>✨ SHINY</div>}
-              </div>
-            );
-          })}
-        </div>
+          if (layout === 'collected' && visiblePokemon.length === 0) {
+            return <div style={{ color: C.muted, textAlign: 'center', padding: '40px 0' }}>No Pokémon caught yet — complete a round to earn credits!</div>;
+          }
+
+          return (
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 8 }}>
+              {visiblePokemon.map(pk => {
+                const owned = col[pk.id] || {};
+                const isShiny    = isAdmin || owned.shiny;
+                const isRegular  = isAdmin || owned.regular;
+                const unlocked   = isRegular || isShiny;
+                const isSelected = selectedId === pk.id;
+                const border     = isShiny ? '2px solid #a78bfa' : isRegular ? '2px solid #b45309' : `1px solid ${C.border}`;
+
+                return (
+                  <div
+                    key={pk.id}
+                    onClick={() => handleCardClick(pk.id)}
+                    style={{
+                      background: C.card, borderRadius: 12, padding: layout === 'compact' ? 8 : 12,
+                      textAlign: 'center', position: 'relative', cursor: 'pointer', border,
+                      animation: isShiny ? 'shimmer 2s ease infinite' : 'none',
+                      transform: isSelected ? 'scale(1.05)' : 'scale(1)',
+                      transition: 'transform 0.15s',
+                      outline: isSelected ? `2px solid ${C.yellow}` : 'none',
+                    }}
+                  >
+                    {isShiny && <div style={{ position: 'absolute', top: 4, right: 6, fontSize: layout === 'compact' ? 11 : 14 }}>✨</div>}
+                    <img
+                      src={isShiny ? pkShiny(pk.slug) : pkImg(pk.slug)}
+                      alt={pk.name}
+                      style={{ width: imgSize, height: imgSize, objectFit: 'contain', filter: !unlocked ? 'brightness(0) opacity(0.3)' : 'none' }}
+                    />
+                    <div style={{ fontSize, color: unlocked ? '#fff' : C.muted, marginTop: 4, lineHeight: 1.3, fontWeight: layout === 'compact' ? 400 : 600 }}>
+                      {unlocked ? pk.name : '???'}
+                    </div>
+                    {isShiny && <div style={{ fontSize: layout === 'compact' ? 9 : 11, fontWeight: 700, color: '#a78bfa', marginTop: 2 }}>✨ SHINY</div>}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
       </div>
     );
   };

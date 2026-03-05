@@ -247,10 +247,10 @@ export default function App() {
 
   const isAdminBackdoor = new URLSearchParams(window.location.search).get('admin') === '1';
 
-  const [screen, setScreen] = useState(() => isAdminBackdoor ? 'parentMenu' : 'selectUser');
+  const [screen, setScreen] = useState(() => isAdminBackdoor ? 'adminLogin' : 'selectUser');
   const [gameScreen, setGameScreen] = useState('home');
   const [users, setUsers] = useState({});
-  const [currentUser, setCurrentUser] = useState(() => isAdminBackdoor ? 'test' : null);
+  const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
     fetch('/api/users').then(r => r.json()).then(data => {
@@ -449,6 +449,36 @@ export default function App() {
         {loginError && <div style={{ color: C.red, marginTop: 12, animation: 'shake 0.3s ease' }}>{loginError}</div>}
         <button style={{ ...s.btn('rgba(255,255,255,0.1)', 'sm'), color: C.muted, marginTop: 16 }}
           onClick={() => { setScreen('selectUser'); setLoginError(''); }}>← Back</button>
+      </div>
+    );
+  };
+
+  // ── AdminLogin ──────────────────────────────────────────────────────────────
+  const AdminLoginScreen = () => {
+    const [username, setUsername] = useState('');
+    const [pin, setPin] = useState('');
+    const [error, setError] = useState('');
+    return (
+      <div style={{ width: '100%', maxWidth: 360, textAlign: 'center' }}>
+        <div style={{ fontSize: 40, marginBottom: 8 }}>🔐</div>
+        <h2 style={{ color: C.yellow, margin: '0 0 24px' }}>Admin Login</h2>
+        <input
+          style={{ ...s.input, marginBottom: 16 }}
+          value={username}
+          onChange={e => setUsername(e.target.value)}
+          placeholder="Username"
+          autoFocus
+        />
+        <NumPad value={pin} onChange={setPin} onSubmit={(p) => {
+          if (username === 'test' && p === '0000') {
+            setCurrentUser('test');
+            setScreen('parentMenu');
+          } else {
+            setError('Invalid credentials.');
+            setPin('');
+          }
+        }} />
+        {error && <div style={{ color: C.red, marginTop: 12, animation: 'shake 0.3s ease' }}>{error}</div>}
       </div>
     );
   };
@@ -1052,6 +1082,7 @@ export default function App() {
 
       {screen === 'selectUser' && <SelectUserScreen />}
       {screen === 'login' && <LoginScreen />}
+      {screen === 'adminLogin' && <AdminLoginScreen />}
       {screen === 'parentMenu' && <ParentMenuScreen />}
       {screen === 'createUser' && <CreateUserScreen />}
       {screen === 'game' && gameScreen === 'home' && <HomeScreen />}

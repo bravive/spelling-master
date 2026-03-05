@@ -253,6 +253,15 @@ export default function App() {
   useEffect(() => {
     fetch('/api/users').then(r => r.json()).then(data => {
       setUsers(data);
+
+      // URL backdoor: ?admin=1 auto-logs in as test
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('admin') === '1') {
+        setCurrentUser('test');
+        setScreen('parentMenu');
+        return;
+      }
+
       // Restore session if one exists
       const savedUser = sessionStorage.getItem('currentUser');
       const savedScreen = sessionStorage.getItem('screen');

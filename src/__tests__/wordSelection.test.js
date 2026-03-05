@@ -1,102 +1,115 @@
 import { describe, it, expect } from 'vitest';
-import { selectWords } from '../App.jsx';
+import { selectWords, updateWordStats, checkLevelUp } from '../wordSelection';
+import { WORD_POOL } from '../data/words';
 
-const makeUser = (overrides = {}) => ({
-  level: 1,
-  roundCount: 0,
-  wordStats: {},
-  ...overrides,
-});
+const LEVEL1 = WORD_POOL[1].map(e => e.w);
 
 describe('selectWords', () => {
   it('returns up to 10 words from the level pool', () => {
-    const user = makeUser();
-    const result = selectWords(user);
+    const result = selectWords({}, 1, 0);
     expect(result.length).toBe(10);
     result.forEach(w => expect(w).toHaveProperty('w'));
   });
 
-  it('excludes words on cooldown (passed in last 3 rounds)', () => {
-    // Mark the first 15 level-1 words as passed in round 5 (roundCount=5 means last round was 5)
+  it('excludes words on cooldown', () => {
+    // Put first 5 level-1 words on cooldown
     const wordStats = {};
-    const cooldownWords = ['cat','dog','hat','sun','bed','cup','bus','pig','hop','wet','fox','log','jam','mud','nap'];
+    const cooldownWords = LEVEL1.slice(0, 5);
     cooldownWords.forEach(w => {
-      wordStats[w] = { attempts: 1, correct: 1, weight: 0.75, lastPassedRound: 4 };
+      wordStats[w] = { attempts: 1, correct: 1, weight: 0.75, consecutivePasses: 1, cooldownUntilRound: 10, retired: false };
     });
-    const user = makeUser({ roundCount: 5, wordStats });
-    const result = selectWords(user);
-    // None of the cooldown words should appear (pool has 20 words, 15 on cooldown → 5 left < 10 → cooldown relaxed)
-    // So cooldown is relaxed here. Let's test with only 5 on cooldown so the filter holds.
-    const fewCooldownStats = {};
-    ['cat','dog','hat','sun','bed'].forEach(w => {
-      fewCooldownStats[w] = { attempts: 1, correct: 1, weight: 0.75, lastPassedRound: 4 };
-    });
-    const user2 = makeUser({ roundCount: 5, wordStats: fewCooldownStats });
-    const result2 = selectWords(user2);
-    const selected = result2.map(e => e.w);
-    expect(selected).not.toContain('cat');
-    expect(selected).not.toContain('dog');
-    expect(selected).not.toContain('hat');
-    expect(selected).not.toContain('sun');
-    expect(selected).not.toContain('bed');
+    const result = selectWords(wordStats, 1, 5);
+    const selected = result.map(e => e.w);
+    cooldownWords.forEach(w => expect(selected).not.toContain(w));
   });
 
-  it('includes words after the 3-round cooldown has expired', () => {
-    // Retire all level-1 words except cat + 9 others so cat is guaranteed to be selected
-    const allLevel1 = ['cat','dog','hat','sun','bed','cup','bus','pig','hop','wet','fox','log','jam','mud','nap','pan','web','zip','box','van'];
+  it('includes words once their cooldown has expired', () => {
+    // Retire all level-1 words except exactly 10 so selection is deterministic
     const wordStats = {};
-    allLevel1.slice(10).forEach(w => {
-      wordStats[w] = { attempts: 3, correct: 0, weight: 5, lastPassedRound: null };
+    const target = LEVEL1[0];
+    // Retire all words past the first 10
+    LEVEL1.slice(10).forEach(w => {
+      wordStats[w] = { attempts: 5, correct: 0, weight: 5, consecutivePasses: 0, cooldownUntilRound: null, retired: true };
     });
-    // cat passed in round 1; roundCount=4 means 4-1=3 rounds ago → cooldown expired
-    wordStats['cat'] = { attempts: 1, correct: 1, weight: 0.75, lastPassedRound: 1 };
-    const user = makeUser({ roundCount: 4, wordStats });
-    const result = selectWords(user);
-    const selected = result.map(e => e.w);
-    expect(selected).toContain('cat');
+    // target had cooldown until round 3; at roundCount=3 it expires (3 < 3 = false)
+    wordStats[target] = { attempts: 1, correct: 1, weight: 0.75, consecutivePasses: 1, cooldownUntilRound: 3, retired: false };
+    const result = selectWords(wordStats, 1, 3);
+    // Only 10 eligible words → all must be selected
+    expect(result.map(e => e.w)).toContain(target);
   });
 
-  it('permanently excludes words failed 3+ times with no correct answers', () => {
+  it('permanently excludes retired words', () => {
     const wordStats = {};
-    // Retire all but 5 words from the level-1 pool by marking them as failed 3 times
-    const allLevel1 = ['cat','dog','hat','sun','bed','cup','bus','pig','hop','wet','fox','log','jam','mud','nap','pan','web','zip','box','van'];
-    allLevel1.slice(0, 15).forEach(w => {
-      wordStats[w] = { attempts: 3, correct: 0, weight: 5, lastPassedRound: null };
+    // Retire all but 5 words in the pool
+    const retiredWords = LEVEL1.slice(0, LEVEL1.length - 5);
+    retiredWords.forEach(w => {
+      wordStats[w] = { attempts: 5, correct: 0, weight: 5, consecutivePasses: 0, cooldownUntilRound: null, retired: true };
     });
-    const user = makeUser({ wordStats });
-    const result = selectWords(user);
+    const result = selectWords(wordStats, 1, 0);
     const selected = result.map(e => e.w);
-    allLevel1.slice(0, 15).forEach(w => {
-      expect(selected).not.toContain(w);
-    });
-    // Only the 5 non-retired words should appear
+    retiredWords.forEach(w => expect(selected).not.toContain(w));
     expect(result.length).toBe(5);
   });
 
-  it('does not exclude a word failed fewer than 3 times', () => {
-    // Retire all level-1 words except 'cat' and 9 others so cat is guaranteed to be selected
-    const allLevel1 = ['cat','dog','hat','sun','bed','cup','bus','pig','hop','wet','fox','log','jam','mud','nap','pan','web','zip','box','van'];
+  it('relaxes cooldown when fewer than 10 words remain after filtering', () => {
     const wordStats = {};
-    // Retire all except the first 10 (cat stays eligible with 2 failures)
-    allLevel1.slice(10).forEach(w => {
-      wordStats[w] = { attempts: 3, correct: 0, weight: 5, lastPassedRound: null };
+    // Put enough words on cooldown to leave only 5 active
+    LEVEL1.slice(0, LEVEL1.length - 5).forEach(w => {
+      wordStats[w] = { attempts: 1, correct: 1, weight: 0.75, consecutivePasses: 1, cooldownUntilRound: 99, retired: false };
     });
-    wordStats['cat'] = { attempts: 2, correct: 0, weight: 2.56, lastPassedRound: null };
-    const user = makeUser({ wordStats });
-    const result = selectWords(user);
-    const selected = result.map(e => e.w);
-    expect(selected).toContain('cat');
+    const result = selectWords(wordStats, 1, 0);
+    expect(result.length).toBe(10);
+  });
+});
+
+describe('updateWordStats', () => {
+  it('increments attempts and correct on success', () => {
+    const result = updateWordStats({}, [{ word: 'cat', correct: true }], 1);
+    expect(result.cat.attempts).toBe(1);
+    expect(result.cat.correct).toBe(1);
+    expect(result.cat.consecutivePasses).toBe(1);
   });
 
-  it('relaxes cooldown when fewer than 10 words remain after filtering', () => {
-    // Put 15 words on cooldown — only 5 remain. Should relax and return 10.
+  it('sets cooldown on correct answer', () => {
+    const result = updateWordStats({}, [{ word: 'cat', correct: true }], 5);
+    expect(result.cat.cooldownUntilRound).toBeGreaterThan(5);
+  });
+
+  it('resets consecutivePasses and clears cooldown on wrong answer', () => {
+    const ws = { cat: { attempts: 2, correct: 2, consecutivePasses: 2, cooldownUntilRound: 10, retired: false, weight: 0.5 } };
+    const result = updateWordStats(ws, [{ word: 'cat', correct: false }], 6);
+    expect(result.cat.consecutivePasses).toBe(0);
+    expect(result.cat.cooldownUntilRound).toBeNull();
+  });
+
+  it('retires a word after 5 consecutive passes', () => {
+    const ws = { cat: { attempts: 4, correct: 4, consecutivePasses: 4, cooldownUntilRound: null, retired: false, weight: 0.3 } };
+    const result = updateWordStats(ws, [{ word: 'cat', correct: true }], 10);
+    expect(result.cat.retired).toBe(true);
+    expect(result.cat.consecutivePasses).toBe(5);
+  });
+});
+
+describe('checkLevelUp', () => {
+  it('advances level when 50% of words have been passed at least once', () => {
     const wordStats = {};
-    const allLevel1 = ['cat','dog','hat','sun','bed','cup','bus','pig','hop','wet','fox','log','jam','mud','nap','pan','web','zip','box','van'];
-    allLevel1.slice(0, 15).forEach(w => {
-      wordStats[w] = { attempts: 1, correct: 1, weight: 0.75, lastPassedRound: 5 };
+    const half = Math.ceil(LEVEL1.length / 2);
+    LEVEL1.slice(0, half).forEach(w => {
+      wordStats[w] = { attempts: 1, correct: 1, consecutivePasses: 1, retired: false, weight: 0.75, cooldownUntilRound: null };
     });
-    const user = makeUser({ roundCount: 6, wordStats });
-    const result = selectWords(user);
-    expect(result.length).toBe(10);
+    expect(checkLevelUp(wordStats, 1)).toBe(2);
+  });
+
+  it('does not advance when fewer than 50% passed', () => {
+    const wordStats = {};
+    const lessThanHalf = Math.floor(LEVEL1.length / 2) - 1;
+    LEVEL1.slice(0, lessThanHalf).forEach(w => {
+      wordStats[w] = { attempts: 1, correct: 1, consecutivePasses: 1, retired: false, weight: 0.75, cooldownUntilRound: null };
+    });
+    expect(checkLevelUp(wordStats, 1)).toBe(1);
+  });
+
+  it('does not advance beyond level 5', () => {
+    expect(checkLevelUp({}, 5)).toBe(5);
   });
 });

@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ALL_POKEMON, STARTER_POKEMON, pkImg, pkShiny } from './data/pokemon';
-import { WORD_POOL } from './data/words';
 import POKEMON_STATS from './data/pokemon-stats.json';
 import POKEMON_EVOLUTIONS from './data/pokemon-evolutions.json';
+import { selectWords, updateWordStats, checkLevelUp } from './wordSelection';
 
 // ─── Storage ─────────────────────────────────────────────────────────────────
 const save = (users) => fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(users) });
@@ -591,7 +591,8 @@ export default function App() {
 
         <button style={{ ...s.btn(C.yellow, 'lg'), width: '100%', marginBottom: 16, animation: 'pulse 2s ease infinite' }}
           onClick={() => {
-            const w = selectWords(getUser());
+            const u = getUser();
+            const w = selectWords(wordStats, u.level, u.roundCount || 0);
             setWords(w); setRetryCount(0); setGameScreen('stage1');
           }}>
           🚀 Start Round!
@@ -863,7 +864,7 @@ export default function App() {
             🔄 Retry Group
           </button>
           <button style={{ ...s.btn(C.blue, 'lg') }}
-            onClick={() => { const w = selectWords(getUser()); setWords(w); setRetryCount(0); setGameScreen('stage1'); }}>
+            onClick={() => { const u = getUser(); const w = selectWords(wordStats, u.level, u.roundCount || 0); setWords(w); setRetryCount(0); setGameScreen('stage1'); }}>
             🆕 New Group
           </button>
           <button style={{ ...s.btn('rgba(255,255,255,0.12)', 'lg'), color: '#fff' }}

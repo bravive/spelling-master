@@ -944,9 +944,110 @@ export default function App() {
     const col = user?.collection || {};
     const regular = isAdmin ? ALL_POKEMON.length : Object.values(col).filter(c => c.regular).length;
     const shiny   = isAdmin ? ALL_POKEMON.length : Object.values(col).filter(c => c.shiny).length;
-    const [flippedId, setFlippedId] = useState(null);
+    const [selectedId, setSelectedId] = useState(null);
 
-    const handleClick = (id) => setFlippedId(prev => prev === id ? null : id);
+    const selectedPk = selectedId != null ? ALL_POKEMON.find(p => p.id === selectedId) : null;
+
+    const handleCardClick = (id) => setSelectedId(prev => prev === id ? null : id);
+    const closeDetail = () => setSelectedId(null);
+
+    // Detail overlay for the selected card
+    const DetailOverlay = () => {
+      if (!selectedPk) return null;
+      const owned = col[selectedPk.id] || {};
+      const isShiny   = isAdmin || owned.shiny;
+      const isRegular = isAdmin || owned.regular;
+      const unlocked  = isRegular || isShiny;
+      const stats     = POKEMON_STATS[selectedPk.slug];
+      const border    = isShiny ? '2px solid #a78bfa' : isRegular ? '2px solid #b45309' : `1px solid ${C.border}`;
+      const chain     = POKEMON_EVOLUTIONS[selectedPk.slug] || [selectedPk.slug];
+      const slugToName = slug => slug.charAt(0).toUpperCase() + slug.slice(1).replace(/-/g, ' ');
+
+      return (
+        <div
+          onClick={closeDetail}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500, padding: 16 }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: '#1e1b3a', borderRadius: 20, padding: 24, width: '100%', maxWidth: 320, border, animation: 'popIn 0.35s ease' }}
+          >
+            {/* Header */}
+            <div style={{ textAlign: 'center', marginBottom: 16 }}>
+              <img
+                src={isShiny ? pkShiny(selectedPk.slug) : pkImg(selectedPk.slug)}
+                alt={selectedPk.name}
+                style={{ width: 96, height: 96, objectFit: 'contain', filter: !unlocked ? 'brightness(0) opacity(0.3)' : 'none', animation: 'float 3s ease-in-out infinite' }}
+              />
+              <div style={{ fontSize: 22, fontWeight: 800, color: '#fff', marginTop: 8 }}>
+                {unlocked ? selectedPk.name : '???'}
+              </div>
+              {isShiny && <div style={{ color: '#a78bfa', fontWeight: 700, fontSize: 14, marginTop: 2 }}>✨ Shiny</div>}
+            </div>
+
+            {/* Evolution chain */}
+            {unlocked && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>Evolution</div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, flexWrap: 'wrap' }}>
+                  {chain.map((slug, i) => (
+                    <div key={slug} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      {i > 0 && <span style={{ fontSize: 14, color: C.muted }}>→</span>}
+                      <div style={{ textAlign: 'center', cursor: 'default' }} title={slugToName(slug)}>
+                        <img
+                          src={pkImg(slug)}
+                          alt={slugToName(slug)}
+                          style={{
+                            width: 44, height: 44, objectFit: 'contain', display: 'block',
+                            outline: slug === selectedPk.slug ? '2px solid #fbbf24' : 'none',
+                            borderRadius: 4,
+                          }}
+                        />
+                        <div style={{ fontSize: 10, color: slug === selectedPk.slug ? C.yellow : C.muted, marginTop: 2, maxWidth: 44, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {slugToName(slug)}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div style={{ height: 1, background: 'rgba(255,255,255,0.1)', marginBottom: 16 }} />
+
+            {/* Stats */}
+            {unlocked && stats ? (
+              <div>
+                <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 }}>Base Stats</div>
+                {STAT_META.map(({ key, label, title, color }) => {
+                  const val = stats[key] ?? 0;
+                  return (
+                    <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                      <div title={title} style={{ fontSize: 13, color: C.muted, width: 72, textAlign: 'right', flexShrink: 0, cursor: 'help' }}>{label}</div>
+                      <div style={{ flex: 1, background: 'rgba(255,255,255,0.1)', borderRadius: 6, height: 10, overflow: 'hidden' }}>
+                        <div style={{ width: `${(val / 255) * 100}%`, height: '100%', background: color, borderRadius: 6, transition: 'width 0.4s ease' }} />
+                      </div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', width: 28, textAlign: 'right', flexShrink: 0 }}>{val}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : unlocked ? (
+              <div style={{ color: C.muted, textAlign: 'center', fontSize: 14 }}>No stats available</div>
+            ) : (
+              <div style={{ color: C.muted, textAlign: 'center', fontSize: 14, padding: '16px 0' }}>Catch this Pokémon to reveal its stats!</div>
+            )}
+
+            <button
+              style={{ ...s.btn('rgba(255,255,255,0.12)', 'sm'), color: C.muted, width: '100%', marginTop: 20 }}
+              onClick={closeDetail}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      );
+    };
 
     return (
       <div style={{ width: '100%', maxWidth: 600 }}>
@@ -962,115 +1063,41 @@ export default function App() {
         {user?.shinyEligible && (
           <div style={{ color: '#a78bfa', textAlign: 'center', animation: 'pulse 1.5s ease infinite', marginBottom: 12, fontWeight: 700 }}>✨ Shiny chance active!</div>
         )}
+
+        <DetailOverlay />
+
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
           {ALL_POKEMON.map(pk => {
             const owned = col[pk.id] || {};
             const isShiny   = isAdmin || owned.shiny;
             const isRegular = isAdmin || owned.regular;
-            const isFlipped = flippedId === pk.id;
-            const stats     = POKEMON_STATS[pk.slug];
             const unlocked  = isRegular || isShiny;
+            const isSelected = selectedId === pk.id;
             const border    = isShiny ? '2px solid #a78bfa' : isRegular ? '2px solid #b45309' : `1px solid ${C.border}`;
 
             return (
               <div
                 key={pk.id}
-                onClick={() => handleClick(pk.id)}
-                style={{ perspective: '600px', cursor: 'pointer', height: 160 }}
+                onClick={() => handleCardClick(pk.id)}
+                style={{
+                  background: C.card, borderRadius: 12, padding: 8, textAlign: 'center',
+                  position: 'relative', cursor: 'pointer', border,
+                  animation: isShiny ? 'shimmer 2s ease infinite' : 'none',
+                  transform: isSelected ? 'scale(1.08)' : 'scale(1)',
+                  transition: 'transform 0.15s',
+                  outline: isSelected ? `2px solid ${C.yellow}` : 'none',
+                }}
               >
-                <div
-                  className={`pk-card-inner${isFlipped ? ' flipped' : ''}`}
-                  style={{ position: 'relative', width: '100%', height: '100%' }}
-                >
-                  {/* ── Front ── */}
-                  <div
-                    className="pk-face"
-                    style={{
-                      position: 'absolute', inset: 0,
-                      background: C.card, borderRadius: 12, padding: 8,
-                      textAlign: 'center', border,
-                      animation: isShiny ? 'shimmer 2s ease infinite' : 'none',
-                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                    }}
-                  >
-                    {isShiny && <div style={{ position: 'absolute', top: 2, right: 4, fontSize: 11 }}>✨</div>}
-                    <img
-                      src={isShiny ? pkShiny(pk.slug) : pkImg(pk.slug)}
-                      alt={pk.name}
-                      style={{ width: 56, height: 56, objectFit: 'contain', filter: !unlocked ? 'brightness(0) opacity(0.3)' : 'none' }}
-                    />
-                    <div style={{ fontSize: 10, color: unlocked ? '#fff' : C.muted, marginTop: 4, lineHeight: 1.2 }}>
-                      {unlocked ? pk.name : '???'}
-                    </div>
-                    {isShiny && <div style={{ fontSize: 9, fontWeight: 700, color: '#a78bfa', marginTop: 2 }}>✨ SHINY</div>}
-                  </div>
-
-                  {/* ── Back ── */}
-                  <div
-                    className="pk-back"
-                    style={{
-                      position: 'absolute', inset: 0,
-                      background: '#1e1b3a', borderRadius: 12, padding: '6px 7px',
-                      border, overflow: 'hidden',
-                    }}
-                  >
-                    {/* Name */}
-                    <div style={{ fontSize: 9, fontWeight: 700, color: unlocked ? '#fff' : C.muted, marginBottom: 4, textAlign: 'center', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-                      {unlocked ? pk.name : '???'}
-                    </div>
-
-                    {/* Evolution chain */}
-                    {unlocked && (() => {
-                      const chain = (POKEMON_EVOLUTIONS[pk.slug] || [pk.slug]).slice(0, 5);
-                      const hasMore = (POKEMON_EVOLUTIONS[pk.slug] || []).length > 5;
-                      return (
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, marginBottom: 5, flexWrap: 'nowrap', overflow: 'hidden' }}>
-                          {chain.map((slug, i) => (
-                            <div key={slug} style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
-                              {i > 0 && <span style={{ fontSize: 7, color: C.muted }}>→</span>}
-                              <div style={{ textAlign: 'center' }}>
-                                <img
-                                  src={pkImg(slug)}
-                                  alt={slug}
-                                  title={slug.charAt(0).toUpperCase() + slug.slice(1).replace(/-/g, ' ')}
-                                  style={{
-                                    width: 20, height: 20, objectFit: 'contain', display: 'block',
-                                    outline: slug === pk.slug ? '1px solid #fbbf24' : 'none',
-                                    borderRadius: 2,
-                                  }}
-                                />
-                              </div>
-                            </div>
-                          ))}
-                          {hasMore && <span style={{ fontSize: 7, color: C.muted }}>…</span>}
-                        </div>
-                      );
-                    })()}
-
-                    {/* Divider */}
-                    <div style={{ height: 1, background: 'rgba(255,255,255,0.1)', marginBottom: 4 }} />
-
-                    {/* Stats */}
-                    {stats && unlocked ? (
-                      STAT_META.map(({ key, label, title, color }) => {
-                        const val = stats[key] ?? 0;
-                        return (
-                          <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 3, marginBottom: 3 }}>
-                            <div title={title} style={{ fontSize: 7, color: C.muted, width: 28, textAlign: 'right', flexShrink: 0, cursor: 'help', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</div>
-                            <div style={{ flex: 1, background: 'rgba(255,255,255,0.1)', borderRadius: 3, height: 6, overflow: 'hidden' }}>
-                              <div style={{ width: `${(val / 255) * 100}%`, height: '100%', background: color, borderRadius: 3 }} />
-                            </div>
-                            <div style={{ fontSize: 7, color: '#fff', width: 16, flexShrink: 0, textAlign: 'right' }}>{val}</div>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <div style={{ color: C.muted, fontSize: 9, textAlign: 'center', marginTop: 8 }}>
-                        {unlocked ? 'No data' : '???'}
-                      </div>
-                    )}
-                  </div>
+                {isShiny && <div style={{ position: 'absolute', top: 2, right: 4, fontSize: 11 }}>✨</div>}
+                <img
+                  src={isShiny ? pkShiny(pk.slug) : pkImg(pk.slug)}
+                  alt={pk.name}
+                  style={{ width: 48, height: 48, objectFit: 'contain', filter: !unlocked ? 'brightness(0) opacity(0.3)' : 'none' }}
+                />
+                <div style={{ fontSize: 10, color: unlocked ? '#fff' : C.muted, marginTop: 2, lineHeight: 1.2 }}>
+                  {unlocked ? pk.name : '???'}
                 </div>
+                {isShiny && <div style={{ fontSize: 9, fontWeight: 700, color: '#a78bfa', marginTop: 1 }}>✨ SHINY</div>}
               </div>
             );
           })}

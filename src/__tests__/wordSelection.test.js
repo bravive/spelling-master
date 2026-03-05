@@ -70,9 +70,14 @@ describe('selectWords', () => {
   });
 
   it('does not exclude a word failed fewer than 3 times', () => {
-    const wordStats = {
-      cat: { attempts: 2, correct: 0, weight: 2.56, lastPassedRound: null },
-    };
+    // Retire all level-1 words except 'cat' and 9 others so cat is guaranteed to be selected
+    const allLevel1 = ['cat','dog','hat','sun','bed','cup','bus','pig','hop','wet','fox','log','jam','mud','nap','pan','web','zip','box','van'];
+    const wordStats = {};
+    // Retire all except the first 10 (cat stays eligible with 2 failures)
+    allLevel1.slice(10).forEach(w => {
+      wordStats[w] = { attempts: 3, correct: 0, weight: 5, lastPassedRound: null };
+    });
+    wordStats['cat'] = { attempts: 2, correct: 0, weight: 2.56, lastPassedRound: null };
     const user = makeUser({ wordStats });
     const result = selectWords(user);
     const selected = result.map(e => e.w);

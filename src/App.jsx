@@ -895,6 +895,7 @@ export default function App() {
                 <div style={{ fontSize: 10, color: isRegular || isShiny ? '#fff' : C.muted, marginTop: 2 }}>
                   {isRegular || isShiny ? pk.name : '???'}
                 </div>
+                {isShiny && <div style={{ fontSize: 9, fontWeight: 700, color: '#a78bfa', marginTop: 1 }}>✨ SHINY</div>}
               </div>
             );
           })}

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { ALL_POKEMON, STARTER_POKEMON, pkImg, pkShiny } from './data/pokemon';
 import { WORD_POOL } from './data/words';
 import POKEMON_STATS from './data/pokemon-stats.json';
+import POKEMON_EVOLUTIONS from './data/pokemon-evolutions.json';
 
 // ─── Storage ─────────────────────────────────────────────────────────────────
 const save = (users) => fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(users) });
@@ -929,12 +930,12 @@ export default function App() {
 
   // ── Collection ──────────────────────────────────────────────────────────────
   const STAT_META = [
-    { key: 'hp',  label: 'HP',  color: '#ef4444' },
-    { key: 'atk', label: 'ATK', color: '#f97316' },
-    { key: 'def', label: 'DEF', color: '#eab308' },
-    { key: 'spa', label: 'SpA', color: '#60a5fa' },
-    { key: 'spd', label: 'SpD', color: '#10b981' },
-    { key: 'spe', label: 'SPE', color: '#c4b5fd' },
+    { key: 'hp',  label: 'HP',              title: 'Hit Points — how much damage this Pokémon can take before fainting',        color: '#ef4444' },
+    { key: 'atk', label: 'Attack',          title: 'Attack — strength of physical moves like Tackle or Earthquake',             color: '#f97316' },
+    { key: 'def', label: 'Defense',         title: 'Defense — resistance to physical moves; higher = less damage taken',        color: '#eab308' },
+    { key: 'spa', label: 'Sp. Attack',      title: 'Special Attack — strength of special moves like Flamethrower or Surf',      color: '#60a5fa' },
+    { key: 'spd', label: 'Sp. Defense',     title: 'Special Defense — resistance to special moves; higher = less damage taken', color: '#10b981' },
+    { key: 'spe', label: 'Speed',           title: 'Speed — determines who attacks first; higher = moves before the opponent',  color: '#c4b5fd' },
   ];
 
   const CollectionScreen = () => {
@@ -975,7 +976,7 @@ export default function App() {
               <div
                 key={pk.id}
                 onClick={() => handleClick(pk.id)}
-                style={{ perspective: '600px', cursor: 'pointer', height: 118 }}
+                style={{ perspective: '600px', cursor: 'pointer', height: 160 }}
               >
                 <div
                   className={`pk-card-inner${isFlipped ? ' flipped' : ''}`}
@@ -989,18 +990,19 @@ export default function App() {
                       background: C.card, borderRadius: 12, padding: 8,
                       textAlign: 'center', border,
                       animation: isShiny ? 'shimmer 2s ease infinite' : 'none',
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                     }}
                   >
                     {isShiny && <div style={{ position: 'absolute', top: 2, right: 4, fontSize: 11 }}>✨</div>}
                     <img
                       src={isShiny ? pkShiny(pk.slug) : pkImg(pk.slug)}
                       alt={pk.name}
-                      style={{ width: 48, height: 48, objectFit: 'contain', filter: !unlocked ? 'brightness(0) opacity(0.3)' : 'none' }}
+                      style={{ width: 56, height: 56, objectFit: 'contain', filter: !unlocked ? 'brightness(0) opacity(0.3)' : 'none' }}
                     />
-                    <div style={{ fontSize: 10, color: unlocked ? '#fff' : C.muted, marginTop: 2, lineHeight: 1.2 }}>
+                    <div style={{ fontSize: 10, color: unlocked ? '#fff' : C.muted, marginTop: 4, lineHeight: 1.2 }}>
                       {unlocked ? pk.name : '???'}
                     </div>
-                    {isShiny && <div style={{ fontSize: 9, fontWeight: 700, color: '#a78bfa', marginTop: 1 }}>✨ SHINY</div>}
+                    {isShiny && <div style={{ fontSize: 9, fontWeight: 700, color: '#a78bfa', marginTop: 2 }}>✨ SHINY</div>}
                   </div>
 
                   {/* ── Back ── */}
@@ -1008,28 +1010,62 @@ export default function App() {
                     className="pk-back"
                     style={{
                       position: 'absolute', inset: 0,
-                      background: '#1e1b3a', borderRadius: 12, padding: '6px 8px',
-                      border,
+                      background: '#1e1b3a', borderRadius: 12, padding: '6px 7px',
+                      border, overflow: 'hidden',
                     }}
                   >
+                    {/* Name */}
                     <div style={{ fontSize: 9, fontWeight: 700, color: unlocked ? '#fff' : C.muted, marginBottom: 4, textAlign: 'center', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
                       {unlocked ? pk.name : '???'}
                     </div>
+
+                    {/* Evolution chain */}
+                    {unlocked && (() => {
+                      const chain = (POKEMON_EVOLUTIONS[pk.slug] || [pk.slug]).slice(0, 5);
+                      const hasMore = (POKEMON_EVOLUTIONS[pk.slug] || []).length > 5;
+                      return (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, marginBottom: 5, flexWrap: 'nowrap', overflow: 'hidden' }}>
+                          {chain.map((slug, i) => (
+                            <div key={slug} style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+                              {i > 0 && <span style={{ fontSize: 7, color: C.muted }}>→</span>}
+                              <div style={{ textAlign: 'center' }}>
+                                <img
+                                  src={pkImg(slug)}
+                                  alt={slug}
+                                  title={slug.charAt(0).toUpperCase() + slug.slice(1).replace(/-/g, ' ')}
+                                  style={{
+                                    width: 20, height: 20, objectFit: 'contain', display: 'block',
+                                    outline: slug === pk.slug ? '1px solid #fbbf24' : 'none',
+                                    borderRadius: 2,
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                          {hasMore && <span style={{ fontSize: 7, color: C.muted }}>…</span>}
+                        </div>
+                      );
+                    })()}
+
+                    {/* Divider */}
+                    <div style={{ height: 1, background: 'rgba(255,255,255,0.1)', marginBottom: 4 }} />
+
+                    {/* Stats */}
                     {stats && unlocked ? (
-                      STAT_META.map(({ key, label, color }) => {
+                      STAT_META.map(({ key, label, title, color }) => {
                         const val = stats[key] ?? 0;
                         return (
-                          <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 3, marginBottom: 2 }}>
-                            <div style={{ fontSize: 7, color: C.muted, width: 18, textAlign: 'right', flexShrink: 0 }}>{label}</div>
+                          <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 3, marginBottom: 3 }}>
+                            <div title={title} style={{ fontSize: 7, color: C.muted, width: 28, textAlign: 'right', flexShrink: 0, cursor: 'help', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</div>
                             <div style={{ flex: 1, background: 'rgba(255,255,255,0.1)', borderRadius: 3, height: 6, overflow: 'hidden' }}>
                               <div style={{ width: `${(val / 255) * 100}%`, height: '100%', background: color, borderRadius: 3 }} />
                             </div>
-                            <div style={{ fontSize: 7, color: '#fff', width: 18, flexShrink: 0 }}>{val}</div>
+                            <div style={{ fontSize: 7, color: '#fff', width: 16, flexShrink: 0, textAlign: 'right' }}>{val}</div>
                           </div>
                         );
                       })
                     ) : (
-                      <div style={{ color: C.muted, fontSize: 9, textAlign: 'center', marginTop: 16 }}>
+                      <div style={{ color: C.muted, fontSize: 9, textAlign: 'center', marginTop: 8 }}>
                         {unlocked ? 'No data' : '???'}
                       </div>
                     )}

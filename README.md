@@ -25,7 +25,7 @@ A daily spelling practice web app for elementary school kids (K–5). Kids memor
 **Stage 2 — Listen & Spell**
 - Words are hidden; the app picks a random unplayed word and reads it aloud automatically (3×)
 - Unlimited replay via button
-- On-screen letter buttons + full physical keyboard support
+- On-screen QWERTY keyboard (matches physical keyboard layout) + full physical keyboard support
 - 3 attempts per word: correct earns praise, wrong clears the input, third wrong reveals the answer
 - Progress tracker shows checkmarks, crosses, current word, and remaining words
 
@@ -133,7 +133,10 @@ src/
     words.js     — Word bank (5 levels, each with word + example sentence)
     pokemon.js   — 60-Pokémon roster with image URL helpers
   __tests__/
-    auth.test.js — Unit tests for PIN hashing, JWT, and auth helpers
+    auth.test.js              — Unit tests for PIN hashing, JWT, and auth helpers
+    api.test.js               — Integration tests for all REST API endpoints
+    wordSelection.test.js     — Unit tests for word selection, stats, and level-up logic
+    server.production.test.js — Integration tests for production static-file serving
 ```
 
 ## Deploying to Railway

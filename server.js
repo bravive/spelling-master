@@ -179,8 +179,14 @@ app.delete('/api/users/:id', requireAdmin, (req, res) => {
 if (process.env.NODE_ENV === 'production') {
   const distPath = join(__dirname, 'dist');
   app.use(express.static(distPath));
-  app.get('*', (_req, res) => res.sendFile(join(distPath, 'index.html')));
+  // Express 5 requires a named wildcard — bare '*' throws in path-to-regexp v8
+  app.get('/*path', (_req, res) => res.sendFile(join(distPath, 'index.html')));
 }
 
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`Spell Master API running on http://localhost:${PORT}`));
+export { app };
+
+// Only bind when run directly (not imported by tests)
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const PORT = process.env.PORT || 3001;
+  app.listen(PORT, () => console.log(`Spell Master API running on http://localhost:${PORT}`));
+}

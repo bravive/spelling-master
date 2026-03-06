@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { makeAuthFetch } from './authFetch';
 import { ALL_POKEMON } from './data/pokemon';
 import { selectWords, updateWordStats, checkLevelUp } from './wordSelection';
 import { computeWeeklyScore } from './weeklyScoring';
@@ -38,7 +39,9 @@ export default function App() {
   const [weeklyStats, setWeeklyStats] = useState({});
 
   useEffect(() => {
-    fetch('/api/weekly-words').then(r => r.json()).then(setWeeklyWords).catch(() => {});
+    fetch('/api/weekly-words').then(r => r.json()).then(weeks =>
+      setWeeklyWords(weeks.map(w => ({ ...w, id: w.id || w.weekId })))
+    ).catch(() => {});
   }, []);
 
   // Per-user data fetched from their dedicated API endpoints after login
@@ -55,10 +58,10 @@ export default function App() {
       return;
     }
     const headers = { Authorization: `Bearer ${jwt}` };
-    fetch('/api/weekly-stats', { headers }).then(r => r.json()).then(setWeeklyStats).catch(() => {});
-    fetch('/api/wordstats', { headers }).then(r => r.json()).then(setWordStats).catch(() => {});
-    fetch('/api/roundhistory', { headers }).then(r => r.json()).then(d => setRoundHistory(d.roundHistory || [])).catch(() => {});
-    fetch('/api/trophy', { headers }).then(r => r.json()).then(setTrophyData).catch(() => {});
+    apiFetch('/api/weekly-stats', { headers }).then(r => r.json()).then(setWeeklyStats).catch(() => {});
+    apiFetch('/api/wordstats', { headers }).then(r => r.json()).then(setWordStats).catch(() => {});
+    apiFetch('/api/roundhistory', { headers }).then(r => r.json()).then(d => setRoundHistory(d.roundHistory || [])).catch(() => {});
+    apiFetch('/api/trophy', { headers }).then(r => r.json()).then(setTrophyData).catch(() => {});
   }, [jwt, currentUser]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -123,26 +126,35 @@ export default function App() {
 
   const saveUsers = setUsers;
 
+  // Redirect to login on any 401 (expired/invalid JWT)
+  const logout = useCallback(() => {
+    setCurrentUser(null);
+    setJwt(null);
+    setScreen('selectUser');
+  }, []);
+
+  const apiFetch = useMemo(() => makeAuthFetch(logout), [logout]);
+
   const saveUserToServer = useCallback((userId, userData) => {
     if (!jwt) return;
     const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${jwt}` };
-    fetch('/api/users/me', { method: 'PUT', headers, body: JSON.stringify(userData) });
+    apiFetch('/api/users/me', { method: 'PUT', headers, body: JSON.stringify(userData) }).catch(() => {});
     if (userData.collection !== undefined) {
-      fetch('/api/trophy', {
+      apiFetch('/api/trophy', {
         method: 'PUT', headers,
         body: JSON.stringify({ collection: userData.collection, shinyEligible: userData.shinyEligible ?? false, consecutiveRegular: userData.consecutiveRegular ?? 0 }),
-      });
+      }).catch(() => {});
     }
     if (userData.wordStats) {
-      fetch('/api/wordstats', { method: 'PUT', headers, body: JSON.stringify(userData.wordStats) });
+      apiFetch('/api/wordstats', { method: 'PUT', headers, body: JSON.stringify(userData.wordStats) }).catch(() => {});
     }
     if (userData.roundHistory) {
-      fetch('/api/roundhistory', {
+      apiFetch('/api/roundhistory', {
         method: 'PUT', headers,
         body: JSON.stringify({ roundHistory: userData.roundHistory, bestScores: userData.bestScores ?? {} }),
-      });
+      }).catch(() => {});
     }
-  }, [jwt]);
+  }, [jwt, apiFetch]);
 
   const getUser = useCallback(() => users[currentUser] || null, [users, currentUser]);
 
@@ -242,11 +254,11 @@ export default function App() {
 
     // Save to API
     if (jwt) {
-      fetch(`/api/weekly-stats/${activeWeekId}`, {
+      apiFetch(`/api/weekly-stats/${activeWeekId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` },
         body: JSON.stringify(updated),
-      });
+      }).catch(() => {});
     }
     setWeeklyStats(prev2 => ({ ...prev2, [activeWeekId]: updated }));
 
@@ -289,7 +301,7 @@ export default function App() {
     if (newUnlocks.length) setUnlockQueue(newUnlocks);
 
     return { earned, creditBreakdown: breakdown };
-  }, [users, currentUser, activeWeekId, weeklyStats, weeklyWords, jwt, trophyData, saveUserToServer]);
+  }, [users, currentUser, activeWeekId, weeklyStats, weeklyWords, jwt, trophyData, saveUserToServer, apiFetch]);
 
   const handleWeeklyQuit = useCallback((partialResults) => {
     if (partialResults.length > 0) {

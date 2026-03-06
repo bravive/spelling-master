@@ -562,3 +562,40 @@ describe('GET/PUT /api/weekly-stats', () => {
     expect(res.body).toEqual({});
   });
 });
+
+// ── Invalid / expired JWT → 401 on every protected route ─────────────────────
+describe('Invalid JWT returns 401 on all protected routes', () => {
+  const BAD_TOKEN = 'Bearer invalid.jwt.token';
+  const EXPIRED_TOKEN = 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.' +
+    'eyJpZCI6ImFiYyIsImlhdCI6MTYwMDAwMDAwMCwiZXhwIjoxNjAwMDAwMDAxfQ.' +
+    'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+
+  const protectedRoutes = [
+    { method: 'get',  path: '/api/trophy' },
+    { method: 'put',  path: '/api/trophy' },
+    { method: 'get',  path: '/api/wordstats' },
+    { method: 'put',  path: '/api/wordstats' },
+    { method: 'get',  path: '/api/roundhistory' },
+    { method: 'put',  path: '/api/roundhistory' },
+    { method: 'get',  path: '/api/weekly-stats' },
+    { method: 'put',  path: '/api/weekly-stats/w2026-10' },
+    { method: 'put',  path: '/api/users/me' },
+  ];
+
+  for (const { method, path } of protectedRoutes) {
+    it(`${method.toUpperCase()} ${path} returns 401 for a malformed token`, async () => {
+      const res = await request(app)[method](path).set('Authorization', BAD_TOKEN).send({});
+      expect(res.status).toBe(401);
+    });
+
+    it(`${method.toUpperCase()} ${path} returns 401 for an expired token`, async () => {
+      const res = await request(app)[method](path).set('Authorization', EXPIRED_TOKEN).send({});
+      expect(res.status).toBe(401);
+    });
+
+    it(`${method.toUpperCase()} ${path} returns 401 with no Authorization header`, async () => {
+      const res = await request(app)[method](path).send({});
+      expect(res.status).toBe(401);
+    });
+  }
+});

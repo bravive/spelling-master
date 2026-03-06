@@ -82,11 +82,13 @@ A daily spelling practice web app for elementary school kids (K–5). Kids memor
 
 ### Environment Variables
 
-| Variable | Default | Description |
-|---|---|---|
-| `JWT_SECRET` | `dev-secret-change-in-production` | Secret for signing JWTs — **must be set in production** |
-| `ADMIN_PIN` | `0000` | PIN for the admin (`test`) account |
-| `PORT` | `3001` | Port for the Express API server |
+| Variable | Required in Production | Default | Description |
+|---|---|---|---|
+| `JWT_SECRET` | **Yes** | `dev-secret-do-not-use-in-production` | Secret for signing JWTs — server refuses to start in production without this |
+| `ADMIN_PIN` | No | `0000` | PIN for the admin (`test`) account |
+| `PORT` | No | `3001` | Port for the Express API server |
+| `RAILWAY_VOLUME_MOUNT_PATH` | No | `<repo>/data` | Directory for `users.json`; set automatically by Railway when a volume is attached |
+| `NODE_ENV` | No | _(unset)_ | Set to `production` to enable static file serving and enforce `JWT_SECRET` |
 
 ### Install & Run
 
@@ -144,12 +146,14 @@ src/
    |---|---|---|
    | `JWT_SECRET` | **Yes** | Any long random string — server won't start without it |
    | `ADMIN_PIN` | No | Defaults to `0000` |
+   | `NODE_ENV` | **Yes** | Set to `production` |
 
-   Railway sets `PORT` automatically — do not override it.
+   Railway sets `PORT` and `RAILWAY_VOLUME_MOUNT_PATH` automatically — do not override them.
 
 3. **Add a Volume** for data persistence (user profiles survive redeploys):
    - Railway dashboard → your service → Volumes → "New Volume"
-   - Mount path: `/app/data`
+   - Set mount path to any absolute path (e.g. `/data`)
+   - Railway automatically sets `RAILWAY_VOLUME_MOUNT_PATH` to that path; the server uses it for `users.json`
 
 4. **Deploy** — Railway auto-detects the `build` and `start` scripts from `railway.json`:
    - Build: `npm run build` (compiles React to `dist/`)

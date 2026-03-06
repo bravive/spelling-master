@@ -7,7 +7,7 @@ import bcrypt from 'bcryptjs';
 import { rateLimit } from 'express-rate-limit';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = join(__dirname, 'data');
+const DATA_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH || join(__dirname, 'data');
 const DATA_FILE = join(DATA_DIR, 'users.json');
 const ADMIN_KEY = 'test';
 

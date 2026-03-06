@@ -15,9 +15,6 @@ dist-ssr
 # User data
 data/users.json
 
-# Downloaded Pokemon sprites (run scripts/download-pokemon.js to regenerate)
-public/pokemon/
-
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -2,12 +2,17 @@ import express from 'express';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import jwt from 'jsonwebtoken';
-import bcrypt from 'bcryptjs';
-import { randomUUID } from 'crypto';
 import { rateLimit } from 'express-rate-limit';
-import { connectDb, usersCol, collectionsCol, wordstatsCol, roundhistoryCol } from './src/db.js';
+import { connectDb } from './src/db.js';
+import {
+  getAllUsers, findUser, findUserById, createUser, checkPin, updateUser, deleteUser,
+  getCollection, saveCollection,
+  getWordStats, saveWordStats,
+  getRoundHistory, saveRoundHistory,
+} from './src/store.js';
 
 const ADMIN_KEY = 'test';
+const ADMIN_ID  = 'admin';
 
 const DEV_JWT_SECRET = 'dev-secret-do-not-use-in-production';
 const DEV_ADMIN_PIN  = '0000';
@@ -21,17 +26,9 @@ if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const now = () => new Date();
 
-// Strip internal fields before sending to client
-const publicUser = ({ pin: _pin, _id: __id, ...rest }) => rest;
-
-const upsert = (col, userId, data) =>
-  col.updateOne(
-    { userId },
-    { $set: { ...data, updated_at: now() }, $setOnInsert: { _id: randomUUID(), created_at: now() } },
-    { upsert: true }
-  );
+// Rename _id → id and strip pin before sending to client
+const publicUser = ({ pin: _pin, _id, ...rest }) => ({ id: _id, ...rest });
 
 // ── Express ───────────────────────────────────────────────────────────────────
 const app = express();
@@ -53,7 +50,7 @@ app.use((req, res, next) => {
     if (auth?.startsWith('Bearer ')) {
       try {
         const payload = jwt.verify(auth.slice(7), JWT_SECRET);
-        user = payload.isAdmin ? 'admin' : payload.userId;
+        user = payload.isAdmin ? 'admin' : payload.id;
       } catch { user = 'invalid-token'; }
     }
     const status = res.statusCode;
@@ -94,20 +91,17 @@ const requireAdmin = (req, res, next) => {
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 
-// GET /ping
-app.get('/ping', (_req, res) => {
-  res.json({ ok: true, db: 'mongodb' });
-});
+app.get('/ping', (_req, res) => res.json({ ok: true, db: 'mongodb' }));
 
-// GET /api/users — public profile list, no PINs
+// GET /api/users — public profile list, keyed by UUID
 app.get('/api/users', async (_req, res) => {
-  const users = await usersCol().find({}).toArray();
+  const users = await getAllUsers();
   const pub = {};
-  for (const u of users) pub[u.userId] = publicUser(u);
+  for (const u of users) pub[u._id] = publicUser(u);
   res.json(pub);
 });
 
-// POST /api/auth/login — validate PIN, return JWT
+// POST /api/auth/login — validate PIN, return JWT with user UUID
 app.post('/api/auth/login', loginLimiter, async (req, res) => {
   const { userId, pin } = req.body;
   if (!userId || typeof pin !== 'string')
@@ -115,27 +109,17 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
 
   if (userId === ADMIN_KEY) {
     if (pin !== ADMIN_PIN) return res.status(401).json({ error: 'Wrong PIN' });
-    const token = jwt.sign({ userId: ADMIN_KEY, isAdmin: true }, JWT_SECRET, { expiresIn: '8h' });
+    const token = jwt.sign({ id: ADMIN_ID, isAdmin: true }, JWT_SECRET, { expiresIn: '8h' });
     return res.json({ token, user: { name: 'Admin', isAdmin: true } });
   }
 
-  const user = await usersCol().findOne({ userId });
+  const user = await findUser(userId);
   if (!user) return res.status(401).json({ error: 'Wrong PIN' });
 
-  let match;
-  if (typeof user.pin === 'string' && user.pin.startsWith('$2')) {
-    match = await bcrypt.compare(pin, user.pin);
-  } else {
-    match = user.pin === pin;
-    if (match) {
-      const hashed = await bcrypt.hash(pin, 10);
-      await upsert(usersCol(), userId, { pin: hashed });
-    }
-  }
-
+  const match = await checkPin(user, pin);
   if (!match) return res.status(401).json({ error: 'Wrong PIN' });
 
-  const token = jwt.sign({ userId, isAdmin: false }, JWT_SECRET, { expiresIn: '8h' });
+  const token = jwt.sign({ id: user._id, isAdmin: false }, JWT_SECRET, { expiresIn: '8h' });
   res.json({ token, user: publicUser(user) });
 });
 
@@ -148,93 +132,58 @@ app.post('/api/users', async (req, res) => {
   if (key === ADMIN_KEY)           return res.status(400).json({ error: 'That name is reserved' });
   if (!/^[a-z0-9_]+$/.test(key))  return res.status(400).json({ error: 'Invalid key format' });
 
-  const exists = await usersCol().findOne({ userId: key });
-  if (exists) return res.status(409).json({ error: 'Name already taken' });
+  if (await findUser(key)) return res.status(409).json({ error: 'Name already taken' });
 
-  const hashedPin = await bcrypt.hash(pin, 10);
-  const t = now();
-  const user = {
-    _id: randomUUID(), userId: key,
-    name, pin: hashedPin, starterId, starterSlug,
-    level: 1, totalCredits: 0, creditBank: 0, streak: 0,
-    lastPlayed: null, streakDates: [], caught: 0, roundCount: 0,
-    created_at: t, updated_at: t,
-  };
-  await usersCol().insertOne(user);
-
-  // Initialise related collections
-  const colBase = { created_at: t, updated_at: t };
-  await Promise.all([
-    collectionsCol().insertOne({ _id: randomUUID(), userId: key, collection: {}, shinyEligible: false, consecutiveRegular: 0, ...colBase }),
-    wordstatsCol().insertOne({ _id: randomUUID(), userId: key, stats: {}, ...colBase }),
-    roundhistoryCol().insertOne({ _id: randomUUID(), userId: key, roundHistory: [], bestScores: {}, ...colBase }),
-  ]);
-
+  const user = await createUser({ key, name, pin, starterId, starterSlug });
   res.status(201).json({ ok: true, user: publicUser(user) });
 });
 
 // PUT /api/users/me — save game state for current user
 app.put('/api/users/me', requireAuth, async (req, res) => {
-  const userId = req.jwtUser.userId;
-  const exists = await usersCol().findOne({ userId });
-  if (!exists) return res.status(404).json({ error: 'User not found' });
+  const { id } = req.jwtUser;
+  if (!await findUserById(id)) return res.status(404).json({ error: 'User not found' });
 
-  const { pin: _pin, _id: __id, ...updates } = req.body;
-  await upsert(usersCol(), userId, updates);
+  const { pin: _pin, _id: __id, id: _id2, ...updates } = req.body;
+  await updateUser(id, updates);
   res.json({ ok: true });
 });
 
-// DELETE /api/users/:id — admin only
+// DELETE /api/users/:id — admin only, id is UUID
 app.delete('/api/users/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
-  if (id === ADMIN_KEY) return res.status(400).json({ error: 'Cannot delete admin' });
+  if (id === ADMIN_ID) return res.status(400).json({ error: 'Cannot delete admin' });
 
-  const result = await usersCol().deleteOne({ userId: id });
-  if (result.deletedCount === 0) return res.status(404).json({ error: 'User not found' });
-
-  // Clean up related collections
-  await Promise.all([
-    collectionsCol().deleteOne({ userId: id }),
-    wordstatsCol().deleteOne({ userId: id }),
-    roundhistoryCol().deleteOne({ userId: id }),
-  ]);
+  const deleted = await deleteUser(id);
+  if (!deleted) return res.status(404).json({ error: 'User not found' });
   res.json({ ok: true });
 });
 
-// GET /api/collection — current user's Pokémon collection
 app.get('/api/collection', requireAuth, async (req, res) => {
-  const userId = req.jwtUser.userId;
-  const doc = await collectionsCol().findOne({ userId });
+  const doc = await getCollection(req.jwtUser.id);
   res.json(doc ?? { collection: {}, shinyEligible: false, consecutiveRegular: 0 });
 });
 
-// PUT /api/collection — save current user's Pokémon collection
 app.put('/api/collection', requireAuth, async (req, res) => {
-  await upsert(collectionsCol(), req.jwtUser.userId, req.body);
+  await saveCollection(req.jwtUser.id, req.body);
   res.json({ ok: true });
 });
 
-// GET /api/wordstats — current user's word stats
 app.get('/api/wordstats', requireAuth, async (req, res) => {
-  const doc = await wordstatsCol().findOne({ userId: req.jwtUser.userId });
-  res.json(doc?.stats ?? {});
+  res.json(await getWordStats(req.jwtUser.id));
 });
 
-// PUT /api/wordstats — save current user's word stats
 app.put('/api/wordstats', requireAuth, async (req, res) => {
-  await upsert(wordstatsCol(), req.jwtUser.userId, { stats: req.body });
+  await saveWordStats(req.jwtUser.id, req.body);
   res.json({ ok: true });
 });
 
-// GET /api/roundhistory — current user's round history
 app.get('/api/roundhistory', requireAuth, async (req, res) => {
-  const doc = await roundhistoryCol().findOne({ userId: req.jwtUser.userId });
+  const doc = await getRoundHistory(req.jwtUser.id);
   res.json(doc ?? { roundHistory: [], bestScores: {} });
 });
 
-// PUT /api/roundhistory — save current user's round history
 app.put('/api/roundhistory', requireAuth, async (req, res) => {
-  await upsert(roundhistoryCol(), req.jwtUser.userId, req.body);
+  await saveRoundHistory(req.jwtUser.id, req.body);
   res.json({ ok: true });
 });
 

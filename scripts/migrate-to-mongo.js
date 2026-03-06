@@ -73,11 +73,14 @@ const run = async () => {
   }));
   await insertMany(db.collection('users'), userDocs);
 
+  // Build username → UUID map for foreign key references
+  const uuidByUsername = Object.fromEntries(userDocs.map(u => [u.userId, u._id]));
+
   // ── collections ────────────────────────────────────────────────────────────
   const colJson = readJson('collection');
-  const colDocs = Object.entries(colJson).map(([userId, c]) => ({
+  const colDocs = Object.entries(colJson).map(([username, c]) => ({
     _id: randomUUID(),
-    userId,
+    userId: uuidByUsername[username] ?? username,
     collection: c.collection ?? {},
     shinyEligible: c.shinyEligible ?? false,
     consecutiveRegular: c.consecutiveRegular ?? 0,
@@ -88,9 +91,9 @@ const run = async () => {
 
   // ── wordstats ──────────────────────────────────────────────────────────────
   const wsJson = readJson('wordstats');
-  const wsDocs = Object.entries(wsJson).map(([userId, stats]) => ({
+  const wsDocs = Object.entries(wsJson).map(([username, stats]) => ({
     _id: randomUUID(),
-    userId,
+    userId: uuidByUsername[username] ?? username,
     stats,           // { [word]: { attempts, correct, weight, ... } }
     created_at: now,
     updated_at: now,
@@ -99,9 +102,9 @@ const run = async () => {
 
   // ── roundhistory ───────────────────────────────────────────────────────────
   const rhJson = readJson('roundhistory');
-  const rhDocs = Object.entries(rhJson).map(([userId, rh]) => ({
+  const rhDocs = Object.entries(rhJson).map(([username, rh]) => ({
     _id: randomUUID(),
-    userId,
+    userId: uuidByUsername[username] ?? username,
     roundHistory: rh.roundHistory ?? [],
     bestScores: rh.bestScores ?? {},
     created_at: now,

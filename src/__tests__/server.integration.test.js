@@ -50,17 +50,19 @@ describe('GET /ping', () => {
 
 // ── Create user ───────────────────────────────────────────────────────────────
 describe('POST /api/users', () => {
-  it('creates a user and initialises related collections', async () => {
+  it('creates a user and initialises related collections keyed by UUID', async () => {
     const res = await createUser();
     expect(res.status).toBe(201);
     expect(res.body.user.userId).toBe('alice');
+    expect(res.body.user.id).toMatch(/^[0-9a-f-]{36}$/);
     expect(res.body.user.pin).toBeUndefined();
 
-    const col = await collectionsCol().findOne({ userId: 'alice' });
+    const uuid = res.body.user.id;
+    const col = await collectionsCol().findOne({ userId: uuid });
     expect(col).not.toBeNull();
-    const ws = await wordstatsCol().findOne({ userId: 'alice' });
+    const ws = await wordstatsCol().findOne({ userId: uuid });
     expect(ws).not.toBeNull();
-    const rh = await roundhistoryCol().findOne({ userId: 'alice' });
+    const rh = await roundhistoryCol().findOne({ userId: uuid });
     expect(rh).not.toBeNull();
   });
 
@@ -99,11 +101,12 @@ describe('POST /api/users', () => {
 describe('POST /api/auth/login', () => {
   beforeEach(() => createUser());
 
-  it('returns JWT on correct PIN', async () => {
+  it('returns JWT and user with id on correct PIN', async () => {
     const res = await loginUser();
     expect(res.status).toBe(200);
     expect(res.body.token).toBeDefined();
     expect(res.body.user.pin).toBeUndefined();
+    expect(res.body.user.id).toMatch(/^[0-9a-f-]{36}$/);
   });
 
   it('returns 401 on wrong PIN', async () => {
@@ -162,6 +165,15 @@ describe('PUT /api/users/me', () => {
     const res = await request(app).put('/api/users/me').send({ level: 2 });
     expect(res.status).toBe(401);
   });
+
+  it('persists weeklyProgress', async () => {
+    const wp = { 'w2026-10': { firstAttemptCorrect: ['cat'], completed: true, perfectRun: false, creditsEarned: 0.5, lastDailyReward: null } };
+    await request(app).put('/api/users/me').set('Authorization', `Bearer ${token}`).send({ weeklyProgress: wp });
+    const doc = await usersCol().findOne({ userId: 'alice' });
+    expect(doc.weeklyProgress['w2026-10'].firstAttemptCorrect).toContain('cat');
+    expect(doc.weeklyProgress['w2026-10'].completed).toBe(true);
+    expect(doc.weeklyProgress['w2026-10'].creditsEarned).toBe(0.5);
+  });
 });
 
 // ── Collection ────────────────────────────────────────────────────────────────
@@ -189,11 +201,12 @@ describe('GET/PUT /api/collection', () => {
   });
 
   it('sets updated_at on PUT', async () => {
-    const before = await collectionsCol().findOne({ userId: 'alice' });
+    const user = await usersCol().findOne({ userId: 'alice' });
+    const before = await collectionsCol().findOne({ userId: user._id });
     await new Promise(r => setTimeout(r, 10));
     await request(app).put('/api/collection').set('Authorization', `Bearer ${token}`)
       .send({ collection: {}, shinyEligible: false, consecutiveRegular: 0 });
-    const after = await collectionsCol().findOne({ userId: 'alice' });
+    const after = await collectionsCol().findOne({ userId: user._id });
     expect(after.updated_at.getTime()).toBeGreaterThan(before.updated_at.getTime());
   });
 });
@@ -248,35 +261,37 @@ describe('GET/PUT /api/roundhistory', () => {
 // ── Delete user ───────────────────────────────────────────────────────────────
 describe('DELETE /api/users/:id', () => {
   let adminToken;
+  let aliceId;
   beforeEach(async () => {
-    await createUser();
+    const created = await createUser();
+    aliceId = created.body.user.id;
     const res = await loginUser('test', '0000');
     adminToken = res.body.token;
   });
 
   it('admin can delete a user and all related data', async () => {
     const res = await request(app)
-      .delete('/api/users/alice')
+      .delete(`/api/users/${aliceId}`)
       .set('Authorization', `Bearer ${adminToken}`);
     expect(res.status).toBe(200);
     expect(await usersCol().findOne({ userId: 'alice' })).toBeNull();
-    expect(await collectionsCol().findOne({ userId: 'alice' })).toBeNull();
-    expect(await wordstatsCol().findOne({ userId: 'alice' })).toBeNull();
-    expect(await roundhistoryCol().findOne({ userId: 'alice' })).toBeNull();
+    expect(await collectionsCol().findOne({ userId: aliceId })).toBeNull();
+    expect(await wordstatsCol().findOne({ userId: aliceId })).toBeNull();
+    expect(await roundhistoryCol().findOne({ userId: aliceId })).toBeNull();
   });
 
   it('returns 403 for non-admin token', async () => {
     await createUser({ key: 'bob', name: 'Bob' });
     const bobToken = (await loginUser('bob', '1234')).body.token;
     const res = await request(app)
-      .delete('/api/users/alice')
+      .delete(`/api/users/${aliceId}`)
       .set('Authorization', `Bearer ${bobToken}`);
     expect(res.status).toBe(403);
   });
 
   it('cannot delete admin account', async () => {
     const res = await request(app)
-      .delete('/api/users/test')
+      .delete('/api/users/admin')
       .set('Authorization', `Bearer ${adminToken}`);
     expect(res.status).toBe(400);
   });

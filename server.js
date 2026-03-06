@@ -175,11 +175,15 @@ app.delete('/api/users/:id', requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
+// ── Health check ──────────────────────────────────────────────────────────────
+app.get('/ping', (_req, res) => res.json({ ok: true }));
+
 // ── Serve React app in production ─────────────────────────────────────────────
 if (process.env.NODE_ENV === 'production') {
   const distPath = join(__dirname, 'dist');
   app.use(express.static(distPath));
-  app.get('*', (_req, res) => res.sendFile(join(distPath, 'index.html')));
+  // Express 5 requires a named wildcard — bare '*' throws in path-to-regexp v8
+  app.get('/*path', (_req, res) => res.sendFile(join(distPath, 'index.html')));
 }
 
 const PORT = process.env.PORT || 3001;

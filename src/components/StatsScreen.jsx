@@ -1,4 +1,4 @@
-import { todayStr, C, s } from '../shared';
+import { todayStr, localDateStr, C, s } from '../shared';
 
 export const StatsScreen = ({ getUser, wordStats, setGameScreen }) => {
   const user = getUser();
@@ -11,7 +11,7 @@ export const StatsScreen = ({ getUser, wordStats, setGameScreen }) => {
   const today = new Date();
   const days = Array.from({ length: 30 }, (_, i) => {
     const d = new Date(today); d.setDate(d.getDate() - (29 - i));
-    return d.toISOString().slice(0, 10);
+    return localDateStr(d);
   });
 
   const recent = [...(user.roundHistory || [])].reverse().slice(0, 8);
@@ -44,8 +44,8 @@ export const StatsScreen = ({ getUser, wordStats, setGameScreen }) => {
             const isToday = d === todayStr();
             const played = (user.streakDates || []).includes(d);
             return (
-              <div key={d} style={{
-                aspectRatio: '1', borderRadius: 4,
+              <div key={d} title={d} style={{
+                aspectRatio: '1', borderRadius: 4, cursor: 'default',
                 background: played ? C.green : 'rgba(255,255,255,0.08)',
                 border: isToday ? `2px solid ${C.yellow}` : '2px solid transparent',
               }} />

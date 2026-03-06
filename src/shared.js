@@ -18,7 +18,8 @@ export const speakTimes = (text, times, onDone) => {
 export const speak = (text) => speakTimes(text, 1, null);
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-export const todayStr = () => new Date().toISOString().slice(0, 10);
+export const localDateStr = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+export const todayStr = () => localDateStr();
 
 export const newUser = (name, pin, starterId, starterSlug) => ({
   name, pin, starterId, starterSlug,

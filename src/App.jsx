@@ -156,7 +156,7 @@ export default function App() {
     else if (lastPlayed === yesterday) { streak = (streak || 0) + 1; }
     else { streak = 1; }
 
-    if (streak > 0 && streak % 3 === 0) earned += 1;
+    if (streak > 0 && streak % 3 === 0) earned += 5;
 
     creditBank = (creditBank || 0) + earned;
     totalCredits = (totalCredits || 0) + earned;
@@ -232,6 +232,7 @@ export default function App() {
       {screen === 'game' && gameScreen === 'results' && <ResultsScreen roundResults={roundResults} getUser={getUser} wordStats={wordStats} setWords={setWords} setRetryCount={setRetryCount} setGameScreen={setGameScreen} />}
       {screen === 'game' && gameScreen === 'collection' && <CollectionScreen getUser={getUser} currentUser={currentUser} setScreen={setScreen} setGameScreen={setGameScreen} />}
       {screen === 'game' && gameScreen === 'stats' && <StatsScreen getUser={getUser} wordStats={wordStats} setGameScreen={setGameScreen} />}
+
     </div>
   );
 }

@@ -1,95 +1,183 @@
 import express from 'express';
-import { readFileSync, writeFileSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
+import { rateLimit } from 'express-rate-limit';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const dataFile = (name) => join(__dirname, 'data', `${name}.json`);
+const DATA_DIR = join(__dirname, 'data');
+const DATA_FILE = join(DATA_DIR, 'users.json');
+const ADMIN_KEY = 'test';
 
-// ─── Generic shared-file helpers ─────────────────────────────────────────────
-// Each file is { [username]: { ...data } }
-const readFile  = (name) => { try { return JSON.parse(readFileSync(dataFile(name), 'utf8')); } catch { return {}; } };
-const writeFile = (name, data) => writeFileSync(dataFile(name), JSON.stringify(data, null, 2), 'utf8');
+// Dev/test defaults — intentionally hardcoded for local development.
+// Override with environment variables in production.
+const DEV_JWT_SECRET = 'dev-secret-do-not-use-in-production';
+const DEV_ADMIN_PIN  = '0000';
 
-const readEntry  = (name, username) => readFile(name)[username] || null;
-const writeEntry = (name, username, entry) => {
-  const all = readFile(name);
-  all[username] = entry;
-  writeFile(name, all);
+const JWT_SECRET = process.env.JWT_SECRET || DEV_JWT_SECRET;
+const ADMIN_PIN  = process.env.ADMIN_PIN  || DEV_ADMIN_PIN;
+
+if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+  console.error('[ERROR] JWT_SECRET env var is not set in production! Refusing to start.');
+  process.exit(1);
+}
+
+// Ensure data directory exists
+mkdirSync(DATA_DIR, { recursive: true });
+
+const readUsers = () => {
+  try { return JSON.parse(readFileSync(DATA_FILE, 'utf8')); }
+  catch { return {}; }
 };
 
-// ─── users.json helpers ───────────────────────────────────────────────────────
-const STRIP_FIELDS = new Set(['wordStats', 'collection', 'shinyEligible', 'consecutiveRegular', 'roundHistory', 'bestScores']);
-const readUsers = () => readFile('users');
 const writeUsers = (data) => {
-  const clean = {};
-  for (const [k, v] of Object.entries(data)) {
-    const entry = {};
-    for (const [f, val] of Object.entries(v)) {
-      if (!STRIP_FIELDS.has(f)) entry[f] = val;
-    }
-    clean[k] = entry;
-  }
-  writeFile('users', clean);
+  writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
 };
 
-// ─── Migration: extract embedded fields from users.json into shared files ─────
-const migrate = () => {
-  const users = readUsers();
-  let dirty = false;
-  const colAll = readFile('collection');
-  const rhAll  = readFile('roundhistory');
-  const wsAll  = readFile('wordstats');
+// Strip PIN before sending to client
+const publicUser = ({ pin: _pin, ...rest }) => rest;
 
-  for (const [username, user] of Object.entries(users)) {
-    if (user.wordStats && Object.keys(user.wordStats).length > 0) {
-      if (!wsAll[username]) wsAll[username] = user.wordStats;
-      delete user.wordStats; dirty = true;
-    }
-    const colFields = ['collection', 'shinyEligible', 'consecutiveRegular'];
-    if (colFields.some(f => f in user)) {
-      if (!colAll[username]) colAll[username] = {
-        collection: user.collection || {},
-        shinyEligible: user.shinyEligible ?? false,
-        consecutiveRegular: user.consecutiveRegular ?? 0,
-      };
-      colFields.forEach(f => delete user[f]); dirty = true;
-    }
-    const rhFields = ['roundHistory', 'bestScores'];
-    if (rhFields.some(f => f in user)) {
-      if (!rhAll[username]) rhAll[username] = {
-        roundHistory: user.roundHistory || [],
-        bestScores: user.bestScores || {},
-      };
-      rhFields.forEach(f => delete user[f]); dirty = true;
-    }
-  }
-
-  if (dirty) {
-    writeFile('users', users);
-    writeFile('wordstats', wsAll);
-    writeFile('collection', colAll);
-    writeFile('roundhistory', rhAll);
-  }
-};
-
-migrate();
-
-// ─── Express ──────────────────────────────────────────────────────────────────
 const app = express();
-app.use(express.json({ limit: '4mb' }));
+app.use(express.json({ limit: '2mb' }));
 
-app.get('/api/users', (_req, res) => res.json(readUsers()));
-app.post('/api/users', (req, res) => { writeUsers(req.body); res.json({ ok: true }); });
+// ── Rate limiting ─────────────────────────────────────────────────────────────
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Too many login attempts. Try again in 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
-app.get('/api/wordstats/:username',   (req, res) => res.json(readEntry('wordstats',   req.params.username) || {}));
-app.post('/api/wordstats/:username',  (req, res) => { writeEntry('wordstats',  req.params.username, req.body); res.json({ ok: true }); });
+// ── Auth middleware ───────────────────────────────────────────────────────────
+const requireAuth = (req, res, next) => {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
+  try {
+    req.jwtUser = jwt.verify(auth.slice(7), JWT_SECRET);
+    next();
+  } catch {
+    res.status(401).json({ error: 'Invalid or expired token' });
+  }
+};
 
-app.get('/api/collection/:username',  (req, res) => res.json(readEntry('collection',  req.params.username) || { collection: {}, shinyEligible: false, consecutiveRegular: 0 }));
-app.post('/api/collection/:username', (req, res) => { writeEntry('collection', req.params.username, req.body); res.json({ ok: true }); });
+const requireAdmin = (req, res, next) => {
+  requireAuth(req, res, () => {
+    if (!req.jwtUser.isAdmin) return res.status(403).json({ error: 'Admin only' });
+    next();
+  });
+};
 
-app.get('/api/roundhistory/:username',  (req, res) => res.json(readEntry('roundhistory',  req.params.username) || { roundHistory: [], bestScores: {} }));
-app.post('/api/roundhistory/:username', (req, res) => { writeEntry('roundhistory', req.params.username, req.body); res.json({ ok: true }); });
+// ── Routes ────────────────────────────────────────────────────────────────────
 
-const PORT = 3001;
+// GET /api/users — public profile list, no PINs
+app.get('/api/users', (_req, res) => {
+  const users = readUsers();
+  const pub = {};
+  for (const [k, u] of Object.entries(users)) pub[k] = publicUser(u);
+  res.json(pub);
+});
+
+// POST /api/auth/login — validate PIN, return JWT
+app.post('/api/auth/login', loginLimiter, async (req, res) => {
+  const { userId, pin } = req.body;
+  if (!userId || typeof pin !== 'string') {
+    return res.status(400).json({ error: 'userId and pin are required' });
+  }
+
+  // Admin login
+  if (userId === ADMIN_KEY) {
+    if (pin !== ADMIN_PIN) return res.status(401).json({ error: 'Wrong PIN' });
+    const token = jwt.sign({ userId: ADMIN_KEY, isAdmin: true }, JWT_SECRET, { expiresIn: '8h' });
+    return res.json({ token, user: { name: 'Admin', isAdmin: true } });
+  }
+
+  const users = readUsers();
+  const user  = users[userId];
+  if (!user) return res.status(401).json({ error: 'Wrong PIN' }); // don't leak "user not found"
+
+  // Support legacy plaintext PINs — hash on first successful login
+  let match;
+  if (typeof user.pin === 'string' && user.pin.startsWith('$2')) {
+    match = await bcrypt.compare(pin, user.pin);
+  } else {
+    match = user.pin === pin;
+    if (match) {
+      users[userId].pin = await bcrypt.hash(pin, 10);
+      writeUsers(users);
+    }
+  }
+
+  if (!match) return res.status(401).json({ error: 'Wrong PIN' });
+
+  const token = jwt.sign({ userId, isAdmin: false }, JWT_SECRET, { expiresIn: '8h' });
+  res.json({ token, user: publicUser(users[userId]) });
+});
+
+// POST /api/users — create new profile (open, no auth required)
+app.post('/api/users', async (req, res) => {
+  const { key, name, pin, starterId, starterSlug } = req.body;
+  if (!key || !name || !pin || !starterId || !starterSlug) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+  if (!/^\d{4}$/.test(pin))  return res.status(400).json({ error: 'PIN must be exactly 4 digits' });
+  if (key === ADMIN_KEY)     return res.status(400).json({ error: 'That name is reserved' });
+  if (!/^[a-z0-9_]+$/.test(key)) return res.status(400).json({ error: 'Invalid key format' });
+
+  const users = readUsers();
+  if (users[key]) return res.status(409).json({ error: 'Name already taken' });
+
+  const hashedPin = await bcrypt.hash(pin, 10);
+  const user = {
+    name, pin: hashedPin, starterId, starterSlug,
+    level: 1, totalCredits: 0, creditBank: 0, streak: 0,
+    lastPlayed: null, streakDates: [], collection: {},
+    shinyEligible: false, consecutiveRegular: 0,
+    wordStats: {}, roundHistory: [], bestScores: {},
+    createdAt: new Date().toISOString(),
+  };
+  users[key] = user;
+  writeUsers(users);
+  res.status(201).json({ ok: true, user: publicUser(user) });
+});
+
+// PUT /api/users/:id — save game state (own user or admin)
+app.put('/api/users/:id', requireAuth, (req, res) => {
+  const { id } = req.params;
+  if (req.jwtUser.userId !== id && !req.jwtUser.isAdmin) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  const users = readUsers();
+  if (!users[id]) return res.status(404).json({ error: 'User not found' });
+
+  // Never allow overwriting the stored PIN via this endpoint
+  const { pin: _pin, ...updates } = req.body;
+  users[id] = { ...users[id], ...updates };
+  writeUsers(users);
+  res.json({ ok: true });
+});
+
+// DELETE /api/users/:id — admin only
+app.delete('/api/users/:id', requireAdmin, (req, res) => {
+  const { id } = req.params;
+  if (id === ADMIN_KEY) return res.status(400).json({ error: 'Cannot delete admin' });
+
+  const users = readUsers();
+  if (!users[id]) return res.status(404).json({ error: 'User not found' });
+  delete users[id];
+  writeUsers(users);
+  res.json({ ok: true });
+});
+
+// ── Serve React app in production ─────────────────────────────────────────────
+if (process.env.NODE_ENV === 'production') {
+  const distPath = join(__dirname, 'dist');
+  app.use(express.static(distPath));
+  app.get('*', (_req, res) => res.sendFile(join(distPath, 'index.html')));
+}
+
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Spell Master API running on http://localhost:${PORT}`));

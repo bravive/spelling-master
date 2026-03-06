@@ -8,8 +8,12 @@ A daily spelling practice web app for elementary school kids (K–5). Kids memor
 
 ### User Profiles & Authentication
 - Multiple user profiles with avatars, names, and 4-digit PINs
+- PINs are **bcrypt-hashed** on the server — never stored in plaintext
+- Login is validated server-side; a signed **JWT** (8-hour expiry) is issued on success
+- All game-data saves require a valid JWT (`Authorization: Bearer <token>`)
+- Rate limiting: max 10 login attempts per IP per 15 minutes
+- Admin account (`test` / PIN set via `ADMIN_PIN` env var, default `0000`) can delete non-admin profiles
 - Create profile flow: pick a name, choose a starter Pokémon, set a PIN
-- Admin account (`test` / `0000`) can delete non-admin profiles
 
 ### Game Flow
 
@@ -54,17 +58,20 @@ A daily spelling practice web app for elementary school kids (K–5). Kids memor
 
 | Package | Role |
 |---|---|
+| `express` ^5.2 | REST API server |
+| `bcryptjs` ^3.0 | PIN hashing |
+| `jsonwebtoken` ^9.0 | JWT authentication |
+| `express-rate-limit` ^8.3 | Login rate limiting |
 | `react` ^19.2 | UI framework |
 | `react-dom` ^19.2 | DOM rendering |
 | `vite` ^7.3 | Dev server and build tool |
 | `@vitejs/plugin-react` ^5.1 | React Fast Refresh and JSX transform |
+| `vitest` ^4.0 | Unit tests |
 | `eslint` ^9.39 | Linting |
-| `eslint-plugin-react-hooks` ^7.0 | React hooks lint rules |
-| `eslint-plugin-react-refresh` ^0.4 | Vite HMR lint rules |
 
-**Browser APIs used (no npm packages):**
+**Browser APIs used:**
 - `window.speechSynthesis` — text-to-speech for word pronunciation
-- `localStorage` — persists all user profiles and progress (key: `spellmaster_v3`)
+- `localStorage` — stores JWT and current user ID for session persistence
 
 ---
 
@@ -73,21 +80,34 @@ A daily spelling practice web app for elementary school kids (K–5). Kids memor
 ### Prerequisites
 - Node.js 18+ and npm
 
+### Environment Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `JWT_SECRET` | `dev-secret-change-in-production` | Secret for signing JWTs — **must be set in production** |
+| `ADMIN_PIN` | `0000` | PIN for the admin (`test`) account |
+| `PORT` | `3001` | Port for the Express API server |
+
 ### Install & Run
 
 ```bash
 # Install dependencies
 npm install
 
-# Start the development server
-npm run dev
+# Start both backend (port 3001) and frontend (port 5173)
+npm start        # production mode (serves built dist/)
+
+# Or for development:
+npm run server   # Express API only
+npm run dev      # Vite dev server only (proxies /api to :3001)
 ```
 
-Open your browser at **http://localhost:5173**
+Open your browser at **http://localhost:5173** (dev) or **http://localhost:3001** (production)
 
 ### Other Commands
 
 ```bash
+npm test         # Run unit tests (Vitest)
 npm run build    # Production build (outputs to dist/)
 npm run preview  # Preview the production build locally
 npm run lint     # Run ESLint
@@ -98,12 +118,25 @@ npm run lint     # Run ESLint
 ## Project Structure
 
 ```
+server.js        — Express API (auth, user CRUD, static file serving)
+data/
+  users.json     — Persistent user storage (gitignored)
 src/
-  App.jsx          # Main app — all screens, logic, and state
-  main.jsx         # React entry point
+  App.jsx        — Main app — all screens, logic, and state
+  main.jsx       — React entry point
   data/
-    words.js       # Word bank (5 levels, each with word + example sentence)
-    pokemon.js     # 60-Pokémon roster with image URL helpers
+    words.js     — Word bank (5 levels, each with word + example sentence)
+    pokemon.js   — 60-Pokémon roster with image URL helpers
+  __tests__/
+    auth.test.js — Unit tests for PIN hashing, JWT, and auth helpers
 ```
 
-All data is stored client-side in `localStorage`. There is no backend.
+## API Endpoints
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/users` | None | Public profile list (no PINs) |
+| `POST` | `/api/auth/login` | None (rate limited) | Validate PIN, return JWT |
+| `POST` | `/api/users` | None | Create new user profile |
+| `PUT` | `/api/users/:id` | JWT (own user or admin) | Save game state |
+| `DELETE` | `/api/users/:id` | JWT (admin only) | Delete a profile |

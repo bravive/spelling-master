@@ -43,6 +43,27 @@ const app = express();
 app.set('trust proxy', 1);
 app.use(express.json({ limit: '2mb' }));
 
+// ── Request logging ───────────────────────────────────────────────────────────
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const ms = Date.now() - start;
+    const auth = req.headers.authorization;
+    let user = 'anon';
+    if (auth?.startsWith('Bearer ')) {
+      try {
+        const payload = jwt.verify(auth.slice(7), JWT_SECRET);
+        user = payload.isAdmin ? 'admin' : payload.userId;
+      } catch { user = 'invalid-token'; }
+    }
+    const status = res.statusCode;
+    const color = status >= 500 ? '\x1b[31m' : status >= 400 ? '\x1b[33m' : '\x1b[32m';
+    const reset = '\x1b[0m';
+    console.log(`${color}${status}${reset} ${req.method} ${req.path} [${user}] ${ms}ms`);
+  });
+  next();
+});
+
 // ── Rate limiting ─────────────────────────────────────────────────────────────
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,

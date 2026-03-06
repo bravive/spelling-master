@@ -9,6 +9,7 @@ import {
   getCollection, saveCollection,
   getWordStats, saveWordStats,
   getRoundHistory, saveRoundHistory,
+  getAllWeeks, getAllWeeklyStats, saveWeeklyStats,
 } from './src/store.js';
 
 const ADMIN_KEY = 'test';
@@ -184,6 +185,23 @@ app.get('/api/roundhistory', requireAuth, async (req, res) => {
 
 app.put('/api/roundhistory', requireAuth, async (req, res) => {
   await saveRoundHistory(req.jwtUser.id, req.body);
+  res.json({ ok: true });
+});
+
+// GET /api/weekly-words — all weeks sorted by startDate, no auth required
+app.get('/api/weekly-words', async (_req, res) => {
+  const weeks = await getAllWeeks();
+  res.json(weeks);
+});
+
+// GET /api/weekly-stats — all weekly stats for current user, keyed by weekId
+app.get('/api/weekly-stats', requireAuth, async (req, res) => {
+  res.json(await getAllWeeklyStats(req.jwtUser.id));
+});
+
+// PUT /api/weekly-stats/:weekId — upsert stats for one week
+app.put('/api/weekly-stats/:weekId', requireAuth, async (req, res) => {
+  await saveWeeklyStats(req.jwtUser.id, req.params.weekId, req.body);
   res.json({ ok: true });
 });
 

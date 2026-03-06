@@ -6,7 +6,7 @@ LOG_FILE := /tmp/spell-master-server.log
 restart:
 	@pkill -f "node server.js" 2>/dev/null || true
 	@sleep 0.5
-	node server.js >> $(LOG_FILE) 2>&1 &
+	node --env-file=.env server.js >> $(LOG_FILE) 2>&1 &
 	@echo "Server restarted on port 3001 (log: $(LOG_FILE))"
 
 # Tail server logs (Ctrl+C to stop)
@@ -15,7 +15,7 @@ logs:
 
 # Start API server only
 server:
-	node server.js >> $(LOG_FILE) 2>&1
+	node --env-file=.env server.js >> $(LOG_FILE) 2>&1
 
 # Start both API server and Vite dev server
 dev:
@@ -42,3 +42,7 @@ mongo-shell:
 # Import existing JSON data into MongoDB
 migrate:
 	node --env-file=.env scripts/migrate-to-mongo.js
+
+# Seed weekly words and migrate weeklyProgress → weeklychallengestats
+seed-weekly:
+	node --env-file=.env scripts/seed-weekly-words.js

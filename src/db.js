@@ -25,10 +25,12 @@ export const closeDb = async () => {
 };
 
 // ── Collection helpers ────────────────────────────────────────────────────────
-export const usersCol       = () => getDb().collection('users');
-export const collectionsCol = () => getDb().collection('collections');
-export const wordstatsCol   = () => getDb().collection('wordstats');
-export const roundhistoryCol = () => getDb().collection('roundhistory');
+export const usersCol                = () => getDb().collection('users');
+export const collectionsCol          = () => getDb().collection('collections');
+export const wordstatsCol            = () => getDb().collection('wordstats');
+export const roundhistoryCol         = () => getDb().collection('roundhistory');
+export const weeklyChallengeWordsCol = () => getDb().collection('weeklychallengewords');
+export const weeklyStatsCol          = () => getDb().collection('weeklychallengestats');
 
 // ── Indexes ───────────────────────────────────────────────────────────────────
 const ensureIndexes = async () => {
@@ -37,5 +39,9 @@ const ensureIndexes = async () => {
     collectionsCol().createIndex({ userId: 1 }, { unique: true }),
     wordstatsCol().createIndex({ userId: 1 }, { unique: true }),
     roundhistoryCol().createIndex({ userId: 1 }, { unique: true }),
+    weeklyChallengeWordsCol().createIndex({ weekId: 1 }, { unique: true }),
+    weeklyChallengeWordsCol().createIndex({ startDate: 1 }),
+    weeklyStatsCol().createIndex({ userId: 1, weekId: 1 }, { unique: true }),
+    weeklyStatsCol().createIndex({ userId: 1 }),
   ]);
 };

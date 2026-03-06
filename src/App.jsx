@@ -33,6 +33,20 @@ export default function App() {
   const [jwt, setJwt] = useState(() => sessionStorage.getItem('jwt') || null);
   const hasRestored = useRef(false);
 
+  // Weekly challenge data
+  const [weeklyWords, setWeeklyWords] = useState([]);
+  const [weeklyStats, setWeeklyStats] = useState({});
+
+  useEffect(() => {
+    fetch('/api/weekly-words').then(r => r.json()).then(setWeeklyWords).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!jwt || !currentUser) { setWeeklyStats({}); return; }
+    fetch('/api/weekly-stats', { headers: { Authorization: `Bearer ${jwt}` } })
+      .then(r => r.json()).then(setWeeklyStats).catch(() => {});
+  }, [jwt, currentUser]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     fetch('/api/users').then(r => r.json()).then(data => {
       setUsers(data);
@@ -203,11 +217,21 @@ export default function App() {
     const user = users[currentUser];
     if (!user || !activeWeekId) return { earned: 0 };
     const today = todayStr();
-    const wp = { ...(user.weeklyProgress || {}) };
-    const prev = wp[activeWeekId] || { firstAttemptCorrect: [], completed: false, perfectRun: false, creditsEarned: 0, lastDailyReward: null };
+    const prev = weeklyStats[activeWeekId] || { wordsCorrect: [], completed: false, creditsEarned: 0, lastDailyReward: null };
 
-    const { earned, breakdown, updated } = computeWeeklyScore(prev, results, today);
-    wp[activeWeekId] = updated;
+    const week = weeklyWords.find(w => w.id === activeWeekId);
+    const totalWords = week ? week.words.length : 0;
+    const { earned, breakdown, updated } = computeWeeklyScore(prev, results, today, totalWords);
+
+    // Save to API
+    if (jwt) {
+      fetch(`/api/weekly-stats/${activeWeekId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` },
+        body: JSON.stringify(updated),
+      });
+    }
+    setWeeklyStats(prev2 => ({ ...prev2, [activeWeekId]: updated }));
 
     // Apply credits to bank and unlock Pokemon
     let { creditBank, consecutiveRegular, shinyEligible, collection, totalCredits } = user;
@@ -240,13 +264,24 @@ export default function App() {
     }
 
     const caught = Object.values(col).filter(c => c.regular || c.shiny).length;
-    const updated = { ...user, creditBank, totalCredits, caught, collection: col, shinyEligible, consecutiveRegular, weeklyProgress: wp };
-    setUsers(prev2 => ({ ...prev2, [currentUser]: updated }));
-    saveUserToServer(currentUser, updated);
+    const updatedUser = { ...user, creditBank, totalCredits, caught, collection: col, shinyEligible, consecutiveRegular };
+    setUsers(prev2 => ({ ...prev2, [currentUser]: updatedUser }));
+    saveUserToServer(currentUser, updatedUser);
     if (newUnlocks.length) setUnlockQueue(newUnlocks);
 
     return { earned, creditBreakdown: breakdown };
-  }, [users, currentUser, activeWeekId, saveUserToServer]);
+  }, [users, currentUser, activeWeekId, weeklyStats, weeklyWords, jwt, saveUserToServer]);
+
+  const handleWeeklyQuit = useCallback((partialResults) => {
+    if (partialResults.length > 0) {
+      const score = partialResults.filter(r => r.correct).length;
+      const outcome = processWeeklyRound(score, partialResults);
+      setRoundResults({ score, ...outcome, results: partialResults, words });
+      setGameScreen('weeklyResults');
+    } else {
+      setGameScreen('weekly');
+    }
+  }, [processWeeklyRound, words]);
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
@@ -271,9 +306,13 @@ export default function App() {
       {screen === 'game' && gameScreen === 'results' && <ResultsScreen roundResults={roundResults} getUser={getUser} wordStats={wordStats} setWords={setWords} setRetryCount={setRetryCount} setGameScreen={setGameScreen} />}
       {screen === 'game' && gameScreen === 'collection' && <CollectionScreen getUser={getUser} currentUser={currentUser} jwt={jwt} setScreen={setScreen} setGameScreen={setGameScreen} />}
       {screen === 'game' && gameScreen === 'stats' && <StatsScreen getUser={getUser} wordStats={wordStats} setGameScreen={setGameScreen} />}
-      {screen === 'game' && gameScreen === 'weekly' && <WeeklyChallengeScreen getUser={getUser} setWords={setWords} setRetryCount={setRetryCount} setGameScreen={setGameScreen} setActiveWeekId={setActiveWeekId} />}
-      {screen === 'game' && gameScreen === 'weeklyStage1' && <Stage1Screen words={words} retryCount={retryCount} setGameScreen={setGameScreen} nextScreen="weeklyStage2" discardScreen="weekly" />}
-      {screen === 'game' && gameScreen === 'weeklyStage2' && <Stage2Screen words={words} processRound={processWeeklyRound} setRoundResults={setRoundResults} setGameScreen={setGameScreen} resultsScreen="weeklyResults" discardScreen="weekly" />}
+      {screen === 'game' && gameScreen === 'weekly' && <WeeklyChallengeScreen weeklyWords={weeklyWords} weeklyStats={weeklyStats} setWords={setWords} setRetryCount={setRetryCount} setGameScreen={setGameScreen} setActiveWeekId={setActiveWeekId} />}
+      {screen === 'game' && gameScreen === 'weeklyStage1' && (() => {
+        const wp = weeklyStats[activeWeekId];
+        const hasProgress = (wp?.wordsCorrect?.length || 0) > 0;
+        return <Stage1Screen words={words} retryCount={retryCount} setGameScreen={setGameScreen} nextScreen="weeklyStage2" discardScreen="weekly" quitLabel="Quit" readyLabel={hasProgress ? '🔁 Resume!' : "🚀 Start!"} />;
+      })()}
+      {screen === 'game' && gameScreen === 'weeklyStage2' && <Stage2Screen words={words} processRound={processWeeklyRound} setRoundResults={setRoundResults} setGameScreen={setGameScreen} resultsScreen="weeklyResults" discardScreen="weekly" onQuit={handleWeeklyQuit} />}
       {screen === 'game' && gameScreen === 'weeklyResults' && <WeeklyResultsScreen roundResults={roundResults} setGameScreen={setGameScreen} />}
 
     </div>

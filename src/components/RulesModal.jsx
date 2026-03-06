@@ -59,8 +59,8 @@ export const RulesModal = () => {
               Each week there is a special word list to practice. New lists unlock every Monday!
             </Section>
 
-            <Section title="7. First-Time Bonus" icon="⭐">
-              Get a word right on your <strong style={{ color: C.yellow }}>first try</strong> = 0.5 credits. Get <strong style={{ color: C.yellow }}>ALL words</strong> right on the first try in one run = 3 bonus credits!
+            <Section title="7. Word Bonus" icon="⭐">
+              Get a word correct = <strong style={{ color: C.yellow }}>0.5 credits</strong>. When <strong style={{ color: C.yellow }}>ALL words</strong> are completed = 3 bonus credits!
             </Section>
 
             <Section title="8. Daily Replay" icon="🔁">

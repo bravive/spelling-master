@@ -17,16 +17,16 @@ export const WeeklyResultsScreen = ({ roundResults, setGameScreen }) => {
       {creditBreakdown && (
         <div style={{ ...s.card, marginBottom: 16, padding: '12px 16px' }}>
           <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>Credit Breakdown</div>
-          {creditBreakdown.firstAttempt > 0 && (
+          {creditBreakdown.correct > 0 && (
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: C.muted, marginBottom: 4 }}>
-              <span>First-try bonus ({creditBreakdown.firstAttemptCount} words)</span>
-              <span style={{ color: C.yellow }}>+{creditBreakdown.firstAttempt}</span>
+              <span>Correct words ({creditBreakdown.correctCount})</span>
+              <span style={{ color: C.yellow }}>+{creditBreakdown.correct}</span>
             </div>
           )}
-          {creditBreakdown.perfect > 0 && (
+          {creditBreakdown.allCompleted > 0 && (
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: C.muted, marginBottom: 4 }}>
-              <span>Perfect run bonus</span>
-              <span style={{ color: C.yellow }}>+{creditBreakdown.perfect}</span>
+              <span>All words completed bonus</span>
+              <span style={{ color: C.yellow }}>+{creditBreakdown.allCompleted}</span>
             </div>
           )}
           {creditBreakdown.daily > 0 && (
@@ -46,7 +46,6 @@ export const WeeklyResultsScreen = ({ roundResults, setGameScreen }) => {
           <div key={i} style={{ ...s.card, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontWeight: 600 }}>{r.word}</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {r.correct && r.attemptNumber === 1 && <span style={{ fontSize: 11, color: C.yellow, fontWeight: 700 }}>1st try!</span>}
               <span style={{ fontSize: 20 }}>{r.correct ? '✅' : '❌'}</span>
             </div>
           </div>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { speak, C, s } from '../shared';
 
-export const Stage1Screen = ({ words, retryCount, setGameScreen, nextScreen = 'stage2', discardScreen = 'home' }) => {
+export const Stage1Screen = ({ words, retryCount, setGameScreen, nextScreen = 'stage2', discardScreen = 'home', quitLabel = 'Discard', readyLabel = "✅ I'm Ready!" }) => {
   const [elapsed, setElapsed] = useState(0);
   const MAX = 180;
   useEffect(() => {
@@ -25,7 +25,7 @@ export const Stage1Screen = ({ words, retryCount, setGameScreen, nextScreen = 's
         <span
           style={{ position: 'absolute', top: 0, right: 0, color: C.muted, fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}
           onClick={() => setGameScreen(discardScreen)}
-        >Discard</span>
+        >{quitLabel}</span>
         <h2 style={{ color: C.yellow, margin: 0 }}>📖 Stage 1 — Remember!</h2>
         {retryCount > 0 && <div style={{ color: C.red, fontSize: 13 }}>Retry #{retryCount}</div>}
         <div style={{ fontSize: 28, fontWeight: 800, marginTop: 8 }}>{mm}:{ss}</div>
@@ -44,7 +44,7 @@ export const Stage1Screen = ({ words, retryCount, setGameScreen, nextScreen = 's
       </div>
       <button style={{ ...s.btn(C.green, 'lg'), width: '100%' }}
         onClick={() => setGameScreen(nextScreen)}>
-        ✅ I'm Ready!
+        {readyLabel}
       </button>
     </div>
   );

@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import bcrypt from 'bcryptjs';
-import { usersCol, collectionsCol, wordstatsCol, roundhistoryCol } from './db.js';
+import { usersCol, collectionsCol, wordstatsCol, roundhistoryCol, weeklyChallengeWordsCol, weeklyStatsCol } from './db.js';
 
 const now = () => new Date();
 
@@ -88,11 +88,12 @@ export const deleteUser = async (id) => {
   log('deleteOne', 'users', { _id: id });
   const result = await usersCol().deleteOne({ _id: id });
   if (result.deletedCount === 0) return false;
-  log('deleteOne', 'collections+wordstats+roundhistory', { userId: id });
+  log('deleteOne', 'collections+wordstats+roundhistory+weeklystats', { userId: id });
   await Promise.all([
     collectionsCol().deleteOne({ userId: id }),
     wordstatsCol().deleteOne({ userId: id }),
     roundhistoryCol().deleteOne({ userId: id }),
+    weeklyStatsCol().deleteMany({ userId: id }),
   ]);
   return true;
 };
@@ -124,3 +125,28 @@ export const getRoundHistory = (id) => {
 };
 
 export const saveRoundHistory = (id, data) => upsert(roundhistoryCol(), id, data);
+
+// ── Weekly challenge words ────────────────────────────────────────────────────
+
+export const getAllWeeks = () => {
+  log('find', 'weeklychallengewords');
+  return weeklyChallengeWordsCol().find({}).sort({ startDate: 1 }).toArray();
+};
+
+// ── Weekly challenge stats ────────────────────────────────────────────────────
+
+export const getAllWeeklyStats = async (userId) => {
+  log('find', 'weeklychallengestats', { userId });
+  const docs = await weeklyStatsCol().find({ userId }).toArray();
+  // Return as a map keyed by weekId for easy frontend lookup
+  return Object.fromEntries(docs.map(d => [d.weekId, d]));
+};
+
+export const saveWeeklyStats = (userId, weekId, data) => {
+  log('upsert', 'weeklychallengestats', { userId, weekId });
+  return weeklyStatsCol().updateOne(
+    { userId, weekId },
+    { $set: { ...data, updated_at: now() }, $setOnInsert: { _id: randomUUID(), userId, weekId, created_at: now() } },
+    { upsert: true }
+  );
+};

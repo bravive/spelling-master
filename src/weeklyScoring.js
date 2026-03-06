@@ -1,36 +1,36 @@
 /**
  * Pure function: compute credits and updated state for one weekly challenge run.
  *
- * @param {object} prev     - existing progress for this week:
- *   { firstAttemptCorrect: string[], completed: bool, perfectRun: bool, creditsEarned: number, lastDailyReward: string|null }
- * @param {Array}  results  - [{ word: string, correct: bool, attemptNumber: number }]
- * @param {string} today    - YYYY-MM-DD
+ * @param {object} prev       - existing progress for this week
+ * @param {Array}  results    - [{ word: string, correct: bool, attemptNumber: number }]
+ * @param {string} today      - YYYY-MM-DD
+ * @param {number} totalWords - total number of words in this week's list
  * @returns {{ earned: number, breakdown: object, updated: object }}
  */
-export const computeWeeklyScore = (prev, results, today) => {
-  const prevFirst = new Set(prev.firstAttemptCorrect || []);
-  const newFirstCorrect = results
-    .filter(r => r.correct && r.attemptNumber === 1 && !prevFirst.has(r.word))
+export const computeWeeklyScore = (prev, results, today, totalWords) => {
+  const prevCorrect = new Set(prev.wordsCorrect || []);
+  const newCorrect = results
+    .filter(r => r.correct && !prevCorrect.has(r.word))
     .map(r => r.word);
 
   let earned = 0;
-  const breakdown = { firstAttempt: 0, firstAttemptCount: 0, perfect: 0, daily: 0 };
+  const breakdown = { correct: 0, correctCount: 0, allCompleted: 0, daily: 0 };
 
-  // 0.5 credits per new first-attempt correct word
-  breakdown.firstAttemptCount = newFirstCorrect.length;
-  breakdown.firstAttempt = newFirstCorrect.length * 0.5;
-  earned += breakdown.firstAttempt;
+  // 0.5 credits per new correct word
+  breakdown.correctCount = newCorrect.length;
+  breakdown.correct = newCorrect.length * 0.5;
+  earned += breakdown.correct;
 
-  const allFirstCorrect = [...prevFirst, ...newFirstCorrect];
+  const allCorrectWords = [...prevCorrect, ...newCorrect];
 
-  // +3 perfect run bonus — only once
-  const allCorrectFirstTry = results.length > 0 && results.every(r => r.correct && r.attemptNumber === 1);
-  if (allCorrectFirstTry && !prev.perfectRun) {
-    breakdown.perfect = 3;
+  // +3 all-words-completed bonus — awarded once when every word has been correct
+  const nowCompleted = allCorrectWords.length >= totalWords;
+  const completed = prev.completed || nowCompleted;
+  if (nowCompleted && !prev.completed) {
+    breakdown.allCompleted = 3;
     earned += 3;
   }
 
-  const completed = prev.completed || results.length > 0;
   const allCorrect = results.length > 0 && results.every(r => r.correct);
 
   // +2 daily replay — only if already completed, all correct, not yet claimed today
@@ -40,9 +40,8 @@ export const computeWeeklyScore = (prev, results, today) => {
   }
 
   const updated = {
-    firstAttemptCorrect: allFirstCorrect,
+    wordsCorrect: allCorrectWords,
     completed,
-    perfectRun: prev.perfectRun || allCorrectFirstTry,
     creditsEarned: (prev.creditsEarned || 0) + earned,
     lastDailyReward: breakdown.daily > 0 ? today : prev.lastDailyReward,
   };

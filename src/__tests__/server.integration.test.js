@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import request from 'supertest';
 import { MongoMemoryServer } from 'mongodb-memory-server';
-import { connectDb, closeDb, usersCol, collectionsCol, wordstatsCol, roundhistoryCol } from '../db.js';
+import { connectDb, closeDb, usersCol, collectionsCol, wordstatsCol, roundhistoryCol, weeklyChallengeWordsCol, weeklyStatsCol } from '../db.js';
 import { app } from '../../server.js';
 
 let mongod;
@@ -26,6 +26,8 @@ beforeEach(async () => {
     collectionsCol().deleteMany({}),
     wordstatsCol().deleteMany({}),
     roundhistoryCol().deleteMany({}),
+    weeklyChallengeWordsCol().deleteMany({}),
+    weeklyStatsCol().deleteMany({}),
   ]);
 });
 
@@ -166,14 +168,6 @@ describe('PUT /api/users/me', () => {
     expect(res.status).toBe(401);
   });
 
-  it('persists weeklyProgress', async () => {
-    const wp = { 'w2026-10': { firstAttemptCorrect: ['cat'], completed: true, perfectRun: false, creditsEarned: 0.5, lastDailyReward: null } };
-    await request(app).put('/api/users/me').set('Authorization', `Bearer ${token}`).send({ weeklyProgress: wp });
-    const doc = await usersCol().findOne({ userId: 'alice' });
-    expect(doc.weeklyProgress['w2026-10'].firstAttemptCorrect).toContain('cat');
-    expect(doc.weeklyProgress['w2026-10'].completed).toBe(true);
-    expect(doc.weeklyProgress['w2026-10'].creditsEarned).toBe(0.5);
-  });
 });
 
 // ── Collection ────────────────────────────────────────────────────────────────
@@ -270,6 +264,9 @@ describe('DELETE /api/users/:id', () => {
   });
 
   it('admin can delete a user and all related data', async () => {
+    // Create weekly stats for alice first
+    await weeklyStatsCol().insertOne({ _id: 'test-stat', userId: aliceId, weekId: 'w2026-10', wordsCorrect: [], completed: false, creditsEarned: 0 });
+
     const res = await request(app)
       .delete(`/api/users/${aliceId}`)
       .set('Authorization', `Bearer ${adminToken}`);
@@ -278,6 +275,7 @@ describe('DELETE /api/users/:id', () => {
     expect(await collectionsCol().findOne({ userId: aliceId })).toBeNull();
     expect(await wordstatsCol().findOne({ userId: aliceId })).toBeNull();
     expect(await roundhistoryCol().findOne({ userId: aliceId })).toBeNull();
+    expect(await weeklyStatsCol().findOne({ userId: aliceId })).toBeNull();
   });
 
   it('returns 403 for non-admin token', async () => {
@@ -294,5 +292,74 @@ describe('DELETE /api/users/:id', () => {
       .delete('/api/users/admin')
       .set('Authorization', `Bearer ${adminToken}`);
     expect(res.status).toBe(400);
+  });
+});
+
+// ── Weekly words ───────────────────────────────────────────────────────────────
+describe('GET /api/weekly-words', () => {
+  beforeEach(async () => {
+    await weeklyChallengeWordsCol().insertMany([
+      { _id: 'w1', weekId: 'w2026-01', label: 'Week 1', startDate: '2026-01-05', words: [{ w: 'cat', s: 'The cat sat.' }], created_at: new Date(), updated_at: new Date() },
+      { _id: 'w2', weekId: 'w2026-02', label: 'Week 2', startDate: '2026-01-12', words: [{ w: 'dog', s: 'The dog ran.' }], created_at: new Date(), updated_at: new Date() },
+    ]);
+  });
+
+  it('returns all weeks sorted by startDate, no auth required', async () => {
+    const res = await request(app).get('/api/weekly-words');
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(2);
+    expect(res.body[0].weekId).toBe('w2026-01');
+    expect(res.body[1].weekId).toBe('w2026-02');
+  });
+});
+
+// ── Weekly stats ───────────────────────────────────────────────────────────────
+describe('GET/PUT /api/weekly-stats', () => {
+  let token;
+  beforeEach(async () => {
+    await createUser();
+    const res = await loginUser();
+    token = res.body.token;
+  });
+
+  it('returns empty object for new user', async () => {
+    const res = await request(app).get('/api/weekly-stats').set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({});
+  });
+
+  it('returns 401 without token', async () => {
+    const res = await request(app).get('/api/weekly-stats');
+    expect(res.status).toBe(401);
+  });
+
+  it('upserts weekly stats for a given weekId', async () => {
+    const data = { wordsCorrect: ['cat', 'dog'], completed: false, creditsEarned: 1, lastDailyReward: null };
+    const res = await request(app)
+      .put('/api/weekly-stats/w2026-10')
+      .set('Authorization', `Bearer ${token}`)
+      .send(data);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true });
+
+    const stats = await request(app).get('/api/weekly-stats').set('Authorization', `Bearer ${token}`);
+    expect(stats.body['w2026-10'].wordsCorrect).toEqual(['cat', 'dog']);
+    expect(stats.body['w2026-10'].creditsEarned).toBe(1);
+  });
+
+  it('keyed response maps weekId to stat doc', async () => {
+    await request(app).put('/api/weekly-stats/w2026-10').set('Authorization', `Bearer ${token}`)
+      .send({ wordsCorrect: ['cat'], completed: false, creditsEarned: 0.5, lastDailyReward: null });
+    await request(app).put('/api/weekly-stats/w2026-11').set('Authorization', `Bearer ${token}`)
+      .send({ wordsCorrect: ['bird'], completed: true, creditsEarned: 3, lastDailyReward: '2026-03-06' });
+
+    const res = await request(app).get('/api/weekly-stats').set('Authorization', `Bearer ${token}`);
+    expect(Object.keys(res.body)).toHaveLength(2);
+    expect(res.body['w2026-11'].completed).toBe(true);
+  });
+
+  it('PUT returns 401 without token', async () => {
+    const res = await request(app).put('/api/weekly-stats/w2026-10').send({ wordsCorrect: [] });
+    expect(res.status).toBe(401);
   });
 });

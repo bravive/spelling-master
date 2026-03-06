@@ -16,7 +16,7 @@ vi.mock('mongodb', () => {
 });
 
 // Import after mocking
-const { connectDb, getDb, closeDb, usersCol, collectionsCol, wordstatsCol, roundhistoryCol } = await import('../db.js');
+const { connectDb, getDb, closeDb, usersCol, collectionsCol, wordstatsCol, roundhistoryCol, weeklyChallengeWordsCol, weeklyStatsCol } = await import('../db.js');
 
 describe('db module', () => {
   beforeEach(async () => {
@@ -63,6 +63,16 @@ describe('db module', () => {
   it('roundhistoryCol returns collection named "roundhistory"', () => {
     roundhistoryCol();
     expect(getDb().collection).toHaveBeenCalledWith('roundhistory');
+  });
+
+  it('weeklyChallengeWordsCol returns collection named "weeklychallengewords"', () => {
+    weeklyChallengeWordsCol();
+    expect(getDb().collection).toHaveBeenCalledWith('weeklychallengewords');
+  });
+
+  it('weeklyStatsCol returns collection named "weeklychallengestats"', () => {
+    weeklyStatsCol();
+    expect(getDb().collection).toHaveBeenCalledWith('weeklychallengestats');
   });
 
   it('ensureIndexes creates unique index on userId for all collections', async () => {

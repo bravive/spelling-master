@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { speakTimes, speak, C, s } from '../shared';
 
-export const Stage2Screen = ({ words, processRound, setRoundResults, setGameScreen, resultsScreen = 'results', discardScreen = 'home' }) => {
+export const Stage2Screen = ({ words, processRound, setRoundResults, setGameScreen, resultsScreen = 'results', discardScreen = 'home', onQuit }) => {
   const [idx, setIdx] = useState(0);
   const [attempt, setAttempt] = useState(0);
   const [typed, setTyped] = useState('');
@@ -121,8 +121,15 @@ export const Stage2Screen = ({ words, processRound, setRoundResults, setGameScre
       <div style={{ textAlign: 'right', marginBottom: 8 }}>
         <span
           style={{ color: C.muted, fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}
-          onClick={() => { window.speechSynthesis.cancel(); setGameScreen(discardScreen); }}
-        >Discard</span>
+          onClick={() => {
+            window.speechSynthesis.cancel();
+            if (onQuit) {
+              onQuit(results);
+            } else {
+              setGameScreen(discardScreen);
+            }
+          }}
+        >{onQuit ? 'Quit' : 'Discard'}</span>
       </div>
 
       <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginBottom: 16, flexWrap: 'wrap' }}>

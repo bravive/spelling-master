@@ -40,6 +40,7 @@ const writeUsers = (data) => {
 const publicUser = ({ pin: _pin, ...rest }) => rest;
 
 const app = express();
+app.set('trust proxy', 1);
 app.use(express.json({ limit: '2mb' }));
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────

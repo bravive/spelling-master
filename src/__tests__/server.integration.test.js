@@ -311,6 +311,23 @@ describe('GET /api/weekly-words', () => {
     expect(res.body[0].weekId).toBe('w2026-01');
     expect(res.body[1].weekId).toBe('w2026-02');
   });
+
+  it('returns weeks in startDate order even when inserted out of order', async () => {
+    // Insert a week with an earlier startDate after the two already seeded
+    await weeklyChallengeWordsCol().insertOne({
+      _id: 'w0', weekId: 'w2025-52', label: 'Week 52', startDate: '2025-12-29',
+      words: [], created_at: new Date(), updated_at: new Date(),
+    });
+    const res = await request(app).get('/api/weekly-words');
+    expect(res.body[0].weekId).toBe('w2025-52');
+    expect(res.body[1].weekId).toBe('w2026-01');
+    expect(res.body[2].weekId).toBe('w2026-02');
+  });
+
+  it('returns words array for each week', async () => {
+    const res = await request(app).get('/api/weekly-words');
+    expect(res.body[0].words).toEqual([{ w: 'cat', s: 'The cat sat.' }]);
+  });
 });
 
 // ── Weekly stats ───────────────────────────────────────────────────────────────
@@ -361,5 +378,34 @@ describe('GET/PUT /api/weekly-stats', () => {
   it('PUT returns 401 without token', async () => {
     const res = await request(app).put('/api/weekly-stats/w2026-10').send({ wordsCorrect: [] });
     expect(res.status).toBe(401);
+  });
+
+  it('second PUT for same weekId updates the doc, not creates a duplicate', async () => {
+    await request(app).put('/api/weekly-stats/w2026-10').set('Authorization', `Bearer ${token}`)
+      .send({ wordsCorrect: ['cat'], completed: false, creditsEarned: 0.5, lastDailyReward: null });
+    await request(app).put('/api/weekly-stats/w2026-10').set('Authorization', `Bearer ${token}`)
+      .send({ wordsCorrect: ['cat', 'dog'], completed: true, creditsEarned: 4, lastDailyReward: '2026-03-06' });
+
+    const count = await weeklyStatsCol().countDocuments({});
+    expect(count).toBe(1);
+
+    const res = await request(app).get('/api/weekly-stats').set('Authorization', `Bearer ${token}`);
+    expect(res.body['w2026-10'].wordsCorrect).toEqual(['cat', 'dog']);
+    expect(res.body['w2026-10'].completed).toBe(true);
+    expect(res.body['w2026-10'].creditsEarned).toBe(4);
+  });
+
+  it("does not return another user's weekly stats", async () => {
+    // alice saves stats for w2026-10
+    await request(app).put('/api/weekly-stats/w2026-10').set('Authorization', `Bearer ${token}`)
+      .send({ wordsCorrect: ['cat'], completed: false, creditsEarned: 0.5, lastDailyReward: null });
+
+    // bob creates account and logs in
+    await createUser({ key: 'bob', name: 'Bob' });
+    const bobToken = (await loginUser('bob', '1234')).body.token;
+
+    // bob sees empty stats (not alice's)
+    const res = await request(app).get('/api/weekly-stats').set('Authorization', `Bearer ${bobToken}`);
+    expect(res.body).toEqual({});
   });
 });

@@ -1,5 +1,5 @@
-export const pkImg   = slug => `https://img.pokemondb.net/sprites/home/normal/${slug}.png`;
-export const pkShiny = slug => `https://img.pokemondb.net/sprites/home/shiny/${slug}.png`;
+export const pkImg   = slug => `/pokemon/normal/${slug}.png`;
+export const pkShiny = slug => `/pokemon/shiny/${slug}.png`;
 
 export const ALL_POKEMON = [
   { id:    1, name: 'Bulbasaur',             slug: 'bulbasaur' },

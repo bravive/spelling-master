@@ -175,9 +175,6 @@ app.delete('/api/users/:id', requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
-// ── Health check ──────────────────────────────────────────────────────────────
-app.get('/ping', (_req, res) => res.json({ ok: true }));
-
 // ── Serve React app in production ─────────────────────────────────────────────
 if (process.env.NODE_ENV === 'production') {
   const distPath = join(__dirname, 'dist');
@@ -186,5 +183,10 @@ if (process.env.NODE_ENV === 'production') {
   app.get('/*path', (_req, res) => res.sendFile(join(distPath, 'index.html')));
 }
 
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`Spell Master API running on http://localhost:${PORT}`));
+export { app };
+
+// Only bind when run directly (not imported by tests)
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const PORT = process.env.PORT || 3001;
+  app.listen(PORT, () => console.log(`Spell Master API running on http://localhost:${PORT}`));
+}

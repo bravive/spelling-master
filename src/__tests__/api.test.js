@@ -206,11 +206,11 @@ describe('GET /api/users', () => {
   });
 });
 
-// ── PUT /api/users/:id ────────────────────────────────────────────────────────
+// ── PUT /api/users/me ─────────────────────────────────────────────────────────
 // Alice's token is obtained once in beforeAll (login call #6 of the budget).
 // Each test recreates Alice via beforeEach so the DB row is fresh, but the
 // JWT remains valid — it is stateless and does not depend on the DB record.
-describe('PUT /api/users/:id', () => {
+describe('PUT /api/users/me', () => {
   let aliceToken;
 
   beforeAll(async () => {
@@ -225,7 +225,7 @@ describe('PUT /api/users/:id', () => {
   });
 
   it('saves game state (creditBank, streak) with a valid JWT', async () => {
-    const res = await apiPut('/api/users/alice', { creditBank: 7, streak: 3 }, aliceToken);
+    const res = await apiPut('/api/users/me', { creditBank: 7, streak: 3 }, aliceToken);
     expect(res.status).toBe(200);
     const users = await apiGet('/api/users').then(r => r.json());
     expect(users.alice.creditBank).toBe(7);
@@ -234,28 +234,22 @@ describe('PUT /api/users/:id', () => {
 
   it('saves wordStats as part of the user object', async () => {
     const wordStats = { cat: { attempts: 3, correct: 2, weight: 1.0 } };
-    const res = await apiPut('/api/users/alice', { wordStats }, aliceToken);
+    const res = await apiPut('/api/users/me', { wordStats }, aliceToken);
     expect(res.status).toBe(200);
     const users = await apiGet('/api/users').then(r => r.json());
     expect(users.alice.wordStats).toEqual(wordStats);
   });
 
   it('does not overwrite the stored PIN even if pin is included in the body', async () => {
-    await apiPut('/api/users/alice', { pin: '9999' }, aliceToken);
+    await apiPut('/api/users/me', { pin: '9999' }, aliceToken);
     // Attempting login with the bogus PIN must fail (original bcrypt hash unchanged)
     const res = await apiPost('/api/auth/login', { userId: 'alice', pin: '9999' });
     expect(res.status).toBe(401); // login call #7
   });
 
   it('rejects unauthenticated requests with 401', async () => {
-    const res = await apiPut('/api/users/alice', { creditBank: 99 });
+    const res = await apiPut('/api/users/me', { creditBank: 99 });
     expect(res.status).toBe(401);
-  });
-
-  it('prevents a user from updating another user\'s profile with 403', async () => {
-    await createUser('bob', 'Bob', '5678');
-    const res = await apiPut('/api/users/bob', { creditBank: 99 }, aliceToken);
-    expect(res.status).toBe(403);
   });
 });
 

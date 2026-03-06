@@ -20,7 +20,10 @@ Follow these steps for every change, no matter how small:
 - Keep the README accurate — it is the source of truth for anyone setting up the project
 - **Any new environment variable** added to `server.js` must be documented in both the "Environment Variables" table and the "Deploying to Railway" section of `README.md`, with its name, whether it is required in production, its default value, and a description
 
-### 4. Push after committing
+### 4. Restart server after backend changes
+- After any change to `server.js`, run `make restart` to restart the Express server
+
+### 5. Push after committing
 - After each commit (or a small batch of related commits), push to `origin main`
 
 ---

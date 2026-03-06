@@ -101,11 +101,16 @@ export default function App() {
 
   const saveUserToServer = useCallback((userId, userData) => {
     if (!jwt) return;
-    fetch(`/api/users/${encodeURIComponent(userId)}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${jwt}` },
-      body: JSON.stringify(userData),
+    const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${jwt}` };
+    fetch('/api/users/me', {
+      method: 'PUT', headers, body: JSON.stringify(userData),
     });
+    if (userData.collection) {
+      fetch('/api/collection', {
+        method: 'PUT', headers,
+        body: JSON.stringify({ collection: userData.collection, shinyEligible: userData.shinyEligible, consecutiveRegular: userData.consecutiveRegular }),
+      });
+    }
   }, [jwt]);
 
   const getUser = useCallback(() => users[currentUser] || null, [users, currentUser]);
@@ -210,7 +215,7 @@ export default function App() {
       {screen === 'game' && gameScreen === 'stage1' && <Stage1Screen words={words} retryCount={retryCount} setGameScreen={setGameScreen} />}
       {screen === 'game' && gameScreen === 'stage2' && <Stage2Screen words={words} processRound={processRound} setRoundResults={setRoundResults} setGameScreen={setGameScreen} />}
       {screen === 'game' && gameScreen === 'results' && <ResultsScreen roundResults={roundResults} getUser={getUser} wordStats={wordStats} setWords={setWords} setRetryCount={setRetryCount} setGameScreen={setGameScreen} />}
-      {screen === 'game' && gameScreen === 'collection' && <CollectionScreen getUser={getUser} currentUser={currentUser} setScreen={setScreen} setGameScreen={setGameScreen} />}
+      {screen === 'game' && gameScreen === 'collection' && <CollectionScreen getUser={getUser} currentUser={currentUser} jwt={jwt} setScreen={setScreen} setGameScreen={setGameScreen} />}
       {screen === 'game' && gameScreen === 'stats' && <StatsScreen getUser={getUser} wordStats={wordStats} setGameScreen={setGameScreen} />}
 
     </div>

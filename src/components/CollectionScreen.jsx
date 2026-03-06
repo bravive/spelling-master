@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ALL_POKEMON, pkImg, pkShiny } from '../data/pokemon';
 import POKEMON_STATS from '../data/pokemon-stats.json';
 import POKEMON_EVOLUTIONS from '../data/pokemon-evolutions.json';
@@ -13,14 +13,24 @@ const STAT_META = [
   { key: 'spe', label: 'Speed',           title: 'Speed — determines who attacks first; higher = moves before the opponent',  color: '#c4b5fd' },
 ];
 
-export const CollectionScreen = ({ getUser, currentUser, setScreen, setGameScreen }) => {
+export const CollectionScreen = ({ getUser, currentUser, jwt, setScreen, setGameScreen }) => {
   const user = getUser();
   const isAdmin = currentUser === 'test';
-  const col = user?.collection || {};
-  const regular = isAdmin ? ALL_POKEMON.length : Object.values(col).filter(c => c.regular).length;
-  const shiny   = isAdmin ? ALL_POKEMON.length : Object.values(col).filter(c => c.shiny).length;
+  const [colData, setColData] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [layout, setLayout] = useState('all'); // 'all' | 'collected'
+
+  useEffect(() => {
+    if (!jwt || isAdmin) return;
+    fetch('/api/collection', { headers: { 'Authorization': `Bearer ${jwt}` } })
+      .then(r => r.json())
+      .then(data => setColData(data))
+      .catch(() => {});
+  }, [jwt, isAdmin]);
+
+  const col = isAdmin ? {} : (colData?.collection || user?.collection || {});
+  const regular = isAdmin ? ALL_POKEMON.length : Object.values(col).filter(c => c.regular).length;
+  const shiny   = isAdmin ? ALL_POKEMON.length : Object.values(col).filter(c => c.shiny).length;
 
   const selectedPk = selectedId != null ? ALL_POKEMON.find(p => p.id === selectedId) : null;
 

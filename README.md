@@ -32,7 +32,7 @@ A daily spelling practice web app for elementary school kids (K–5). Kids memor
 ### Scoring & Credits
 - 10/10 → 5 credits, 9/10 → 3 credits, 8/10 → 2 credits, 7–6/10 → 0 credits
 - Score below 6 triggers an automatic retry
-- Streak bonus: every 3-day consecutive streak awards +1 bonus credit
+- Streak bonus: every 3-day consecutive streak awards +5 bonus credits
 - Results screen shows per-word pass/fail, credits earned, and options to retry or pick a new group
 
 ### Pokémon Collection
@@ -125,12 +125,31 @@ npm run lint     # Run ESLint
 ## Project Structure
 
 ```
-server.js        — Express API (auth, user CRUD, static file serving)
+server.js        — Express API (auth, user CRUD, collection, static file serving)
 data/
-  users.json     — Persistent user storage (gitignored)
+  users.json     — Persistent user profiles (gitignored)
+  collection.json — Per-user Pokémon collection data (gitignored)
 src/
-  App.jsx        — Main app — all screens, logic, and state
+  App.jsx        — Root component — state management, routing, round processing
+  shared.js      — Shared constants, styles, speech helpers, date utilities
   main.jsx       — React entry point
+  wordSelection.js — Word selection, stats tracking, level-up logic
+  components/
+    Confetti.jsx         — Confetti animation overlay
+    TrophyModal.jsx      — Pokémon unlock celebration modal
+    NumPad.jsx           — 4-digit PIN input pad
+    RulesModal.jsx       — Kid-friendly rules explanation modal
+    SelectUserScreen.jsx — User profile selection
+    LoginScreen.jsx      — PIN login
+    AdminLoginScreen.jsx — Admin login
+    ParentMenuScreen.jsx — Admin panel
+    CreateUserScreen.jsx — 4-step profile creation
+    HomeScreen.jsx       — Main dashboard
+    Stage1Screen.jsx     — Word memorization stage
+    Stage2Screen.jsx     — Spelling/typing stage
+    ResultsScreen.jsx    — Round results
+    CollectionScreen.jsx — Pokémon collection grid + detail overlay
+    StatsScreen.jsx      — User stats & streak calendar
   data/
     words.js     — Word bank (5 levels, each with word + example sentence)
     pokemon.js   — 60-Pokémon roster with image URL helpers
@@ -175,5 +194,8 @@ src/
 | `GET` | `/api/users` | None | Public profile list (no PINs) |
 | `POST` | `/api/auth/login` | None (rate limited) | Validate PIN, return JWT |
 | `POST` | `/api/users` | None | Create new user profile |
-| `PUT` | `/api/users/:id` | JWT (own user or admin) | Save game state |
+| `PUT` | `/api/users/me` | JWT | Save game state for current user (derived from token) |
 | `DELETE` | `/api/users/:id` | JWT (admin only) | Delete a profile |
+| `GET` | `/api/collection` | JWT | Get current user's Pokémon collection data |
+| `PUT` | `/api/collection` | JWT | Save current user's Pokémon collection data |
+| `GET` | `/ping` | None | Health check with volume diagnostics |

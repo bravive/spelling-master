@@ -1,10 +1,14 @@
 import express from 'express';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DATA_FILE = join(__dirname, 'data', 'users.json');
+const DATA_DIR = join(__dirname, 'data');
+const DATA_FILE = join(DATA_DIR, 'users.json');
+
+// Ensure data directory exists (important in production)
+mkdirSync(DATA_DIR, { recursive: true });
 
 const readUsers = () => {
   try {
@@ -30,5 +34,14 @@ app.post('/api/users', (req, res) => {
   res.json({ ok: true });
 });
 
-const PORT = 3001;
+// Serve React app in production
+if (process.env.NODE_ENV === 'production') {
+  const distPath = join(__dirname, 'dist');
+  app.use(express.static(distPath));
+  app.get('*', (_req, res) => {
+    res.sendFile(join(distPath, 'index.html'));
+  });
+}
+
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Spell Master API running on http://localhost:${PORT}`));

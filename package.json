@@ -6,7 +6,8 @@
   "scripts": {
     "server": "node server.js",
     "dev": "vite",
-    "start": "node server.js & vite",
+    "start": "NODE_ENV=production node server.js",
+    "dev:full": "node server.js & vite",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"

@@ -1,21 +1,19 @@
 import { ALL_POKEMON, pkImg } from '../data/pokemon';
-import { WEEKLY_WORDS } from '../data/weekly-words';
 import { selectWords } from '../wordSelection';
 import { todayStr, C, s } from '../shared';
 import { RulesModal } from './RulesModal';
 
-export const HomeScreen = ({ getUser, wordStats, setWords, setRetryCount, setGameScreen, setCurrentUser, setScreen }) => {
+export const HomeScreen = ({ getUser, wordStats, colData, weeklyWords, weeklyStats, setWords, setRetryCount, setGameScreen, setCurrentUser, setScreen }) => {
   const user = getUser();
   if (!user) return null;
-  const col = user.collection || {};
+  const col = colData?.collection || {};
   const caught = user.caught || 0;
   const nextPk = ALL_POKEMON.find(p => !col[p.id]?.regular);
 
   const today = todayStr();
-  const progress = user.weeklyProgress || {};
-  const available = WEEKLY_WORDS.filter(w => w.startDate <= today);
+  const available = weeklyWords.filter(w => w.startDate <= today);
   const hasWeeklyCredits = available.some(week => {
-    const wp = progress[week.id];
+    const wp = weeklyStats[week.id];
     if (!wp) return true;
     if ((wp.wordsCorrect || []).length < week.words.length) return true;
     if (wp.completed && wp.lastDailyReward !== today) return true;
@@ -23,11 +21,19 @@ export const HomeScreen = ({ getUser, wordStats, setWords, setRetryCount, setGam
   });
 
   return (
-    <div style={{ display: 'flex', gap: 12, width: '100%', maxWidth: 560, alignItems: 'flex-start' }}>
+    <div style={{ display: 'flex', gap: 12, width: '100%', maxWidth: 560, alignItems: 'flex-start', position: 'relative' }}>
+      <div style={{ position: 'absolute', top: 0, right: 0 }}><RulesModal /></div>
+
       {/* Main content */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ textAlign: 'center', marginBottom: 20, position: 'relative' }}>
-          <span style={{ position: 'absolute', top: 0, left: 0 }}><RulesModal /></span>
+        <div style={{ marginBottom: 8 }}>
+          <span
+            style={{ color: C.muted, fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}
+            onClick={() => { setCurrentUser(null); setScreen('selectUser'); }}
+          >Exit</span>
+        </div>
+
+        <div style={{ textAlign: 'center', marginBottom: 20 }}>
           <img src={pkImg(user.starterSlug)} alt="" style={{ width: 90, height: 90, objectFit: 'contain', animation: 'float 3s ease-in-out infinite' }} />
           <h2 style={{ margin: '8px 0 4px', fontSize: 26 }}>{user.name}</h2>
           <div style={{ color: C.purple }}>Level {user.level} Speller</div>
@@ -51,7 +57,7 @@ export const HomeScreen = ({ getUser, wordStats, setWords, setRetryCount, setGam
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 700, marginBottom: 6 }}>Next Pokemon</div>
-              {user.shinyEligible && (
+              {colData?.shinyEligible && (
                 <div style={{ color: '#a78bfa', fontSize: 13, animation: 'pulse 1.5s ease infinite', marginBottom: 4 }}>✨ Shiny chance active!</div>
               )}
               <div style={{ background: 'rgba(255,255,255,0.1)', borderRadius: 8, height: 8, overflow: 'hidden' }}>
@@ -73,40 +79,43 @@ export const HomeScreen = ({ getUser, wordStats, setWords, setRetryCount, setGam
 
         <div style={{ display: 'flex', gap: 8 }}>
           <button style={{ ...s.btn(C.blue), flex: 1 }} onClick={() => setGameScreen('stats')}>📊 Stats</button>
-          <button style={{ ...s.btn(C.purple), flex: 1 }} onClick={() => setGameScreen('collection')}>🏆 Collection</button>
+          <button style={{ ...s.btn(C.purple), flex: 1 }} onClick={() => setGameScreen('collection')}>🏆 Trophies</button>
         </div>
       </div>
 
-      {/* Right sidebar */}
-      <div style={{ width: 56, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-        <span
-          style={{ color: C.muted, fontSize: 13, cursor: 'pointer', textDecoration: 'underline', marginTop: 2 }}
-          onClick={() => { setCurrentUser(null); setScreen('selectUser'); }}
-        >Exit</span>
+      {/* Divider + Right sidebar */}
+      <div style={{ width: 72, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        {/* Spacer to align with stats row */}
+        <div style={{ height: 188 }} />
 
-        {/* Spacer to align with stats row (profile image ~90 + name ~40 + level ~20 + margin 20 = ~170) */}
-        <div style={{ height: 110 }} />
+        <div style={{ display: 'flex', flex: 1, alignSelf: 'stretch' }}>
+          {/* Vertical divider that stretches to bottom */}
+          <div style={{ width: 1, background: C.border, alignSelf: 'stretch' }} />
 
-        <div
-          onClick={() => setGameScreen('weekly')}
-          style={{
-            ...s.card, width: 56, textAlign: 'center', padding: '10px 4px',
-            cursor: 'pointer', position: 'relative',
-            border: hasWeeklyCredits ? `2px solid ${C.yellow}` : `1px solid ${C.border}`,
-            boxShadow: hasWeeklyCredits ? `0 0 10px ${C.yellow}44, 0 0 20px ${C.yellow}22` : 'none',
-            animation: hasWeeklyCredits ? 'pulse 1.5s ease infinite' : 'none',
-          }}
-        >
-          <div style={{ fontSize: 24 }}>📅</div>
-          <div style={{ fontSize: 10, fontWeight: 700, color: hasWeeklyCredits ? C.yellow : C.muted, marginTop: 2, lineHeight: 1.2 }}>Weekly</div>
-          {hasWeeklyCredits && (
-            <div style={{
-              position: 'absolute', top: -5, right: -5,
-              background: C.yellow, borderRadius: '50%', width: 14, height: 14,
-              animation: 'bounce 1s ease infinite',
-              boxShadow: `0 0 6px ${C.yellow}`,
-            }} />
-          )}
+          {/* Weekly icon with padding from divider */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingLeft: 16, paddingTop: 12 }}>
+            <div
+              onClick={() => setGameScreen('weekly')}
+              style={{
+                ...s.card, width: 56, textAlign: 'center', padding: '10px 4px',
+                cursor: 'pointer', position: 'relative',
+                border: hasWeeklyCredits ? `2px solid ${C.yellow}` : `1px solid ${C.border}`,
+                boxShadow: hasWeeklyCredits ? `0 0 10px ${C.yellow}44, 0 0 20px ${C.yellow}22` : 'none',
+                animation: hasWeeklyCredits ? 'pulse 1.5s ease infinite' : 'none',
+              }}
+            >
+              <div style={{ fontSize: 24 }}>📅</div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: hasWeeklyCredits ? C.yellow : C.muted, marginTop: 2, lineHeight: 1.2 }}>Weekly</div>
+              {hasWeeklyCredits && (
+                <div style={{
+                  position: 'absolute', top: -5, right: -5,
+                  background: C.yellow, borderRadius: '50%', width: 14, height: 14,
+                  animation: 'bounce 1s ease infinite',
+                  boxShadow: `0 0 6px ${C.yellow}`,
+                }} />
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>

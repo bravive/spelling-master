@@ -1,6 +1,6 @@
 import { todayStr, localDateStr, C, s } from '../shared';
 
-export const StatsScreen = ({ getUser, wordStats, setGameScreen }) => {
+export const StatsScreen = ({ getUser, wordStats, roundHistory, setGameScreen }) => {
   const user = getUser();
   if (!user) return null;
   const caught = user.caught || 0;
@@ -14,7 +14,7 @@ export const StatsScreen = ({ getUser, wordStats, setGameScreen }) => {
     return localDateStr(d);
   });
 
-  const recent = [...(user.roundHistory || [])].reverse();
+  const recent = [...(roundHistory || [])].reverse();
 
   return (
     <div style={{ width: '100%', maxWidth: 480 }}>

@@ -48,6 +48,14 @@ A daily spelling practice web app for elementary school kids (K–5). Kids memor
 - Level up automatically when 70% of the current level's words are mastered
 - Word lists sourced from [Reading Rockets Basic Spelling Vocabulary List](https://www.readingrockets.org/topics/writing/articles/basic-spelling-vocabulary-list)
 
+### Weekly Words Challenge
+- Manually curated weekly word lists that unlock on a schedule (every Monday)
+- Kids can practice the current week's list plus all previous weeks
+- **First-time scoring**: 0.5 credits per word spelled correctly on the first attempt
+- **Perfect bonus**: All words correct on first attempt in a single run = +3 bonus credits
+- **Daily replay**: After completing a list, earn 2 credits/day by getting all words correct in one run (once per list per day)
+- Credits from weekly challenges count toward Pokémon unlocks
+
 ### Stats Page
 - 30-day streak calendar
 - Recent round history (date, score, credits, pass/fail)

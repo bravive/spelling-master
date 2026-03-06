@@ -4,6 +4,11 @@
 
 Follow these steps for every change, no matter how small:
 
+### 0. Plan before significant changes
+- For any non-trivial feature, refactor, or migration, create a plan file under `claude-plan/` (e.g. `claude-plan/my-feature.md`) before writing code
+- The plan should cover: goal, approach, affected files, schema/API changes, and test strategy
+- Keep the plan file updated as decisions evolve; it serves as a reference for the feature branch
+
 ### 1. Commit each edit separately
 - Make one focused commit per logical change (bug fix, feature, refactor, docs)
 - Keep commit messages brief and descriptive (what + why)
@@ -36,7 +41,7 @@ A daily spelling practice web app for elementary school kids (K–5). Kids memor
 
 - **Framework**: React 19 + Vite
 - **Styling**: Inline styles only (no CSS framework)
-- **Storage**: `data/users.json` via Express REST API (`GET/POST /api/users`)
+- **Storage**: MongoDB (via Docker locally, Railway in production) — collections: `users`, `collections`, `wordstats`, `roundhistory`
 - **Speech**: Web Speech API (`window.speechSynthesis`)
 - **Images**: `https://img.pokemondb.net/sprites/home/normal/{slug}.png` (regular) and `.../shiny/{slug}.png` (shiny)
 - **Backend**: Express (port 3001); Vite proxies `/api` to it
@@ -44,14 +49,17 @@ A daily spelling practice web app for elementary school kids (K–5). Kids memor
 ## File Structure
 
 ```
-server.js        — Express API server (reads/writes data/users.json)
-data/
-  users.json     — persistent user storage (gitignored)
+server.js        — Express API server (all routes; delegates DB ops to src/store.js)
 src/
+  db.js          — MongoDB connection, collection helpers, index setup
+  store.js       — all DB interaction functions (users, collection, wordstats, roundhistory)
   App.jsx        — main app (all logic + screens)
   data/
     words.js     — word bank (5 levels, keys 1–5, each { w, s }[])
     pokemon.js   — 60 Pokémon roster, pkImg/pkShiny helpers
+docker-compose.yml  — local MongoDB via Docker
+scripts/
+  migrate-to-mongo.js  — one-shot migration from old JSON files to MongoDB
 ```
 
 ## Running the App
@@ -188,7 +196,7 @@ npm run build
 
 ---
 
-## User State Shape (stored in `data/users.json`)
+## User State Shape (stored in MongoDB)
 
 ```js
 {

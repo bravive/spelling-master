@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Env
+.env
+
 # User data
 data/users.json
 

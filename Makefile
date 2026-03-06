@@ -1,6 +1,6 @@
 LOG_FILE := /tmp/spell-master-server.log
 
-.PHONY: server restart dev build test logs
+.PHONY: server restart dev build test logs mongo-up mongo-down mongo-shell migrate
 
 # Restart the Express API server (kills any running instance first)
 restart:
@@ -28,3 +28,17 @@ build:
 # Run unit tests
 test:
 	npm test
+
+# MongoDB (Docker)
+mongo-up:
+	docker compose up -d
+
+mongo-down:
+	docker compose down
+
+mongo-shell:
+	docker compose exec mongo mongosh spellmaster
+
+# Import existing JSON data into MongoDB
+migrate:
+	node --env-file=.env scripts/migrate-to-mongo.js

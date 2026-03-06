@@ -15,7 +15,7 @@ logs:
 
 # Start API server only
 server:
-	node server.js
+	node server.js >> $(LOG_FILE) 2>&1
 
 # Start both API server and Vite dev server
 dev:

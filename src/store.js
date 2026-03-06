@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import bcrypt from 'bcryptjs';
-import { usersCol, collectionsCol, wordstatsCol, roundhistoryCol, weeklyChallengeWordsCol, weeklyStatsCol } from './db.js';
+import { usersCol, trophiesCol, wordstatsCol, roundhistoryCol, weeklyChallengeWordsCol, weeklyStatsCol } from './db.js';
 
 const now = () => new Date();
 
@@ -51,9 +51,9 @@ export const createUser = async ({ key, name, pin, starterId, starterSlug }) => 
 
   // Related collections use the user's UUID as the foreign key
   const colBase = { created_at: t, updated_at: t };
-  log('insertOne', 'collections+wordstats+roundhistory', { userId: user._id });
+  log('insertOne', 'trophies+wordstats+roundhistory', { userId: user._id });
   await Promise.all([
-    collectionsCol().insertOne({ _id: randomUUID(), userId: user._id, collection: {}, shinyEligible: false, consecutiveRegular: 0, ...colBase }),
+    trophiesCol().insertOne({ _id: randomUUID(), userId: user._id, collection: {}, shinyEligible: false, consecutiveRegular: 0, ...colBase }),
     wordstatsCol().insertOne({ _id: randomUUID(), userId: user._id, stats: {}, ...colBase }),
     roundhistoryCol().insertOne({ _id: randomUUID(), userId: user._id, roundHistory: [], bestScores: {}, ...colBase }),
   ]);
@@ -88,9 +88,9 @@ export const deleteUser = async (id) => {
   log('deleteOne', 'users', { _id: id });
   const result = await usersCol().deleteOne({ _id: id });
   if (result.deletedCount === 0) return false;
-  log('deleteOne', 'collections+wordstats+roundhistory+weeklystats', { userId: id });
+  log('deleteOne', 'trophies+wordstats+roundhistory+weeklystats', { userId: id });
   await Promise.all([
-    collectionsCol().deleteOne({ userId: id }),
+    trophiesCol().deleteOne({ userId: id }),
     wordstatsCol().deleteOne({ userId: id }),
     roundhistoryCol().deleteOne({ userId: id }),
     weeklyStatsCol().deleteMany({ userId: id }),
@@ -98,14 +98,14 @@ export const deleteUser = async (id) => {
   return true;
 };
 
-// ── Collection ────────────────────────────────────────────────────────────────
+// ── Trophies (Pokemon collection) ─────────────────────────────────────────────
 
-export const getCollection = (id) => {
-  log('findOne', 'collections', { userId: id });
-  return collectionsCol().findOne({ userId: id });
+export const getTrophy = (id) => {
+  log('findOne', 'trophies', { userId: id });
+  return trophiesCol().findOne({ userId: id });
 };
 
-export const saveCollection = (id, data) => upsert(collectionsCol(), id, data);
+export const saveTrophy = (id, data) => upsert(trophiesCol(), id, data);
 
 // ── Wordstats ─────────────────────────────────────────────────────────────────
 

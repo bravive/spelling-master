@@ -6,7 +6,7 @@ import { rateLimit } from 'express-rate-limit';
 import { connectDb } from './src/db.js';
 import {
   getAllUsers, findUser, findUserById, createUser, checkPin, updateUser, deleteUser,
-  getCollection, saveCollection,
+  getTrophy, saveTrophy,
   getWordStats, saveWordStats,
   getRoundHistory, saveRoundHistory,
   getAllWeeks, getAllWeeklyStats, saveWeeklyStats,
@@ -159,13 +159,13 @@ app.delete('/api/users/:id', requireAdmin, async (req, res) => {
   res.json({ ok: true });
 });
 
-app.get('/api/collection', requireAuth, async (req, res) => {
-  const doc = await getCollection(req.jwtUser.id);
+app.get('/api/trophy', requireAuth, async (req, res) => {
+  const doc = await getTrophy(req.jwtUser.id);
   res.json(doc ?? { collection: {}, shinyEligible: false, consecutiveRegular: 0 });
 });
 
-app.put('/api/collection', requireAuth, async (req, res) => {
-  await saveCollection(req.jwtUser.id, req.body);
+app.put('/api/trophy', requireAuth, async (req, res) => {
+  await saveTrophy(req.jwtUser.id, req.body);
   res.json({ ok: true });
 });
 

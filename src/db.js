@@ -24,9 +24,9 @@ export const closeDb = async () => {
   client = null;
 };
 
-// ── Collection helpers ────────────────────────────────────────────────────────
+// ── Collection helpers (MongoDB collection = table) ───────────────────────────
 export const usersCol                = () => getDb().collection('users');
-export const collectionsCol          = () => getDb().collection('collections');
+export const trophiesCol             = () => getDb().collection('trophies');
 export const wordstatsCol            = () => getDb().collection('wordstats');
 export const roundhistoryCol         = () => getDb().collection('roundhistory');
 export const weeklyChallengeWordsCol = () => getDb().collection('weeklychallengewords');
@@ -36,7 +36,7 @@ export const weeklyStatsCol          = () => getDb().collection('weeklychallenge
 const ensureIndexes = async () => {
   await Promise.all([
     usersCol().createIndex({ userId: 1 }, { unique: true }),
-    collectionsCol().createIndex({ userId: 1 }, { unique: true }),
+    trophiesCol().createIndex({ userId: 1 }, { unique: true }),
     wordstatsCol().createIndex({ userId: 1 }, { unique: true }),
     roundhistoryCol().createIndex({ userId: 1 }, { unique: true }),
     weeklyChallengeWordsCol().createIndex({ weekId: 1 }, { unique: true }),

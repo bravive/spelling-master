@@ -3,10 +3,10 @@ import { selectWords } from '../wordSelection';
 import { todayStr, C, s } from '../shared';
 import { RulesModal } from './RulesModal';
 
-export const HomeScreen = ({ getUser, wordStats, colData, weeklyWords, weeklyStats, setWords, setRetryCount, setGameScreen, setCurrentUser, setScreen }) => {
+export const HomeScreen = ({ getUser, wordStats, trophyData, weeklyWords, weeklyStats, setWords, setRetryCount, setGameScreen, setCurrentUser, setScreen }) => {
   const user = getUser();
   if (!user) return null;
-  const col = colData?.collection || {};
+  const col = trophyData?.collection || {};
   const caught = user.caught || 0;
   const nextPk = ALL_POKEMON.find(p => !col[p.id]?.regular);
 
@@ -57,7 +57,7 @@ export const HomeScreen = ({ getUser, wordStats, colData, weeklyWords, weeklySta
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 700, marginBottom: 6 }}>Next Pokemon</div>
-              {colData?.shinyEligible && (
+              {trophyData?.shinyEligible && (
                 <div style={{ color: '#a78bfa', fontSize: 13, animation: 'pulse 1.5s ease infinite', marginBottom: 4 }}>✨ Shiny chance active!</div>
               )}
               <div style={{ background: 'rgba(255,255,255,0.1)', borderRadius: 8, height: 8, overflow: 'hidden' }}>
@@ -79,7 +79,7 @@ export const HomeScreen = ({ getUser, wordStats, colData, weeklyWords, weeklySta
 
         <div style={{ display: 'flex', gap: 8 }}>
           <button style={{ ...s.btn(C.blue), flex: 1 }} onClick={() => setGameScreen('stats')}>📊 Stats</button>
-          <button style={{ ...s.btn(C.purple), flex: 1 }} onClick={() => setGameScreen('collection')}>🏆 Trophies</button>
+          <button style={{ ...s.btn(C.purple), flex: 1 }} onClick={() => setGameScreen('trophy')}>🏆 Trophies</button>
         </div>
       </div>
 

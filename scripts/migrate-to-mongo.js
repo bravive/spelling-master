@@ -44,7 +44,7 @@ const run = async () => {
   // Ensure unique indexes exist
   await Promise.all([
     db.collection('users').createIndex({ userId: 1 }, { unique: true }),
-    db.collection('collections').createIndex({ userId: 1 }, { unique: true }),
+    db.collection('trophies').createIndex({ userId: 1 }, { unique: true }),
     db.collection('wordstats').createIndex({ userId: 1 }, { unique: true }),
     db.collection('roundhistory').createIndex({ userId: 1 }, { unique: true }),
   ]);
@@ -76,7 +76,7 @@ const run = async () => {
   // Build username → UUID map for foreign key references
   const uuidByUsername = Object.fromEntries(userDocs.map(u => [u.userId, u._id]));
 
-  // ── collections ────────────────────────────────────────────────────────────
+  // ── trophies ───────────────────────────────────────────────────────────────
   const colJson = readJson('collection');
   const colDocs = Object.entries(colJson).map(([username, c]) => ({
     _id: randomUUID(),
@@ -87,7 +87,7 @@ const run = async () => {
     created_at: now,
     updated_at: now,
   }));
-  await insertMany(db.collection('collections'), colDocs);
+  await insertMany(db.collection('trophies'), colDocs);
 
   // ── wordstats ──────────────────────────────────────────────────────────────
   const wsJson = readJson('wordstats');

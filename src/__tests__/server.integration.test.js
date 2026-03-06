@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import request from 'supertest';
 import { MongoMemoryServer } from 'mongodb-memory-server';
-import { connectDb, closeDb, usersCol, collectionsCol, wordstatsCol, roundhistoryCol, weeklyChallengeWordsCol, weeklyStatsCol } from '../db.js';
+import { connectDb, closeDb, usersCol, trophiesCol, wordstatsCol, roundhistoryCol, weeklyChallengeWordsCol, weeklyStatsCol } from '../db.js';
 import { app } from '../../server.js';
 
 let mongod;
@@ -23,7 +23,7 @@ beforeEach(async () => {
   // Clear all collections between tests
   await Promise.all([
     usersCol().deleteMany({}),
-    collectionsCol().deleteMany({}),
+    trophiesCol().deleteMany({}),
     wordstatsCol().deleteMany({}),
     roundhistoryCol().deleteMany({}),
     weeklyChallengeWordsCol().deleteMany({}),
@@ -60,7 +60,7 @@ describe('POST /api/users', () => {
     expect(res.body.user.pin).toBeUndefined();
 
     const uuid = res.body.user.id;
-    const col = await collectionsCol().findOne({ userId: uuid });
+    const col = await trophiesCol().findOne({ userId: uuid });
     expect(col).not.toBeNull();
     const ws = await wordstatsCol().findOne({ userId: uuid });
     expect(ws).not.toBeNull();
@@ -170,8 +170,8 @@ describe('PUT /api/users/me', () => {
 
 });
 
-// ── Collection ────────────────────────────────────────────────────────────────
-describe('GET/PUT /api/collection', () => {
+// ── Trophy ────────────────────────────────────────────────────────────────────
+describe('GET/PUT /api/trophy', () => {
   let token;
   beforeEach(async () => {
     await createUser();
@@ -181,7 +181,7 @@ describe('GET/PUT /api/collection', () => {
 
   it('returns empty collection for new user', async () => {
     const res = await request(app)
-      .get('/api/collection')
+      .get('/api/trophy')
       .set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(200);
     expect(res.body.collection).toEqual({});
@@ -189,18 +189,18 @@ describe('GET/PUT /api/collection', () => {
 
   it('saves and retrieves collection data', async () => {
     const data = { collection: { '1': { regular: true } }, shinyEligible: false, consecutiveRegular: 1 };
-    await request(app).put('/api/collection').set('Authorization', `Bearer ${token}`).send(data);
-    const res = await request(app).get('/api/collection').set('Authorization', `Bearer ${token}`);
+    await request(app).put('/api/trophy').set('Authorization', `Bearer ${token}`).send(data);
+    const res = await request(app).get('/api/trophy').set('Authorization', `Bearer ${token}`);
     expect(res.body.collection['1'].regular).toBe(true);
   });
 
   it('sets updated_at on PUT', async () => {
     const user = await usersCol().findOne({ userId: 'alice' });
-    const before = await collectionsCol().findOne({ userId: user._id });
+    const before = await trophiesCol().findOne({ userId: user._id });
     await new Promise(r => setTimeout(r, 10));
-    await request(app).put('/api/collection').set('Authorization', `Bearer ${token}`)
+    await request(app).put('/api/trophy').set('Authorization', `Bearer ${token}`)
       .send({ collection: {}, shinyEligible: false, consecutiveRegular: 0 });
-    const after = await collectionsCol().findOne({ userId: user._id });
+    const after = await trophiesCol().findOne({ userId: user._id });
     expect(after.updated_at.getTime()).toBeGreaterThan(before.updated_at.getTime());
   });
 });
@@ -272,7 +272,7 @@ describe('DELETE /api/users/:id', () => {
       .set('Authorization', `Bearer ${adminToken}`);
     expect(res.status).toBe(200);
     expect(await usersCol().findOne({ userId: 'alice' })).toBeNull();
-    expect(await collectionsCol().findOne({ userId: aliceId })).toBeNull();
+    expect(await trophiesCol().findOne({ userId: aliceId })).toBeNull();
     expect(await wordstatsCol().findOne({ userId: aliceId })).toBeNull();
     expect(await roundhistoryCol().findOne({ userId: aliceId })).toBeNull();
     expect(await weeklyStatsCol().findOne({ userId: aliceId })).toBeNull();

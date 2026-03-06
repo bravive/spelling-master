@@ -16,7 +16,7 @@ vi.mock('mongodb', () => {
 });
 
 // Import after mocking
-const { connectDb, getDb, closeDb, usersCol, collectionsCol, wordstatsCol, roundhistoryCol, weeklyChallengeWordsCol, weeklyStatsCol } = await import('../db.js');
+const { connectDb, getDb, closeDb, usersCol, trophiesCol, wordstatsCol, roundhistoryCol, weeklyChallengeWordsCol, weeklyStatsCol } = await import('../db.js');
 
 describe('db module', () => {
   beforeEach(async () => {
@@ -50,9 +50,9 @@ describe('db module', () => {
     expect(getDb().collection).toHaveBeenCalledWith('users');
   });
 
-  it('collectionsCol returns collection named "collections"', () => {
-    collectionsCol();
-    expect(getDb().collection).toHaveBeenCalledWith('collections');
+  it('trophiesCol returns collection named "trophies"', () => {
+    trophiesCol();
+    expect(getDb().collection).toHaveBeenCalledWith('trophies');
   });
 
   it('wordstatsCol returns collection named "wordstats"', () => {

@@ -41,6 +41,37 @@ const createUser = (overrides = {}) =>
 const loginUser = (userId = 'alice', pin = '1234') =>
   request(app).post('/api/auth/login').send({ userId, pin });
 
+// ── List users ────────────────────────────────────────────────────────────────
+describe('GET /api/users', () => {
+  it('returns empty object when no users exist', async () => {
+    const res = await request(app).get('/api/users');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({});
+  });
+
+  it('returns one user keyed by UUID with no PIN', async () => {
+    const { body } = await createUser();
+    const uuid = body.user.id;
+
+    const res = await request(app).get('/api/users');
+    expect(res.status).toBe(200);
+    expect(Object.keys(res.body)).toHaveLength(1);
+    expect(res.body[uuid]).toBeDefined();
+    expect(res.body[uuid].userId).toBe('alice');
+    expect(res.body[uuid].pin).toBeUndefined();
+  });
+
+  it('returns all users when multiple exist', async () => {
+    const { body: a } = await createUser();
+    const { body: b } = await createUser({ key: 'bob', name: 'Bob' });
+
+    const res = await request(app).get('/api/users');
+    expect(Object.keys(res.body)).toHaveLength(2);
+    expect(res.body[a.user.id].userId).toBe('alice');
+    expect(res.body[b.user.id].userId).toBe('bob');
+  });
+});
+
 // ── Health check ──────────────────────────────────────────────────────────────
 describe('GET /ping', () => {
   it('returns ok and db:mongodb', async () => {
@@ -126,6 +157,11 @@ describe('POST /api/auth/login', () => {
     expect(res.status).toBe(200);
     expect(res.body.user.isAdmin).toBe(true);
   });
+
+  it('returns 401 for unknown user (0 matching records)', async () => {
+    const res = await loginUser('nobody', '1234');
+    expect(res.status).toBe(401);
+  });
 });
 
 // ── Update user ───────────────────────────────────────────────────────────────
@@ -203,6 +239,32 @@ describe('GET/PUT /api/trophy', () => {
     const after = await trophiesCol().findOne({ userId: user._id });
     expect(after.updated_at.getTime()).toBeGreaterThan(before.updated_at.getTime());
   });
+
+  it('repeated PUTs upsert — never creates duplicate trophy docs', async () => {
+    const data = { collection: { '1': { regular: true } }, shinyEligible: false, consecutiveRegular: 1 };
+    await request(app).put('/api/trophy').set('Authorization', `Bearer ${token}`).send(data);
+    await request(app).put('/api/trophy').set('Authorization', `Bearer ${token}`)
+      .send({ ...data, consecutiveRegular: 2 });
+    const user = await usersCol().findOne({ userId: 'alice' });
+    const count = await trophiesCol().countDocuments({ userId: user._id });
+    expect(count).toBe(1);
+  });
+
+  it("does not return another user's trophy data", async () => {
+    await request(app).put('/api/trophy').set('Authorization', `Bearer ${token}`)
+      .send({ collection: { '1': { regular: true, shiny: true } }, shinyEligible: true, consecutiveRegular: 3 });
+
+    await createUser({ key: 'bob', name: 'Bob' });
+    const bobToken = (await loginUser('bob', '1234')).body.token;
+    const res = await request(app).get('/api/trophy').set('Authorization', `Bearer ${bobToken}`);
+    expect(res.body.collection).toEqual({});
+    expect(res.body.shinyEligible).toBe(false);
+  });
+
+  it('returns 401 without token', async () => {
+    const res = await request(app).get('/api/trophy');
+    expect(res.status).toBe(401);
+  });
 });
 
 // ── Wordstats ─────────────────────────────────────────────────────────────────
@@ -225,6 +287,33 @@ describe('GET/PUT /api/wordstats', () => {
     await request(app).put('/api/wordstats').set('Authorization', `Bearer ${token}`).send(stats);
     const res = await request(app).get('/api/wordstats').set('Authorization', `Bearer ${token}`);
     expect(res.body.cat.attempts).toBe(2);
+  });
+
+  it('repeated PUTs upsert — never creates duplicate wordstats docs', async () => {
+    await request(app).put('/api/wordstats').set('Authorization', `Bearer ${token}`)
+      .send({ cat: { attempts: 1, correct: 1, weight: 1 } });
+    await request(app).put('/api/wordstats').set('Authorization', `Bearer ${token}`)
+      .send({ cat: { attempts: 2, correct: 2, weight: 0.75 }, dog: { attempts: 1, correct: 0, weight: 1.6 } });
+    const user = await usersCol().findOne({ userId: 'alice' });
+    const count = await wordstatsCol().countDocuments({ userId: user._id });
+    expect(count).toBe(1);
+    const res = await request(app).get('/api/wordstats').set('Authorization', `Bearer ${token}`);
+    expect(Object.keys(res.body)).toHaveLength(2);
+  });
+
+  it("does not return another user's word stats", async () => {
+    await request(app).put('/api/wordstats').set('Authorization', `Bearer ${token}`)
+      .send({ cat: { attempts: 5, correct: 5, weight: 0.3 } });
+
+    await createUser({ key: 'bob', name: 'Bob' });
+    const bobToken = (await loginUser('bob', '1234')).body.token;
+    const res = await request(app).get('/api/wordstats').set('Authorization', `Bearer ${bobToken}`);
+    expect(res.body).toEqual({});
+  });
+
+  it('returns 401 without token', async () => {
+    const res = await request(app).get('/api/wordstats');
+    expect(res.status).toBe(401);
   });
 });
 
@@ -249,6 +338,44 @@ describe('GET/PUT /api/roundhistory', () => {
     const res = await request(app).get('/api/roundhistory').set('Authorization', `Bearer ${token}`);
     expect(res.body.roundHistory).toHaveLength(1);
     expect(res.body.roundHistory[0].score).toBe(10);
+  });
+
+  it('saves multiple rounds and retrieves them all', async () => {
+    const rounds = [
+      { date: '2026-03-04', score: 7, earned: 0, pass: true },
+      { date: '2026-03-05', score: 9, earned: 3, pass: true },
+      { date: '2026-03-06', score: 10, earned: 5, pass: true },
+    ];
+    await request(app).put('/api/roundhistory').set('Authorization', `Bearer ${token}`)
+      .send({ roundHistory: rounds, bestScores: { '10': '2026-03-06' } });
+    const res = await request(app).get('/api/roundhistory').set('Authorization', `Bearer ${token}`);
+    expect(res.body.roundHistory).toHaveLength(3);
+    expect(res.body.bestScores['10']).toBe('2026-03-06');
+  });
+
+  it('repeated PUTs upsert — never creates duplicate roundhistory docs', async () => {
+    await request(app).put('/api/roundhistory').set('Authorization', `Bearer ${token}`)
+      .send({ roundHistory: [{ date: '2026-03-05', score: 8, earned: 2, pass: true }], bestScores: {} });
+    await request(app).put('/api/roundhistory').set('Authorization', `Bearer ${token}`)
+      .send({ roundHistory: [{ date: '2026-03-05', score: 8, earned: 2, pass: true }, { date: '2026-03-06', score: 10, earned: 5, pass: true }], bestScores: {} });
+    const user = await usersCol().findOne({ userId: 'alice' });
+    const count = await roundhistoryCol().countDocuments({ userId: user._id });
+    expect(count).toBe(1);
+  });
+
+  it("does not return another user's round history", async () => {
+    await request(app).put('/api/roundhistory').set('Authorization', `Bearer ${token}`)
+      .send({ roundHistory: [{ date: '2026-03-06', score: 10, earned: 5, pass: true }], bestScores: {} });
+
+    await createUser({ key: 'bob', name: 'Bob' });
+    const bobToken = (await loginUser('bob', '1234')).body.token;
+    const res = await request(app).get('/api/roundhistory').set('Authorization', `Bearer ${bobToken}`);
+    expect(res.body.roundHistory).toEqual([]);
+  });
+
+  it('returns 401 without token', async () => {
+    const res = await request(app).get('/api/roundhistory');
+    expect(res.status).toBe(401);
   });
 });
 
@@ -293,10 +420,36 @@ describe('DELETE /api/users/:id', () => {
       .set('Authorization', `Bearer ${adminToken}`);
     expect(res.status).toBe(400);
   });
+
+  it('returns 404 when deleting a non-existent user ID', async () => {
+    const res = await request(app)
+      .delete('/api/users/00000000-0000-0000-0000-000000000000')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(404);
+  });
 });
 
 // ── Weekly words ───────────────────────────────────────────────────────────────
-describe('GET /api/weekly-words', () => {
+describe('GET /api/weekly-words — 0 or 1 records', () => {
+  it('returns empty array when no weeks exist', async () => {
+    const res = await request(app).get('/api/weekly-words');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([]);
+  });
+
+  it('returns a single week when only one exists', async () => {
+    await weeklyChallengeWordsCol().insertOne({
+      _id: 'w1', weekId: 'w2026-01', label: 'Week 1', startDate: '2026-01-05',
+      words: [{ w: 'cat', s: 'The cat sat.' }], created_at: new Date(), updated_at: new Date(),
+    });
+    const res = await request(app).get('/api/weekly-words');
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].weekId).toBe('w2026-01');
+  });
+});
+
+describe('GET /api/weekly-words — multiple records', () => {
   beforeEach(async () => {
     await weeklyChallengeWordsCol().insertMany([
       { _id: 'w1', weekId: 'w2026-01', label: 'Week 1', startDate: '2026-01-05', words: [{ w: 'cat', s: 'The cat sat.' }], created_at: new Date(), updated_at: new Date() },

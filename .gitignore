@@ -28,6 +28,6 @@ public/pokemon/
 *.njsproj
 *.sln
 *.sw?
-data/*-wordstats.json
-data/*-collection.json
-data/*-roundhistory.json
+data/wordstats.json
+data/collection.json
+data/roundhistory.json

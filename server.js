@@ -11,12 +11,17 @@ const DATA_DIR = join(__dirname, 'data');
 const DATA_FILE = join(DATA_DIR, 'users.json');
 const ADMIN_KEY = 'test';
 
-// In production, set JWT_SECRET and ADMIN_PIN as environment variables.
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
-const ADMIN_PIN  = process.env.ADMIN_PIN  || '0000';
+// Dev/test defaults — intentionally hardcoded for local development.
+// Override with environment variables in production.
+const DEV_JWT_SECRET = 'dev-secret-do-not-use-in-production';
+const DEV_ADMIN_PIN  = '0000';
 
-if (!process.env.JWT_SECRET) {
-  console.warn('[WARN] JWT_SECRET not set — using insecure default. Set it in production!');
+const JWT_SECRET = process.env.JWT_SECRET || DEV_JWT_SECRET;
+const ADMIN_PIN  = process.env.ADMIN_PIN  || DEV_ADMIN_PIN;
+
+if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+  console.error('[ERROR] JWT_SECRET env var is not set in production! Refusing to start.');
+  process.exit(1);
 }
 
 // Ensure data directory exists

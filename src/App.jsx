@@ -3,7 +3,12 @@ import { ALL_POKEMON, STARTER_POKEMON, pkImg, pkShiny } from './data/pokemon';
 import { WORD_POOL } from './data/words';
 
 // ─── Storage ─────────────────────────────────────────────────────────────────
-const save = (users) => fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(users) });
+const saveUser = (userId, userData, token) =>
+  fetch(`/api/users/${userId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(userData),
+  }).then(r => { if (r.status === 401) window.__sm_logout?.(); return r; });
 
 // ─── Speech ──────────────────────────────────────────────────────────────────
 const speakTimes = (text, times, onDone) => {
@@ -23,23 +28,6 @@ const speak = (text) => speakTimes(text, 1, null);
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const todayStr = () => new Date().toISOString().slice(0, 10);
-
-const newUser = (name, pin, starterId, starterSlug) => ({
-  name, pin, starterId, starterSlug,
-  level: 1,
-  totalCredits: 0,
-  creditBank: 0,
-  streak: 0,
-  lastPlayed: null,
-  streakDates: [],
-  collection: {},
-  shinyEligible: false,
-  consecutiveRegular: 0,
-  wordStats: {},
-  roundHistory: [],
-  bestScores: {},
-  createdAt: new Date().toISOString(),
-});
 
 // Weighted word selection
 const selectWords = (user) => {
@@ -230,11 +218,12 @@ export default function App() {
   const [screen, setScreen] = useState('selectUser');
   const [gameScreen, setGameScreen] = useState('home');
   const [users, setUsers] = useState({});
+  const [token, setToken] = useState(() => localStorage.getItem('sm_token') || null);
 
   useEffect(() => {
     fetch('/api/users').then(r => r.json()).then(setUsers).catch(() => {});
   }, []);
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(() => localStorage.getItem('sm_user_id') || null);
   const [unlockQueue, setUnlockQueue] = useState([]);
   const [showConfetti, setShowConfetti] = useState(false);
   const confettiTimer = useRef(null);
@@ -256,17 +245,30 @@ export default function App() {
   const [retryCount, setRetryCount] = useState(0);
   const [roundResults, setRoundResults] = useState(null);
 
-  const saveUsers = (u) => { setUsers(u); save(u); };
+  // Register global logout so the saveUser helper can trigger it on 401
+  useEffect(() => {
+    window.__sm_logout = doLogout;
+    return () => { delete window.__sm_logout; };
+  });
+
+  const doLogout = () => {
+    setCurrentUser(null);
+    setToken(null);
+    localStorage.removeItem('sm_token');
+    localStorage.removeItem('sm_user_id');
+    setScreen('selectUser');
+  };
 
   const getUser = useCallback(() => users[currentUser] || null, [users, currentUser]);
 
   const updateUser = useCallback((fn) => {
     setUsers(prev => {
-      const next = { ...prev, [currentUser]: fn(prev[currentUser]) };
-      save(next);
+      const updated = fn(prev[currentUser]);
+      const next = { ...prev, [currentUser]: updated };
+      saveUser(currentUser, updated, token).catch(() => {});
       return next;
     });
-  }, [currentUser]);
+  }, [currentUser, token]);
 
   // ── Credit & Pokemon unlock logic ──────────────────────────────────────────
   const processRound = useCallback((score, results) => {
@@ -331,7 +333,7 @@ export default function App() {
     let updated = { ...user, streak, lastPlayed: today, streakDates: newDates.slice(-90), creditBank, totalCredits, collection: col, shinyEligible, consecutiveRegular, wordStats, roundHistory };
     updated = checkLevelUp(updated);
 
-    setUsers(prev => { const next = { ...prev, [currentUser]: updated }; save(next); return next; });
+    setUsers(prev => { const next = { ...prev, [currentUser]: updated }; saveUser(currentUser, updated, token).catch(() => {}); return next; });
     if (newUnlocks.length) setUnlockQueue(newUnlocks);
     if (score === 10) {
       setShowConfetti(true);
@@ -339,7 +341,7 @@ export default function App() {
       confettiTimer.current = setTimeout(() => setShowConfetti(false), 4000);
     }
     return { earned, pass: score >= 6, shouldRetry: score < 6 };
-  }, [users, currentUser]);
+  }, [users, currentUser, token]);
 
   // ── SelectUser ──────────────────────────────────────────────────────────────
   const SelectUserScreen = () => {
@@ -382,13 +384,25 @@ export default function App() {
       <div style={{ width: '100%', maxWidth: 360, textAlign: 'center' }}>
         <img src={pkImg(user.starterSlug)} alt="" style={{ width: 100, height: 100, objectFit: 'contain', animation: 'float 3s ease-in-out infinite' }} />
         <h2 style={{ color: C.yellow, margin: '8px 0 24px' }}>{user.name}</h2>
-        <NumPad value={loginPin} onChange={setLoginPin} onSubmit={(pin) => {
-          if (loginTarget === 'test' && pin === '0000') { setScreen('parentMenu'); return; }
-          if (users[loginTarget]?.pin === pin) {
-            setCurrentUser(loginTarget); setScreen('game'); setGameScreen('home');
-          } else {
-            setLoginError('Wrong PIN. Try again!'); setLoginPin('');
-          }
+        <NumPad value={loginPin} onChange={setLoginPin} onSubmit={async (pin) => {
+          setLoginError('');
+          const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: loginTarget, pin }),
+          }).catch(() => null);
+          if (!res) { setLoginError('Network error. Try again!'); setLoginPin(''); return; }
+          if (res.status === 429) { setLoginError('Too many attempts. Wait 15 min.'); setLoginPin(''); return; }
+          if (!res.ok) { setLoginError('Wrong PIN. Try again!'); setLoginPin(''); return; }
+          const { token: tok, user } = await res.json();
+          if (user.isAdmin) { setToken(tok); setScreen('parentMenu'); return; }
+          setUsers(prev => ({ ...prev, [loginTarget]: user }));
+          setToken(tok);
+          localStorage.setItem('sm_token', tok);
+          localStorage.setItem('sm_user_id', loginTarget);
+          setCurrentUser(loginTarget);
+          setScreen('game');
+          setGameScreen('home');
         }} />
         {loginError && <div style={{ color: C.red, marginTop: 12, animation: 'shake 0.3s ease' }}>{loginError}</div>}
         <button style={{ ...s.btn('rgba(255,255,255,0.1)', 'sm'), color: C.muted, marginTop: 16 }}
@@ -411,7 +425,13 @@ export default function App() {
                 <span style={{ fontWeight: 600 }}>{u.name}</span>
               </div>
               <button style={{ ...s.btn(C.red, 'sm') }}
-                onClick={() => { const next = { ...users }; delete next[key]; saveUsers(next); }}>
+                onClick={async () => {
+                  const res = await fetch(`/api/users/${key}`, {
+                    method: 'DELETE',
+                    headers: { Authorization: `Bearer ${token}` },
+                  }).catch(() => null);
+                  if (res?.ok) setUsers(prev => { const next = { ...prev }; delete next[key]; return next; });
+                }}>
                 Delete
               </button>
             </div>
@@ -483,11 +503,19 @@ export default function App() {
         {createStep === 3 && (
           <div>
             <p style={{ color: C.muted }}>Confirm your PIN</p>
-            <NumPad value={confirmPin} onChange={setConfirmPin} onSubmit={(pin) => {
+            <NumPad value={confirmPin} onChange={setConfirmPin} onSubmit={async (pin) => {
               if (pin !== newPin) { setConfirmPin(''); setErr('PINs do not match!'); return; }
               const key = newName.toLowerCase().replace(/\s+/g, '_');
-              const next = { ...users, [key]: newUser(newName, pin, newStarter.id, newStarter.slug) };
-              saveUsers(next);
+              const res = await fetch('/api/users', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key, name: newName, pin, starterId: newStarter.id, starterSlug: newStarter.slug }),
+              }).catch(() => null);
+              if (!res) { setErr('Network error. Try again!'); return; }
+              if (res.status === 409) { setErr('Name already taken.'); return; }
+              if (!res.ok) { setErr('Could not create profile.'); return; }
+              const { user } = await res.json();
+              setUsers(prev => ({ ...prev, [key]: user }));
               setScreen('selectUser');
             }} />
             {err && <div style={{ color: C.red, fontSize: 13, marginTop: 8 }}>{err}</div>}
@@ -558,7 +586,7 @@ export default function App() {
           <button style={{ ...s.btn(C.blue), flex: 1 }} onClick={() => setGameScreen('stats')}>📊 Stats</button>
           <button style={{ ...s.btn(C.purple), flex: 1 }} onClick={() => setGameScreen('collection')}>🏆 Collection</button>
           <button style={{ ...s.btn('rgba(255,255,255,0.12)'), color: '#fff' }}
-            onClick={() => { setCurrentUser(null); setScreen('selectUser'); }}>🚪</button>
+            onClick={doLogout}>🚪</button>
         </div>
       </div>
     );

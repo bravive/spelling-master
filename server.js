@@ -72,6 +72,9 @@ const requireAdmin = (req, res, next) => {
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 
+// GET /ping — health check
+app.get('/ping', (_req, res) => res.json({ ok: true }));
+
 // GET /api/users — public profile list, no PINs
 app.get('/api/users', (_req, res) => {
   const users = readUsers();

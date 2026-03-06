@@ -94,12 +94,15 @@ A daily spelling practice web app for elementary school kids (K–5). Kids memor
 # Install dependencies
 npm install
 
-# Start both backend (port 3001) and frontend (port 5173)
-npm start        # production mode (serves built dist/)
+# Development (backend on :3001, frontend on :5173 with hot reload)
+npm run dev:full   # both together
+# or separately:
+npm run server     # Express API only
+npm run dev        # Vite dev server only (proxies /api to :3001)
 
-# Or for development:
-npm run server   # Express API only
-npm run dev      # Vite dev server only (proxies /api to :3001)
+# Production (build first, then serve everything from Express on :3001)
+npm run build
+npm start
 ```
 
 Open your browser at **http://localhost:5173** (dev) or **http://localhost:3001** (production)
@@ -130,6 +133,31 @@ src/
   __tests__/
     auth.test.js — Unit tests for PIN hashing, JWT, and auth helpers
 ```
+
+## Deploying to Railway
+
+1. **Connect your repo** — create a new Railway project and link the GitHub repo.
+
+2. **Set environment variables** in the Railway service dashboard → Variables:
+
+   | Variable | Required | Notes |
+   |---|---|---|
+   | `JWT_SECRET` | **Yes** | Any long random string — server won't start without it |
+   | `ADMIN_PIN` | No | Defaults to `0000` |
+
+   Railway sets `PORT` automatically — do not override it.
+
+3. **Add a Volume** for data persistence (user profiles survive redeploys):
+   - Railway dashboard → your service → Volumes → "New Volume"
+   - Mount path: `/app/data`
+
+4. **Deploy** — Railway auto-detects the `build` and `start` scripts from `railway.json`:
+   - Build: `npm run build` (compiles React to `dist/`)
+   - Start: `npm start` (`NODE_ENV=production node server.js` — serves API + static files)
+
+> **Note:** Without a Volume, `data/users.json` is stored on the ephemeral filesystem and will be wiped on every redeploy.
+
+---
 
 ## API Endpoints
 

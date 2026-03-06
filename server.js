@@ -72,8 +72,21 @@ const requireAdmin = (req, res, next) => {
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 
-// GET /ping — health check
-app.get('/ping', (_req, res) => res.json({ ok: true }));
+// GET /ping — health check + volume diagnostics
+app.get('/ping', (_req, res) => {
+  const volumeEnv = process.env.RAILWAY_VOLUME_MOUNT_PATH;
+  let dataFileExists = false;
+  try { readFileSync(DATA_FILE); dataFileExists = true; } catch { /* noop */ }
+  res.json({
+    ok: true,
+    volume: {
+      RAILWAY_VOLUME_MOUNT_PATH: volumeEnv ?? null,
+      DATA_DIR,
+      DATA_FILE,
+      dataFileExists,
+    },
+  });
+});
 
 // GET /api/users — public profile list, no PINs
 app.get('/api/users', (_req, res) => {

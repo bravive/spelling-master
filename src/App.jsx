@@ -189,7 +189,8 @@ export default function App() {
 
     const roundHistory = [...(user.roundHistory || []), { date: today, score, earned, pass: score >= 6 }].slice(-200);
 
-    const updated = { ...user, streak, lastPlayed: today, streakDates: newDates.slice(-90), creditBank, totalCredits, collection: col, shinyEligible, consecutiveRegular, roundHistory, roundCount: newRoundCount, level: newLevel };
+    const caught = Object.values(col).filter(c => c.regular || c.shiny).length;
+    const updated = { ...user, streak, lastPlayed: today, streakDates: newDates.slice(-90), creditBank, totalCredits, caught, collection: col, shinyEligible, consecutiveRegular, roundHistory, roundCount: newRoundCount, level: newLevel };
 
     setWordStats(newWordStats);
     saveWordStats(currentUser, newWordStats);
@@ -227,7 +228,7 @@ export default function App() {
       {screen === 'game' && gameScreen === 'stage2' && <Stage2Screen words={words} processRound={processRound} setRoundResults={setRoundResults} setGameScreen={setGameScreen} />}
       {screen === 'game' && gameScreen === 'results' && <ResultsScreen roundResults={roundResults} getUser={getUser} wordStats={wordStats} setWords={setWords} setRetryCount={setRetryCount} setGameScreen={setGameScreen} />}
       {screen === 'game' && gameScreen === 'collection' && <CollectionScreen getUser={getUser} currentUser={currentUser} setScreen={setScreen} setGameScreen={setGameScreen} />}
-      {screen === 'game' && gameScreen === 'stats' && <StatsScreen getUser={getUser} setGameScreen={setGameScreen} />}
+      {screen === 'game' && gameScreen === 'stats' && <StatsScreen getUser={getUser} wordStats={wordStats} setGameScreen={setGameScreen} />}
     </div>
   );
 }

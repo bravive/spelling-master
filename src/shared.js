@@ -1,6 +1,3 @@
-// ─── Storage ─────────────────────────────────────────────────────────────────
-export const save = (users) => fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(users) });
-
 // ─── Speech ──────────────────────────────────────────────────────────────────
 export const speakTimes = (text, times, onDone) => {
   window.speechSynthesis.cancel();

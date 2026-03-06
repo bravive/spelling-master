@@ -1,7 +1,7 @@
 import { pkImg } from '../data/pokemon';
 import { C, s } from '../shared';
 
-export const ParentMenuScreen = ({ users, saveUsers, setCreateStep, setNewName, setNewStarter, setNewPin, setConfirmPin, setScreen, setGameScreen, setCurrentUser }) => {
+export const ParentMenuScreen = ({ users, saveUsers, jwt, setCreateStep, setNewName, setNewStarter, setNewPin, setConfirmPin, setScreen, setGameScreen, setCurrentUser }) => {
   const profiles = Object.entries(users).filter(([k]) => k !== 'test');
   return (
     <div style={{ width: '100%', maxWidth: 480 }}>
@@ -14,7 +14,13 @@ export const ParentMenuScreen = ({ users, saveUsers, setCreateStep, setNewName, 
               <span style={{ fontWeight: 600 }}>{u.name}</span>
             </div>
             <button style={{ ...s.btn(C.red, 'sm') }}
-              onClick={() => { const next = { ...users }; delete next[key]; saveUsers(next); }}>
+              onClick={async () => {
+                const res = await fetch(`/api/users/${encodeURIComponent(key)}`, {
+                  method: 'DELETE',
+                  headers: { 'Authorization': `Bearer ${jwt}` },
+                });
+                if (res.ok) { const next = { ...users }; delete next[key]; saveUsers(next); }
+              }}>
               Delete
             </button>
           </div>

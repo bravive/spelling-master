@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { STARTER_POKEMON, pkImg } from '../data/pokemon';
-import { C, s, newUser } from '../shared';
+import { C, s } from '../shared';
 import { NumPad } from './NumPad';
 
 export const CreateUserScreen = ({ users, saveUsers, createStep, setCreateStep, newName, setNewName, newStarter, setNewStarter, newPin, setNewPin, confirmPin, setConfirmPin, setScreen }) => {
@@ -58,12 +58,22 @@ export const CreateUserScreen = ({ users, saveUsers, createStep, setCreateStep, 
       {createStep === 3 && (
         <div>
           <p style={{ color: C.muted }}>Confirm your PIN</p>
-          <NumPad value={confirmPin} onChange={setConfirmPin} onSubmit={(pin) => {
+          <NumPad value={confirmPin} onChange={setConfirmPin} onSubmit={async (pin) => {
             if (pin !== newPin) { setConfirmPin(''); setErr('PINs do not match!'); return; }
             const key = newName.toLowerCase().replace(/\s+/g, '_');
-            const next = { ...users, [key]: newUser(newName, pin, newStarter.id, newStarter.slug) };
-            saveUsers(next);
-            setScreen('selectUser');
+            try {
+              const res = await fetch('/api/users', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key, name: newName, pin, starterId: newStarter.id, starterSlug: newStarter.slug }),
+              });
+              const data = await res.json();
+              if (!res.ok) { setErr(data.error || 'Failed to create profile.'); return; }
+              saveUsers({ ...users, [key]: data.user });
+              setScreen('selectUser');
+            } catch {
+              setErr('Network error. Try again.');
+            }
           }} />
           {err && <div style={{ color: C.red, fontSize: 13, marginTop: 8 }}>{err}</div>}
         </div>

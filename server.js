@@ -24,6 +24,10 @@ if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
   process.exit(1);
 }
 
+if (process.env.NODE_ENV === 'production' && !process.env.RAILWAY_VOLUME_MOUNT_PATH) {
+  console.warn('[WARN] RAILWAY_VOLUME_MOUNT_PATH is not set. User data will be stored at', DATA_DIR, '— it will be LOST on redeploy. Attach a Railway volume to persist data.');
+}
+
 // Ensure data directory exists
 mkdirSync(DATA_DIR, { recursive: true });
 

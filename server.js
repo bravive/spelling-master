@@ -27,9 +27,20 @@ if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
 // Ensure data directory exists
 mkdirSync(DATA_DIR, { recursive: true });
 
+const COLLECTION_FILE = join(DATA_DIR, 'collection.json');
+
 const readUsers = () => {
   try { return JSON.parse(readFileSync(DATA_FILE, 'utf8')); }
   catch { return {}; }
+};
+
+const readCollections = () => {
+  try { return JSON.parse(readFileSync(COLLECTION_FILE, 'utf8')); }
+  catch { return {}; }
+};
+
+const writeCollections = (data) => {
+  writeFileSync(COLLECTION_FILE, JSON.stringify(data, null, 2), 'utf8');
 };
 
 const writeUsers = (data) => {
@@ -46,6 +57,15 @@ app.use(express.json({ limit: '2mb' }));
 // ── Request logging ───────────────────────────────────────────────────────────
 app.use((req, res, next) => {
   const start = Date.now();
+  let responseBody;
+
+  // Intercept res.json to capture the response body
+  const origJson = res.json.bind(res);
+  res.json = (body) => {
+    responseBody = body;
+    return origJson(body);
+  };
+
   res.on('finish', () => {
     const ms = Date.now() - start;
     const auth = req.headers.authorization;
@@ -59,7 +79,9 @@ app.use((req, res, next) => {
     const status = res.statusCode;
     const color = status >= 500 ? '\x1b[31m' : status >= 400 ? '\x1b[33m' : '\x1b[32m';
     const reset = '\x1b[0m';
-    console.log(`${color}${status}${reset} ${req.method} ${req.path} [${user}] ${ms}ms`);
+    const ts = new Date().toISOString();
+    const bodyStr = responseBody !== undefined ? ' → ' + JSON.stringify(responseBody) : '';
+    console.log(`[${ts}] ${color}${status}${reset} ${req.method} ${req.originalUrl} [${user}] ${ms}ms${bodyStr}`);
   });
   next();
 });
@@ -181,12 +203,9 @@ app.post('/api/users', async (req, res) => {
   res.status(201).json({ ok: true, user: publicUser(user) });
 });
 
-// PUT /api/users/:id — save game state (own user or admin)
-app.put('/api/users/:id', requireAuth, (req, res) => {
-  const { id } = req.params;
-  if (req.jwtUser.userId !== id && !req.jwtUser.isAdmin) {
-    return res.status(403).json({ error: 'Forbidden' });
-  }
+// PUT /api/users/me — save game state for current user
+app.put('/api/users/me', requireAuth, (req, res) => {
+  const id = req.jwtUser.userId;
 
   const users = readUsers();
   if (!users[id]) return res.status(404).json({ error: 'User not found' });
@@ -207,6 +226,20 @@ app.delete('/api/users/:id', requireAdmin, (req, res) => {
   if (!users[id]) return res.status(404).json({ error: 'User not found' });
   delete users[id];
   writeUsers(users);
+  res.json({ ok: true });
+});
+
+// GET /api/collection — get current user's collection data
+app.get('/api/collection', requireAuth, (req, res) => {
+  const collections = readCollections();
+  res.json(collections[req.jwtUser.userId] || { collection: {}, shinyEligible: false, consecutiveRegular: 0 });
+});
+
+// PUT /api/collection — save current user's collection data
+app.put('/api/collection', requireAuth, (req, res) => {
+  const collections = readCollections();
+  collections[req.jwtUser.userId] = req.body;
+  writeCollections(collections);
   res.json({ ok: true });
 });
 

@@ -59,6 +59,11 @@ export const HomeScreen = ({ getUser, wordStats, setWords, setRetryCount, setGam
         🚀 Start Round!
       </button>
 
+      <button style={{ ...s.btn(C.green, 'lg'), width: '100%', marginBottom: 8 }}
+        onClick={() => setGameScreen('weekly')}>
+        📅 Weekly Challenge
+      </button>
+
       <div style={{ display: 'flex', gap: 8 }}>
         <button style={{ ...s.btn(C.blue), flex: 1 }} onClick={() => setGameScreen('stats')}>📊 Stats</button>
         <button style={{ ...s.btn(C.purple), flex: 1 }} onClick={() => setGameScreen('collection')}>🏆 Collection</button>

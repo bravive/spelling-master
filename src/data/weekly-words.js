@@ -1,0 +1,36 @@
+export const WEEKLY_WORDS = [
+  {
+    id: 'w2026-10',
+    label: 'Week 10',
+    startDate: '2026-03-02',
+    words: [
+      { w: 'apple', s: 'I ate a red apple for lunch.' },
+      { w: 'bread', s: 'She made fresh bread this morning.' },
+      { w: 'chair', s: 'Please sit on the chair.' },
+      { w: 'drink', s: 'I like to drink water after school.' },
+      { w: 'elephant', s: 'The elephant has a long trunk.' },
+      { w: 'flower', s: 'She picked a pretty flower from the garden.' },
+      { w: 'green', s: 'The grass is very green today.' },
+      { w: 'happy', s: 'I feel happy when I play with my friends.' },
+      { w: 'island', s: 'We visited a small island last summer.' },
+      { w: 'jump', s: 'Can you jump over the puddle?' },
+    ],
+  },
+  {
+    id: 'w2026-11',
+    label: 'Week 11',
+    startDate: '2026-03-09',
+    words: [
+      { w: 'kitchen', s: 'Mom is cooking in the kitchen.' },
+      { w: 'lemon', s: 'The lemon tastes very sour.' },
+      { w: 'monkey', s: 'The monkey swings from tree to tree.' },
+      { w: 'night', s: 'The stars come out at night.' },
+      { w: 'orange', s: 'I peeled an orange for a snack.' },
+      { w: 'pencil', s: 'Write your name with a pencil.' },
+      { w: 'queen', s: 'The queen wore a golden crown.' },
+      { w: 'rabbit', s: 'The rabbit hopped across the yard.' },
+      { w: 'sunset', s: 'We watched the beautiful sunset.' },
+      { w: 'turtle', s: 'The turtle moved very slowly.' },
+    ],
+  },
+];

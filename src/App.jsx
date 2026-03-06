@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ALL_POKEMON } from './data/pokemon';
 import { selectWords, updateWordStats, checkLevelUp } from './wordSelection';
-import { save, todayStr, localDateStr, injectCSS, C, s } from './shared';
+import { todayStr, localDateStr, injectCSS, C, s } from './shared';
 
 import { Confetti } from './components/Confetti';
 import { TrophyModal } from './components/TrophyModal';
@@ -27,6 +27,7 @@ export default function App() {
   const [gameScreen, setGameScreen] = useState('home');
   const [users, setUsers] = useState({});
   const [currentUser, setCurrentUser] = useState(null);
+  const [jwt, setJwt] = useState(() => sessionStorage.getItem('jwt') || null);
   const hasRestored = useRef(false);
 
   useEffect(() => {
@@ -71,40 +72,8 @@ export default function App() {
 
   useEffect(() => {
     if (!currentUser) { setWordStats({}); return; }
-    const enc = encodeURIComponent(currentUser);
-    Promise.all([
-      fetch(`/api/wordstats/${enc}`).then(r => r.json()).catch(() => ({})),
-      fetch(`/api/collection/${enc}`).then(r => r.json()).catch(() => null),
-      fetch(`/api/roundhistory/${enc}`).then(r => r.json()).catch(() => null),
-    ]).then(([ws, colData, rhData]) => {
-      setWordStats(ws || {});
-      if (colData || rhData) {
-        setUsers(prev => {
-          if (!prev[currentUser]) return prev;
-          return {
-            ...prev,
-            [currentUser]: {
-              ...prev[currentUser],
-              ...(colData || {}),
-              ...(rhData || {}),
-            },
-          };
-        });
-      }
-    });
-  }, [currentUser]);
-
-  const apiPost = (path, body) =>
-    fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-
-  const saveWordStats = (username, stats) =>
-    apiPost(`/api/wordstats/${encodeURIComponent(username)}`, stats);
-
-  const saveCollection = (username, data) =>
-    apiPost(`/api/collection/${encodeURIComponent(username)}`, data);
-
-  const saveRoundHistory = (username, data) =>
-    apiPost(`/api/roundhistory/${encodeURIComponent(username)}`, data);
+    setWordStats(users[currentUser]?.wordStats || {});
+  }, [currentUser]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Game state
   const [words, setWords] = useState([]);
@@ -117,25 +86,37 @@ export default function App() {
       sessionStorage.setItem('currentUser', currentUser);
       sessionStorage.setItem('screen', screen);
       sessionStorage.setItem('gameScreen', gameScreen);
+      if (jwt) sessionStorage.setItem('jwt', jwt);
     } else if (hasRestored.current) {
       // Only clear after restoration is done — avoids wiping storage on mount
       sessionStorage.removeItem('currentUser');
       sessionStorage.removeItem('screen');
       sessionStorage.removeItem('gameScreen');
+      sessionStorage.removeItem('jwt');
+      setJwt(null);
     }
-  }, [currentUser, screen, gameScreen]);
+  }, [currentUser, screen, gameScreen, jwt]);
 
-  const saveUsers = (u) => { setUsers(u); save(u); };
+  const saveUsers = setUsers;
+
+  const saveUserToServer = useCallback((userId, userData) => {
+    if (!jwt) return;
+    fetch(`/api/users/${encodeURIComponent(userId)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${jwt}` },
+      body: JSON.stringify(userData),
+    });
+  }, [jwt]);
 
   const getUser = useCallback(() => users[currentUser] || null, [users, currentUser]);
 
   const updateUser = useCallback((fn) => {
     setUsers(prev => {
-      const next = { ...prev, [currentUser]: fn(prev[currentUser]) };
-      save(next);
-      return next;
+      const updated = fn(prev[currentUser]);
+      saveUserToServer(currentUser, updated);
+      return { ...prev, [currentUser]: updated };
     });
-  }, [currentUser]);
+  }, [currentUser, saveUserToServer]);
 
   // ── Credit & Pokemon unlock logic ──────────────────────────────────────────
   const processRound = useCallback((score, results) => {
@@ -195,11 +176,10 @@ export default function App() {
     const caught = Object.values(col).filter(c => c.regular || c.shiny).length;
     const updated = { ...user, streak, lastPlayed: today, streakDates: newDates.slice(-90), creditBank, totalCredits, caught, collection: col, shinyEligible, consecutiveRegular, roundHistory, roundCount: newRoundCount, level: newLevel };
 
+    const fullUpdate = { ...updated, wordStats: newWordStats };
     setWordStats(newWordStats);
-    saveWordStats(currentUser, newWordStats);
-    saveCollection(currentUser, { collection: col, shinyEligible, consecutiveRegular });
-    saveRoundHistory(currentUser, { roundHistory, bestScores: updated.bestScores || {} });
-    setUsers(prev => { const next = { ...prev, [currentUser]: updated }; save(next); return next; });
+    setUsers(prev => ({ ...prev, [currentUser]: fullUpdate }));
+    saveUserToServer(currentUser, fullUpdate);
     if (newUnlocks.length) setUnlockQueue(newUnlocks);
     if (score === 10) {
       setShowConfetti(true);
@@ -222,9 +202,9 @@ export default function App() {
       )}
 
       {screen === 'selectUser' && <SelectUserScreen users={users} setLoginTarget={setLoginTarget} setLoginPin={setLoginPin} setLoginError={setLoginError} setScreen={setScreen} setCreateStep={setCreateStep} setNewName={setNewName} setNewStarter={setNewStarter} setNewPin={setNewPin} setConfirmPin={setConfirmPin} />}
-      {screen === 'login' && <LoginScreen users={users} loginTarget={loginTarget} loginPin={loginPin} setLoginPin={setLoginPin} loginError={loginError} setLoginError={setLoginError} setCurrentUser={setCurrentUser} setScreen={setScreen} setGameScreen={setGameScreen} />}
+      {screen === 'login' && <LoginScreen users={users} loginTarget={loginTarget} loginPin={loginPin} setLoginPin={setLoginPin} loginError={loginError} setLoginError={setLoginError} setCurrentUser={setCurrentUser} setScreen={setScreen} setGameScreen={setGameScreen} setJwt={setJwt} />}
       {screen === 'adminLogin' && <AdminLoginScreen setCurrentUser={setCurrentUser} setScreen={setScreen} />}
-      {screen === 'parentMenu' && <ParentMenuScreen users={users} saveUsers={saveUsers} setCreateStep={setCreateStep} setNewName={setNewName} setNewStarter={setNewStarter} setNewPin={setNewPin} setConfirmPin={setConfirmPin} setScreen={setScreen} setGameScreen={setGameScreen} setCurrentUser={setCurrentUser} />}
+      {screen === 'parentMenu' && <ParentMenuScreen users={users} saveUsers={saveUsers} jwt={jwt} setCreateStep={setCreateStep} setNewName={setNewName} setNewStarter={setNewStarter} setNewPin={setNewPin} setConfirmPin={setConfirmPin} setScreen={setScreen} setGameScreen={setGameScreen} setCurrentUser={setCurrentUser} />}
       {screen === 'createUser' && <CreateUserScreen users={users} saveUsers={saveUsers} createStep={createStep} setCreateStep={setCreateStep} newName={newName} setNewName={setNewName} newStarter={newStarter} setNewStarter={setNewStarter} newPin={newPin} setNewPin={setNewPin} confirmPin={confirmPin} setConfirmPin={setConfirmPin} setScreen={setScreen} />}
       {screen === 'game' && gameScreen === 'home' && <HomeScreen getUser={getUser} wordStats={wordStats} setWords={setWords} setRetryCount={setRetryCount} setGameScreen={setGameScreen} setCurrentUser={setCurrentUser} setScreen={setScreen} />}
       {screen === 'game' && gameScreen === 'stage1' && <Stage1Screen words={words} retryCount={retryCount} setGameScreen={setGameScreen} />}

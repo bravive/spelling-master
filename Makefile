@@ -4,8 +4,12 @@ LOG_FILE := /tmp/spell-master-server.log
 
 # Restart the Express API server (kills any running instance first)
 restart:
-	@pkill -f "node server.js" 2>/dev/null || true
+	@pkill -f "node --env-file=.env server.js" 2>/dev/null || true
 	@sleep 0.5
+	@if [ -f $(LOG_FILE) ] && [ $$(stat -f%z $(LOG_FILE)) -gt 104857600 ]; then \
+		echo "Log file >100MB, truncating..."; \
+		tail -c 1048576 $(LOG_FILE) > $(LOG_FILE).tmp && mv $(LOG_FILE).tmp $(LOG_FILE); \
+	fi
 	node --env-file=.env server.js >> $(LOG_FILE) 2>&1 &
 	@echo "Server restarted on port 3001 (log: $(LOG_FILE))"
 

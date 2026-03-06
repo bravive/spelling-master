@@ -12,8 +12,11 @@ dist
 dist-ssr
 *.local
 
-# User data
-data/users.json
+# Env
+.env
+
+# User data (migrated to MongoDB; keep local JSON files out of git)
+data/*.json
 
 # Editor directories and files
 .vscode/*
@@ -25,6 +28,3 @@ data/users.json
 *.njsproj
 *.sln
 *.sw?
-data/wordstats.json
-data/collection.json
-data/roundhistory.json

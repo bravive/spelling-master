@@ -13,12 +13,12 @@ export const LoginScreen = ({ users, loginTarget, loginPin, setLoginPin, loginEr
           const res = await fetch('/api/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: loginTarget, pin }),
+            body: JSON.stringify({ userId: user.userId, pin }),
           });
           const data = await res.json();
           if (!res.ok) { setLoginError('Wrong PIN. Try again!'); setLoginPin(''); return; }
           setJwt(data.token);
-          if (loginTarget === 'test') { setCurrentUser('test'); setScreen('parentMenu'); }
+          if (data.user?.isAdmin) { setCurrentUser('admin'); setScreen('parentMenu'); }
           else { setCurrentUser(loginTarget); setScreen('game'); setGameScreen('home'); }
         } catch {
           setLoginError('Network error. Try again.'); setLoginPin('');

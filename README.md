@@ -32,7 +32,7 @@ A daily spelling practice web app for elementary school kids (K–5). Kids memor
 ### Scoring & Credits
 - 10/10 → 5 credits, 9/10 → 3 credits, 8/10 → 2 credits, 7–6/10 → 0 credits
 - Score below 6 triggers an automatic retry
-- Streak bonus: every 3-day consecutive streak awards +1 bonus credit
+- Streak bonus: every 3-day consecutive streak awards +5 bonus credits
 - Results screen shows per-word pass/fail, credits earned, and options to retry or pick a new group
 
 ### Pokémon Collection
@@ -40,11 +40,21 @@ A daily spelling practice web app for elementary school kids (K–5). Kids memor
 - After every 3 consecutive regular unlocks, a 50% shiny chance activates for the next unlock
 - Trophy modal with animated Pokémon reveal, confetti, and voice announcement
 - Collection page shows all 60 Pokémon (grey silhouette until caught, purple shimmer for shinies)
+- Pokémon stats sourced from [PokémonDB Pokédex](https://pokemondb.net/pokedex)
 
 ### Adaptive Difficulty
 - 5 word levels (CVC words up to academic vocabulary)
 - Struggling words get higher selection weight; mastered words get lower weight
 - Level up automatically when 70% of the current level's words are mastered
+- Word lists sourced from [Reading Rockets Basic Spelling Vocabulary List](https://www.readingrockets.org/topics/writing/articles/basic-spelling-vocabulary-list)
+
+### Weekly Words Challenge
+- Manually curated weekly word lists that unlock on a schedule (every Monday)
+- Kids can practice the current week's list plus all previous weeks
+- **First-time scoring**: 0.5 credits per word spelled correctly on the first attempt
+- **Perfect bonus**: All words correct on first attempt in a single run = +3 bonus credits
+- **Daily replay**: After completing a list, earn 2 credits/day by getting all words correct in one run (once per list per day)
+- Credits from weekly challenges count toward Pokémon unlocks
 
 ### Stats Page
 - 30-day streak calendar
@@ -85,9 +95,9 @@ A daily spelling practice web app for elementary school kids (K–5). Kids memor
 | Variable | Required in Production | Default | Description |
 |---|---|---|---|
 | `JWT_SECRET` | **Yes** | `dev-secret-do-not-use-in-production` | Secret for signing JWTs — server refuses to start in production without this |
+| `MONGODB_URI` | **Yes** | _(none)_ | MongoDB connection string (e.g. from Railway MongoDB plugin) |
 | `ADMIN_PIN` | No | `0000` | PIN for the admin (`test`) account |
 | `PORT` | No | `3001` | Port for the Express API server |
-| `RAILWAY_VOLUME_MOUNT_PATH` | No | `<repo>/data` | Directory for `users.json`; set automatically by Railway when a volume is attached |
 | `NODE_ENV` | No | _(unset)_ | Set to `production` to enable static file serving and enforce `JWT_SECRET` |
 
 ### Install & Run
@@ -123,12 +133,28 @@ npm run lint     # Run ESLint
 ## Project Structure
 
 ```
-server.js        — Express API (auth, user CRUD, static file serving)
-data/
-  users.json     — Persistent user storage (gitignored)
+server.js        — Express API (auth, user CRUD, collection, static file serving)
 src/
-  App.jsx        — Main app — all screens, logic, and state
+  App.jsx        — Root component — state management, routing, round processing
+  shared.js      — Shared constants, styles, speech helpers, date utilities
   main.jsx       — React entry point
+  wordSelection.js — Word selection, stats tracking, level-up logic
+  components/
+    Confetti.jsx         — Confetti animation overlay
+    TrophyModal.jsx      — Pokémon unlock celebration modal
+    NumPad.jsx           — 4-digit PIN input pad
+    RulesModal.jsx       — Kid-friendly rules explanation modal
+    SelectUserScreen.jsx — User profile selection
+    LoginScreen.jsx      — PIN login
+    AdminLoginScreen.jsx — Admin login
+    ParentMenuScreen.jsx — Admin panel
+    CreateUserScreen.jsx — 4-step profile creation
+    HomeScreen.jsx       — Main dashboard
+    Stage1Screen.jsx     — Word memorization stage
+    Stage2Screen.jsx     — Spelling/typing stage
+    ResultsScreen.jsx    — Round results
+    CollectionScreen.jsx — Pokémon collection grid + detail overlay
+    StatsScreen.jsx      — User stats & streak calendar
   data/
     words.js     — Word bank (5 levels, each with word + example sentence)
     pokemon.js   — 60-Pokémon roster with image URL helpers
@@ -143,26 +169,24 @@ src/
 
 1. **Connect your repo** — create a new Railway project and link the GitHub repo.
 
-2. **Set environment variables** in the Railway service dashboard → Variables:
+2. **Add a MongoDB database** — Railway dashboard → your project → "New" → "Database" → "MongoDB":
+   - Railway automatically injects `MONGODB_URL` into your service environment.
+   - Set `MONGODB_URI` in your service variables to the value of `${{MongoDB.MONGODB_URL}}`.
+
+3. **Set environment variables** in the Railway service dashboard → Variables:
 
    | Variable | Required | Notes |
    |---|---|---|
    | `JWT_SECRET` | **Yes** | Any long random string — server won't start without it |
+   | `MONGODB_URI` | **Yes** | Reference the Railway MongoDB plugin, e.g. `${{MongoDB.MONGODB_URL}}` |
    | `ADMIN_PIN` | No | Defaults to `0000` |
    | `NODE_ENV` | **Yes** | Set to `production` |
 
-   Railway sets `PORT` and `RAILWAY_VOLUME_MOUNT_PATH` automatically — do not override them.
-
-3. **Add a Volume** for data persistence (user profiles survive redeploys):
-   - Railway dashboard → your service → Volumes → "New Volume"
-   - Set mount path to any absolute path (e.g. `/data`)
-   - Railway automatically sets `RAILWAY_VOLUME_MOUNT_PATH` to that path; the server uses it for `users.json`
+   Railway sets `PORT` automatically — do not override it.
 
 4. **Deploy** — Railway auto-detects the `build` and `start` scripts from `railway.json`:
    - Build: `npm run build` (compiles React to `dist/`)
    - Start: `npm start` (`NODE_ENV=production node server.js` — serves API + static files)
-
-> **Note:** Without a Volume, `data/users.json` is stored on the ephemeral filesystem and will be wiped on every redeploy.
 
 ---
 
@@ -173,5 +197,8 @@ src/
 | `GET` | `/api/users` | None | Public profile list (no PINs) |
 | `POST` | `/api/auth/login` | None (rate limited) | Validate PIN, return JWT |
 | `POST` | `/api/users` | None | Create new user profile |
-| `PUT` | `/api/users/:id` | JWT (own user or admin) | Save game state |
+| `PUT` | `/api/users/me` | JWT | Save game state for current user (derived from token) |
 | `DELETE` | `/api/users/:id` | JWT (admin only) | Delete a profile |
+| `GET` | `/api/collection` | JWT | Get current user's Pokémon collection data |
+| `PUT` | `/api/collection` | JWT | Save current user's Pokémon collection data |
+| `GET` | `/ping` | None | Health check |

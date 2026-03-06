@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { speak, C, s } from '../shared';
 
-export const Stage1Screen = ({ words, retryCount, setGameScreen }) => {
+export const Stage1Screen = ({ words, retryCount, setGameScreen, nextScreen = 'stage2', discardScreen = 'home', quitLabel = 'Discard', readyLabel = "✅ I'm Ready!" }) => {
   const [elapsed, setElapsed] = useState(0);
   const MAX = 180;
   useEffect(() => {
     speak("Take a good look at all the words! You have one minute to remember them!");
     const t = setInterval(() => setElapsed(e => {
-      if (e + 1 >= MAX) { clearInterval(t); setGameScreen('stage2'); return MAX; }
+      if (e + 1 >= MAX) { clearInterval(t); setGameScreen(nextScreen); return MAX; }
       return e + 1;
     }), 1000);
     return () => clearInterval(t);
@@ -24,8 +24,8 @@ export const Stage1Screen = ({ words, retryCount, setGameScreen }) => {
       <div style={{ textAlign: 'center', marginBottom: 16, position: 'relative' }}>
         <span
           style={{ position: 'absolute', top: 0, right: 0, color: C.muted, fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}
-          onClick={() => setGameScreen('home')}
-        >Discard</span>
+          onClick={() => setGameScreen(discardScreen)}
+        >{quitLabel}</span>
         <h2 style={{ color: C.yellow, margin: 0 }}>📖 Stage 1 — Remember!</h2>
         {retryCount > 0 && <div style={{ color: C.red, fontSize: 13 }}>Retry #{retryCount}</div>}
         <div style={{ fontSize: 28, fontWeight: 800, marginTop: 8 }}>{mm}:{ss}</div>
@@ -43,8 +43,8 @@ export const Stage1Screen = ({ words, retryCount, setGameScreen }) => {
         ))}
       </div>
       <button style={{ ...s.btn(C.green, 'lg'), width: '100%' }}
-        onClick={() => setGameScreen('stage2')}>
-        ✅ I'm Ready!
+        onClick={() => setGameScreen(nextScreen)}>
+        {readyLabel}
       </button>
     </div>
   );

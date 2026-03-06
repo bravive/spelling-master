@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { speakTimes, speak, C, s } from '../shared';
 
-export const Stage2Screen = ({ words, processRound, setRoundResults, setGameScreen }) => {
+export const Stage2Screen = ({ words, processRound, setRoundResults, setGameScreen, resultsScreen = 'results', discardScreen = 'home', onQuit }) => {
   const [idx, setIdx] = useState(0);
   const [attempt, setAttempt] = useState(0);
   const [typed, setTyped] = useState('');
@@ -50,24 +50,27 @@ export const Stage2Screen = ({ words, processRound, setRoundResults, setGameScre
       if (correct) {
         setFeedback('correct');
         speak('Great job!');
-        setResults(prev => {
-          const newResults = [...prev, { word: word.w, correct: true }];
-          setTimeout(() => {
-            lockRef.current = false;
-            setFeedback(null);
-            setAttempt(0);
-            setIdx(i => {
-              const nextIdx = i + 1;
-              if (nextIdx >= order.length) {
-                const score = newResults.filter(r => r.correct).length;
-                const outcome = processRound(score, newResults);
-                setRoundResults({ score, ...outcome, results: newResults, words: order });
-                setGameScreen('results');
-              }
-              return nextIdx;
-            });
-          }, 1600);
-          return newResults;
+        setAttempt(prevAttempt => {
+          setResults(prev => {
+            const newResults = [...prev, { word: word.w, correct: true, attemptNumber: prevAttempt + 1 }];
+            setTimeout(() => {
+              lockRef.current = false;
+              setFeedback(null);
+              setAttempt(0);
+              setIdx(i => {
+                const nextIdx = i + 1;
+                if (nextIdx >= order.length) {
+                  const score = newResults.filter(r => r.correct).length;
+                  const outcome = processRound(score, newResults);
+                  setRoundResults({ score, ...outcome, results: newResults, words: order });
+                  setGameScreen(resultsScreen);
+                }
+                return nextIdx;
+              });
+            }, 1600);
+            return newResults;
+          });
+          return prevAttempt;
         });
       } else {
         setAttempt(prev => {
@@ -79,7 +82,7 @@ export const Stage2Screen = ({ words, processRound, setRoundResults, setGameScre
           } else {
             setFeedback('reveal');
             setResults(prev2 => {
-              const newResults = [...prev2, { word: word.w, correct: false }];
+              const newResults = [...prev2, { word: word.w, correct: false, attemptNumber: 3 }];
               setTimeout(() => {
                 lockRef.current = false;
                 setFeedback(null);
@@ -90,7 +93,7 @@ export const Stage2Screen = ({ words, processRound, setRoundResults, setGameScre
                     const score = newResults.filter(r => r.correct).length;
                     const outcome = processRound(score, newResults);
                     setRoundResults({ score, ...outcome, results: newResults, words: order });
-                    setGameScreen('results');
+                    setGameScreen(resultsScreen);
                   }
                   return nextIdx;
                 });
@@ -118,8 +121,15 @@ export const Stage2Screen = ({ words, processRound, setRoundResults, setGameScre
       <div style={{ textAlign: 'right', marginBottom: 8 }}>
         <span
           style={{ color: C.muted, fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}
-          onClick={() => { window.speechSynthesis.cancel(); setGameScreen('home'); }}
-        >Discard</span>
+          onClick={() => {
+            window.speechSynthesis.cancel();
+            if (onQuit) {
+              onQuit(results);
+            } else {
+              setGameScreen(discardScreen);
+            }
+          }}
+        >{onQuit ? 'Quit' : 'Discard'}</span>
       </div>
 
       <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginBottom: 16, flexWrap: 'wrap' }}>

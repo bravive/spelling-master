@@ -13,14 +13,14 @@ const STAT_META = [
   { key: 'spe', label: 'Speed',           title: 'Speed — determines who attacks first; higher = moves before the opponent',  color: '#c4b5fd' },
 ];
 
-export const CollectionScreen = ({ getUser, currentUser, setScreen, setGameScreen }) => {
-  const user = getUser();
-  const isAdmin = currentUser === 'test';
-  const col = user?.collection || {};
-  const regular = isAdmin ? ALL_POKEMON.length : Object.values(col).filter(c => c.regular).length;
-  const shiny   = isAdmin ? ALL_POKEMON.length : Object.values(col).filter(c => c.shiny).length;
+export const TrophyScreen = ({ trophyData, currentUser, setScreen, setGameScreen }) => {
+  const isAdmin = currentUser === 'admin';
   const [selectedId, setSelectedId] = useState(null);
   const [layout, setLayout] = useState('all'); // 'all' | 'collected'
+
+  const col = isAdmin ? {} : (trophyData?.collection || {});
+  const regular = isAdmin ? ALL_POKEMON.length : Object.values(col).filter(c => c.regular).length;
+  const shiny   = isAdmin ? ALL_POKEMON.length : Object.values(col).filter(c => c.shiny).length;
 
   const selectedPk = selectedId != null ? ALL_POKEMON.find(p => p.id === selectedId) : null;
 
@@ -129,7 +129,7 @@ export const CollectionScreen = ({ getUser, currentUser, setScreen, setGameScree
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <button style={{ ...s.btn('rgba(255,255,255,0.1)', 'sm'), color: C.muted }} onClick={() => isAdmin ? setScreen('parentMenu') : setGameScreen('home')}>← Back</button>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontWeight: 700, fontSize: 18 }}>🏆 Collection</div>
+          <div style={{ fontWeight: 700, fontSize: 18 }}>🏆 Trophies</div>
           <div style={{ color: C.muted, fontSize: 13 }}>{regular} / {ALL_POKEMON.length} caught · {shiny} ✨ shiny</div>
           {isAdmin && <div style={{ color: C.yellow, fontSize: 11, fontWeight: 700, marginTop: 2 }}>👑 Admin preview — all unlocked</div>}
         </div>
@@ -142,7 +142,7 @@ export const CollectionScreen = ({ getUser, currentUser, setScreen, setGameScree
           <option value="collected" style={{ background: '#1e1b3a' }}>Collected</option>
         </select>
       </div>
-      {user?.shinyEligible && (
+      {trophyData?.shinyEligible && (
         <div style={{ color: '#a78bfa', textAlign: 'center', animation: 'pulse 1.5s ease infinite', marginBottom: 12, fontWeight: 700 }}>✨ Shiny chance active!</div>
       )}
 

@@ -40,11 +40,13 @@ A daily spelling practice web app for elementary school kids (K–5). Kids memor
 - After every 3 consecutive regular unlocks, a 50% shiny chance activates for the next unlock
 - Trophy modal with animated Pokémon reveal, confetti, and voice announcement
 - Collection page shows all 60 Pokémon (grey silhouette until caught, purple shimmer for shinies)
+- Pokémon stats sourced from [PokémonDB Pokédex](https://pokemondb.net/pokedex)
 
 ### Adaptive Difficulty
 - 5 word levels (CVC words up to academic vocabulary)
 - Struggling words get higher selection weight; mastered words get lower weight
 - Level up automatically when 70% of the current level's words are mastered
+- Word lists sourced from [Reading Rockets Basic Spelling Vocabulary List](https://www.readingrockets.org/topics/writing/articles/basic-spelling-vocabulary-list)
 
 ### Stats Page
 - 30-day streak calendar

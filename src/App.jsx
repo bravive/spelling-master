@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ALL_POKEMON } from './data/pokemon';
 import { selectWords, updateWordStats, checkLevelUp } from './wordSelection';
-import { save, todayStr, injectCSS, C, s } from './shared';
+import { save, todayStr, localDateStr, injectCSS, C, s } from './shared';
 
 import { Confetti } from './components/Confetti';
 import { TrophyModal } from './components/TrophyModal';
@@ -27,10 +27,12 @@ export default function App() {
   const [gameScreen, setGameScreen] = useState('home');
   const [users, setUsers] = useState({});
   const [currentUser, setCurrentUser] = useState(null);
+  const hasRestored = useRef(false);
 
   useEffect(() => {
     fetch('/api/users').then(r => r.json()).then(data => {
       setUsers(data);
+      hasRestored.current = true;
       if (isAdminBackdoor) return;
 
       // Restore session if one exists
@@ -115,7 +117,8 @@ export default function App() {
       sessionStorage.setItem('currentUser', currentUser);
       sessionStorage.setItem('screen', screen);
       sessionStorage.setItem('gameScreen', gameScreen);
-    } else {
+    } else if (hasRestored.current) {
+      // Only clear after restoration is done — avoids wiping storage on mount
       sessionStorage.removeItem('currentUser');
       sessionStorage.removeItem('screen');
       sessionStorage.removeItem('gameScreen');
@@ -148,7 +151,7 @@ export default function App() {
     const newDates = [...(streakDates || [])];
     if (!newDates.includes(today)) newDates.push(today);
 
-    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const yesterday = localDateStr(new Date(Date.now() - 86400000));
     if (lastPlayed === today) { /* same day, no change */ }
     else if (lastPlayed === yesterday) { streak = (streak || 0) + 1; }
     else { streak = 1; }

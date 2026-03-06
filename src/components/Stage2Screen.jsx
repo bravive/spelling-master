@@ -105,7 +105,11 @@ export const Stage2Screen = ({ words, processRound, setRoundResults, setGameScre
     });
   };
 
-  const LETTERS = 'abcdefghijklmnopqrstuvwxyz'.split('');
+  const KEYBOARD_ROWS = [
+    'qwertyuiop'.split(''),
+    'asdfghjkl'.split(''),
+    'zxcvbnm'.split(''),
+  ];
 
   return (
     <div style={{ width: '100%', maxWidth: 520 }}>
@@ -168,13 +172,17 @@ export const Stage2Screen = ({ words, processRound, setRoundResults, setGameScre
         })()}
       </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', marginBottom: 12 }}>
-        {LETTERS.map(l => (
-          <button key={l}
-            style={{ background: 'rgba(255,255,255,0.12)', border: 'none', borderRadius: 8, color: '#fff', minWidth: 36, padding: '8px 10px', fontSize: 16, cursor: 'pointer', fontWeight: 600 }}
-            onClick={() => !lockRef.current && setTyped(t => t + l)}>
-            {l}
-          </button>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center', marginBottom: 12 }}>
+        {KEYBOARD_ROWS.map((row, ri) => (
+          <div key={ri} style={{ display: 'flex', gap: 6 }}>
+            {row.map(l => (
+              <button key={l}
+                style={{ background: 'rgba(255,255,255,0.12)', border: 'none', borderRadius: 8, color: '#fff', minWidth: 36, padding: '8px 10px', fontSize: 16, cursor: 'pointer', fontWeight: 600 }}
+                onClick={() => !lockRef.current && setTyped(t => t + l)}>
+                {l}
+              </button>
+            ))}
+          </div>
         ))}
       </div>
 

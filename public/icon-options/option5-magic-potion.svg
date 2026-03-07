@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg5" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f0c29"/>
+      <stop offset="100%" stop-color="#1a1040"/>
+    </linearGradient>
+    <linearGradient id="liquid5" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#a78bfa" stop-opacity="0.9"/>
+      <stop offset="50%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#4c1d95"/>
+    </linearGradient>
+    <linearGradient id="glass5" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#fff" stop-opacity="0.15"/>
+      <stop offset="50%" stop-color="#fff" stop-opacity="0.02"/>
+      <stop offset="100%" stop-color="#fff" stop-opacity="0.08"/>
+    </linearGradient>
+    <filter id="bubbleglow5">
+      <feGaussianBlur stdDeviation="3" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="potglow5">
+      <feGaussianBlur stdDeviation="8" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <clipPath id="flask5">
+      <path d="M220 195 L220 130 L200 130 L200 100 L312 100 L312 130 L292 130 L292 195 L370 360 C375 375,365 395,348 395 L164 395 C147 395,137 375,142 360Z"/>
+    </clipPath>
+  </defs>
+  <rect width="512" height="512" rx="108" fill="url(#bg5)"/>
+  <!-- Flask outline -->
+  <path d="M220 195 L220 130 L200 130 L200 100 L312 100 L312 130 L292 130 L292 195 L370 360 C375 375,365 395,348 395 L164 395 C147 395,137 375,142 360Z" fill="none" stroke="#c4b5fd" stroke-width="4" opacity="0.6"/>
+  <!-- Flask body fill -->
+  <path d="M220 195 L220 130 L200 130 L200 100 L312 100 L312 130 L292 130 L292 195 L370 360 C375 375,365 395,348 395 L164 395 C147 395,137 375,142 360Z" fill="#1e1b4b" opacity="0.4"/>
+  <!-- Liquid inside -->
+  <g clip-path="url(#flask5)">
+    <rect x="130" y="220" width="260" height="200" fill="url(#liquid5)" filter="url(#potglow5)"/>
+    <!-- Wave top of liquid -->
+    <path d="M130 230 Q190 210 256 225 Q320 240 380 220 L380 240 Q320 260 256 245 Q190 230 130 250Z" fill="#a78bfa" opacity="0.4"/>
+    <!-- Bubbles in liquid -->
+    <circle cx="230" cy="300" r="8" fill="#c4b5fd" opacity="0.3"/>
+    <circle cx="290" cy="340" r="6" fill="#e9d5ff" opacity="0.25"/>
+    <circle cx="260" cy="360" r="10" fill="#c4b5fd" opacity="0.2"/>
+    <circle cx="210" cy="350" r="5" fill="#e9d5ff" opacity="0.3"/>
+    <circle cx="310" cy="310" r="7" fill="#c4b5fd" opacity="0.25"/>
+  </g>
+  <!-- Glass highlight -->
+  <path d="M225 200 L225 135 L230 135 L230 200 L180 340 L175 338Z" fill="#fff" opacity="0.1"/>
+  <!-- Cork -->
+  <rect x="215" y="88" width="82" height="18" rx="5" fill="#d97706"/>
+  <rect x="215" y="88" width="82" height="6" rx="3" fill="#f59e0b" opacity="0.5"/>
+  <!-- Letters floating out as bubbles -->
+  <g filter="url(#bubbleglow5)">
+    <circle cx="200" cy="70" r="18" fill="#f472b6" opacity="0.2"/>
+    <text x="200" y="77" text-anchor="middle" font-family="Georgia,serif" font-size="22" font-weight="700" fill="#f472b6">A</text>
+  </g>
+  <g filter="url(#bubbleglow5)">
+    <circle cx="256" cy="48" r="20" fill="#fbbf24" opacity="0.2"/>
+    <text x="256" y="56" text-anchor="middle" font-family="Georgia,serif" font-size="24" font-weight="700" fill="#fbbf24">S</text>
+  </g>
+  <g filter="url(#bubbleglow5)">
+    <circle cx="315" cy="65" r="16" fill="#60a5fa" opacity="0.2"/>
+    <text x="315" y="72" text-anchor="middle" font-family="Georgia,serif" font-size="20" font-weight="700" fill="#60a5fa">B</text>
+  </g>
+  <g filter="url(#bubbleglow5)">
+    <circle cx="350" cy="40" r="14" fill="#10b981" opacity="0.2"/>
+    <text x="350" y="47" text-anchor="middle" font-family="Georgia,serif" font-size="18" font-weight="700" fill="#10b981">C</text>
+  </g>
+  <!-- Label on flask -->
+  <rect x="210" y="290" width="92" height="40" rx="6" fill="#1e1b4b" opacity="0.5" stroke="#fbbf24" stroke-width="1.5" opacity="0.4"/>
+  <text x="256" y="316" text-anchor="middle" font-family="Georgia,serif" font-size="18" font-weight="700" fill="#fbbf24" opacity="0.8">SPELL</text>
+  <!-- Sparkles -->
+  <path d="M160 60 L163 50 L166 60 L176 63 L166 66 L163 76 L160 66 L150 63Z" fill="#fbbf24" opacity="0.6"/>
+  <path d="M380 80 L382 73 L384 80 L391 82 L384 84 L382 91 L380 84 L373 82Z" fill="#f472b6" opacity="0.5"/>
+  <!-- Bottom text -->
+  <text x="256" y="462" text-anchor="middle" font-family="Georgia,serif" font-size="26" font-weight="700" fill="#c4b5fd" letter-spacing="8" opacity="0.5">MASTER</text>
+</svg>

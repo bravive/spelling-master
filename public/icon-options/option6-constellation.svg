@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg6" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#070420"/>
+      <stop offset="100%" stop-color="#1a1145"/>
+    </linearGradient>
+    <filter id="starglow6">
+      <feGaussianBlur stdDeviation="3" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="letterglow6">
+      <feGaussianBlur stdDeviation="2" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="108" fill="url(#bg6)"/>
+  <!-- Distant stars -->
+  <circle cx="60" cy="70" r="1" fill="#fff" opacity="0.4"/>
+  <circle cx="140" cy="45" r="0.8" fill="#fff" opacity="0.3"/>
+  <circle cx="450" cy="85" r="1.2" fill="#fff" opacity="0.35"/>
+  <circle cx="420" cy="440" r="0.8" fill="#fff" opacity="0.25"/>
+  <circle cx="70" cy="430" r="1" fill="#fff" opacity="0.3"/>
+  <circle cx="480" cy="250" r="0.8" fill="#fff" opacity="0.2"/>
+  <circle cx="30" cy="300" r="1" fill="#fff" opacity="0.25"/>
+  <circle cx="350" cy="50" r="0.7" fill="#fff" opacity="0.3"/>
+  <!-- S constellation — connected stars forming the letter S -->
+  <!-- Constellation lines -->
+  <g stroke="#c4b5fd" stroke-width="1.5" opacity="0.25">
+    <line x1="310" y1="110" x2="340" y2="140"/>
+    <line x1="340" y1="140" x2="320" y2="175"/>
+    <line x1="320" y1="175" x2="260" y2="195"/>
+    <line x1="260" y1="195" x2="200" y2="210"/>
+    <line x1="200" y1="210" x2="180" y2="250"/>
+    <line x1="180" y1="250" x2="200" y2="290"/>
+    <line x1="200" y1="290" x2="260" y2="310"/>
+    <line x1="260" y1="310" x2="320" y2="330"/>
+    <line x1="320" y1="330" x2="340" y2="370"/>
+    <line x1="340" y1="370" x2="310" y2="400"/>
+    <line x1="310" y1="400" x2="250" y2="410"/>
+    <line x1="250" y1="410" x2="190" y2="395"/>
+  </g>
+  <!-- Constellation star nodes -->
+  <g filter="url(#starglow6)">
+    <circle cx="310" cy="110" r="6" fill="#fbbf24"/>
+    <circle cx="340" cy="140" r="5" fill="#fbbf24" opacity="0.9"/>
+    <circle cx="320" cy="175" r="4.5" fill="#f472b6"/>
+    <circle cx="260" cy="195" r="5.5" fill="#fbbf24"/>
+    <circle cx="200" cy="210" r="5" fill="#60a5fa"/>
+    <circle cx="180" cy="250" r="6" fill="#fbbf24"/>
+    <circle cx="200" cy="290" r="5" fill="#f472b6"/>
+    <circle cx="260" cy="310" r="6" fill="#fbbf24"/>
+    <circle cx="320" cy="330" r="4.5" fill="#60a5fa"/>
+    <circle cx="340" cy="370" r="5.5" fill="#fbbf24"/>
+    <circle cx="310" cy="400" r="5" fill="#f472b6"/>
+    <circle cx="250" cy="410" r="6" fill="#fbbf24"/>
+    <circle cx="190" cy="395" r="5" fill="#10b981"/>
+  </g>
+  <!-- Ghost S shape overlaid faintly -->
+  <text x="256" y="310" text-anchor="middle" font-family="Georgia,serif" font-size="280" font-weight="700" fill="#c4b5fd" opacity="0.04">S</text>
+  <!-- Side label -->
+  <text x="90" y="260" font-family="Georgia,serif" font-size="14" fill="#c4b5fd" opacity="0.35" letter-spacing="3" transform="rotate(-90,90,260)">SPELL MASTER</text>
+  <!-- Shooting star -->
+  <line x1="400" y1="60" x2="440" y2="100" stroke="#fbbf24" stroke-width="2" opacity="0.4"/>
+  <line x1="400" y1="60" x2="395" y2="58" stroke="#fbbf24" stroke-width="3" opacity="0.6"/>
+</svg>

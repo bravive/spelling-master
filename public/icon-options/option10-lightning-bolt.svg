@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg10" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f0c29"/>
+      <stop offset="100%" stop-color="#1e1650"/>
+    </linearGradient>
+    <linearGradient id="bolt10" x1="30%" y1="0%" x2="70%" y2="100%">
+      <stop offset="0%" stop-color="#fef3c7"/>
+      <stop offset="30%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+    <filter id="boltglow10">
+      <feGaussianBlur stdDeviation="10" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="textglow10">
+      <feGaussianBlur stdDeviation="4" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="108" fill="url(#bg10)"/>
+  <!-- Radial energy lines -->
+  <g stroke="#fbbf24" stroke-width="1" opacity="0.06">
+    <line x1="256" y1="256" x2="50" y2="50"/><line x1="256" y1="256" x2="462" y2="50"/>
+    <line x1="256" y1="256" x2="50" y2="462"/><line x1="256" y1="256" x2="462" y2="462"/>
+    <line x1="256" y1="256" x2="256" y2="20"/><line x1="256" y1="256" x2="256" y2="492"/>
+    <line x1="256" y1="256" x2="20" y2="256"/><line x1="256" y1="256" x2="492" y2="256"/>
+    <line x1="256" y1="256" x2="120" y2="30"/><line x1="256" y1="256" x2="392" y2="30"/>
+    <line x1="256" y1="256" x2="120" y2="482"/><line x1="256" y1="256" x2="392" y2="482"/>
+  </g>
+  <!-- Lightning bolt -->
+  <g filter="url(#boltglow10)">
+    <polygon points="290,50 180,250 250,250 210,462 340,220 270,220 320,50" fill="url(#bolt10)"/>
+  </g>
+  <!-- Inner highlight on bolt -->
+  <polygon points="285,75 205,240 255,240 225,430 320,230 272,230 310,75" fill="#fef3c7" opacity="0.2"/>
+  <!-- Electric arcs -->
+  <g stroke="#fbbf24" stroke-width="1.5" fill="none" opacity="0.3">
+    <path d="M180,250 Q140,240 120,260 Q110,270 125,280"/>
+    <path d="M340,220 Q370,210 385,230 Q395,240 380,248"/>
+    <path d="M270,220 Q290,190 320,195"/>
+    <path d="M250,250 Q230,270 210,265"/>
+  </g>
+  <!-- Small energy particles -->
+  <circle cx="150" cy="190" r="3" fill="#fbbf24" opacity="0.5"/>
+  <circle cx="370" cy="310" r="3.5" fill="#f472b6" opacity="0.4"/>
+  <circle cx="130" cy="340" r="2.5" fill="#60a5fa" opacity="0.4"/>
+  <circle cx="390" cy="170" r="3" fill="#10b981" opacity="0.35"/>
+  <circle cx="100" cy="256" r="2" fill="#c4b5fd" opacity="0.4"/>
+  <circle cx="412" cy="256" r="2" fill="#fbbf24" opacity="0.35"/>
+  <!-- "S" embedded in bolt center -->
+  <g filter="url(#textglow10)">
+    <text x="262" y="290" text-anchor="middle" font-family="Georgia,serif" font-size="80" font-weight="900" fill="#1e1b4b" opacity="0.7">S</text>
+  </g>
+  <!-- Bottom text -->
+  <text x="256" y="480" text-anchor="middle" font-family="Georgia,serif" font-size="20" font-weight="700" fill="#fbbf24" letter-spacing="10" opacity="0.5">SPELL MASTER</text>
+</svg>

@@ -143,19 +143,26 @@ const MessageDialog = ({ friend, jwt, myId, myStarterSlug, onClose }) => {
   return (
     <div onClick={onClose} style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      zIndex: 1000, padding: 16,
+      display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+      zIndex: 1000,
+      paddingTop: 'max(16px, env(safe-area-inset-top))',
+      paddingLeft: 'max(16px, env(safe-area-inset-left))',
+      paddingRight: 'max(16px, env(safe-area-inset-right))',
+      paddingBottom: 'max(16px, env(safe-area-inset-bottom))',
+      boxSizing: 'border-box',
     }}>
       <div onClick={e => e.stopPropagation()} style={{
-        ...s.card, width: '100%', maxWidth: 420,
+        background: '#1e1b3a', border: `1px solid ${C.border}`, borderRadius: 16,
+        width: '100%', maxWidth: 420,
         display: 'flex', flexDirection: 'column',
-        height: 'min(75dvh, 520px)', padding: 16,
+        height: 'min(75dvh, 520px)', maxHeight: '100%',
+        padding: 16, overflow: 'hidden',
         animation: 'popIn 0.25s ease',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexShrink: 0 }}>
+          <button onClick={onClose} style={{ ...s.backBtn }}>←</button>
           <img src={pkImg(friend.starterSlug)} alt="" style={{ width: 32, height: 32, objectFit: 'contain' }} />
           <span style={{ fontWeight: 700, fontSize: 16, flex: 1 }}>{friend.name}</span>
-          <button onClick={onClose} style={{ ...s.btn('rgba(255,255,255,0.1)', 'sm'), color: C.muted, padding: '4px 10px' }}>Close</button>
         </div>
 
         <div ref={scrollRef} style={{
@@ -196,7 +203,7 @@ const MessageDialog = ({ friend, jwt, myId, myStarterSlug, onClose }) => {
             onChange={e => setText(e.target.value.slice(0, 200))}
             onKeyDown={e => e.key === 'Enter' && send()}
             placeholder="Type a message..."
-            style={{ ...s.input, flex: 1, fontSize: 14 }}
+            style={{ ...s.input, flex: 1, fontSize: 16 }}
           />
           <button onClick={send} disabled={sending || !text.trim()} style={{
             ...s.btn(C.yellow, 'sm'), opacity: (sending || !text.trim()) ? 0.5 : 1,
@@ -270,10 +277,9 @@ export const FriendsScreen = ({ jwt, currentUser, myStarterSlug, setGameScreen }
 
   return (
     <div style={{ width: '100%', maxWidth: 480 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <button style={{ ...s.backBtn }} onClick={() => setGameScreen('home')}>←</button>
         <h2 style={{ color: C.yellow, margin: 0, fontSize: 22 }}>Friends</h2>
-        <button style={{ ...s.btn('rgba(255,255,255,0.1)', 'sm'), color: C.muted }}
-          onClick={() => setGameScreen('home')}>Back</button>
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>

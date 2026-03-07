@@ -38,7 +38,7 @@ export const StatsScreen = ({ getUser, wordStats, roundHistory, creditHistory, w
   return (
     <div style={{ width: '100%', maxWidth: 520 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-        <button style={{ ...s.btn('rgba(255,255,255,0.1)', 'sm'), color: C.muted }} onClick={() => setGameScreen('home')}>← Back</button>
+        <button style={{ ...s.backBtn }} onClick={() => setGameScreen('home')}>←</button>
         <h2 style={{ margin: 0, color: C.yellow }}>📊 Stats</h2>
       </div>
 

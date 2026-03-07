@@ -6,6 +6,9 @@ export const LoginScreen = ({ users, loginTarget, loginPin, setLoginPin, loginEr
   const user = users[loginTarget] || {};
   return (
     <div style={{ width: '100%', maxWidth: 360, textAlign: 'center' }}>
+      <div style={{ textAlign: 'left', marginBottom: 8 }}>
+        <button style={{ ...s.backBtn }} onClick={() => { setScreen('selectUser'); setLoginError(''); }}>←</button>
+      </div>
       <img src={pkImg(user.starterSlug)} alt="" style={{ width: 100, height: 100, objectFit: 'contain', animation: 'float 3s ease-in-out infinite' }} />
       <h2 style={{ color: C.yellow, margin: '8px 0 24px' }}>{user.name}</h2>
       <NumPad value={loginPin} onChange={setLoginPin} onSubmit={async (pin) => {
@@ -25,8 +28,6 @@ export const LoginScreen = ({ users, loginTarget, loginPin, setLoginPin, loginEr
         }
       }} />
       {loginError && <div style={{ color: C.red, marginTop: 12, animation: 'shake 0.3s ease' }}>{loginError}</div>}
-      <button style={{ ...s.btn('rgba(255,255,255,0.1)', 'sm'), color: C.muted, marginTop: 16 }}
-        onClick={() => { setScreen('selectUser'); setLoginError(''); }}>← Back</button>
     </div>
   );
 };

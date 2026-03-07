@@ -95,9 +95,9 @@ A daily spelling practice web app for elementary school kids (K–5). Kids memor
 | Variable | Required in Production | Default | Description |
 |---|---|---|---|
 | `JWT_SECRET` | **Yes** | `dev-secret-do-not-use-in-production` | Secret for signing JWTs — server refuses to start in production without this |
+| `MONGODB_URI` | **Yes** | _(none)_ | MongoDB connection string (e.g. from Railway MongoDB plugin) |
 | `ADMIN_PIN` | No | `0000` | PIN for the admin (`test`) account |
 | `PORT` | No | `3001` | Port for the Express API server |
-| `RAILWAY_VOLUME_MOUNT_PATH` | No | `<repo>/data` | Directory for `users.json`; set automatically by Railway when a volume is attached |
 | `NODE_ENV` | No | _(unset)_ | Set to `production` to enable static file serving and enforce `JWT_SECRET` |
 
 ### Install & Run
@@ -134,9 +134,6 @@ npm run lint     # Run ESLint
 
 ```
 server.js        — Express API (auth, user CRUD, collection, static file serving)
-data/
-  users.json     — Persistent user profiles (gitignored)
-  collection.json — Per-user Pokémon collection data (gitignored)
 src/
   App.jsx        — Root component — state management, routing, round processing
   shared.js      — Shared constants, styles, speech helpers, date utilities
@@ -172,26 +169,24 @@ src/
 
 1. **Connect your repo** — create a new Railway project and link the GitHub repo.
 
-2. **Set environment variables** in the Railway service dashboard → Variables:
+2. **Add a MongoDB database** — Railway dashboard → your project → "New" → "Database" → "MongoDB":
+   - Railway automatically injects `MONGODB_URL` into your service environment.
+   - Set `MONGODB_URI` in your service variables to the value of `${{MongoDB.MONGODB_URL}}`.
+
+3. **Set environment variables** in the Railway service dashboard → Variables:
 
    | Variable | Required | Notes |
    |---|---|---|
    | `JWT_SECRET` | **Yes** | Any long random string — server won't start without it |
+   | `MONGODB_URI` | **Yes** | Reference the Railway MongoDB plugin, e.g. `${{MongoDB.MONGODB_URL}}` |
    | `ADMIN_PIN` | No | Defaults to `0000` |
    | `NODE_ENV` | **Yes** | Set to `production` |
 
-   Railway sets `PORT` and `RAILWAY_VOLUME_MOUNT_PATH` automatically — do not override them.
-
-3. **Add a Volume** for data persistence (user profiles survive redeploys):
-   - Railway dashboard → your service → Volumes → "New Volume"
-   - Set mount path to any absolute path (e.g. `/data`)
-   - Railway automatically sets `RAILWAY_VOLUME_MOUNT_PATH` to that path; the server uses it for `users.json`
+   Railway sets `PORT` automatically — do not override it.
 
 4. **Deploy** — Railway auto-detects the `build` and `start` scripts from `railway.json`:
    - Build: `npm run build` (compiles React to `dist/`)
    - Start: `npm start` (`NODE_ENV=production node server.js` — serves API + static files)
-
-> **Note:** Without a Volume, `data/users.json` is stored on the ephemeral filesystem and will be wiped on every redeploy.
 
 ---
 
@@ -206,4 +201,4 @@ src/
 | `DELETE` | `/api/users/:id` | JWT (admin only) | Delete a profile |
 | `GET` | `/api/collection` | JWT | Get current user's Pokémon collection data |
 | `PUT` | `/api/collection` | JWT | Save current user's Pokémon collection data |
-| `GET` | `/ping` | None | Health check with volume diagnostics |
+| `GET` | `/ping` | None | Health check |

@@ -110,6 +110,11 @@ describe('POST /api/users', () => {
     expect(res.status).toBe(400);
   });
 
+  it('rejects reserved username "admin"', async () => {
+    const res = await createUser({ key: 'admin' });
+    expect(res.status).toBe(400);
+  });
+
   it('rejects reserved username "test"', async () => {
     const res = await createUser({ key: 'test' });
     expect(res.status).toBe(400);
@@ -152,7 +157,7 @@ describe('POST /api/auth/login', () => {
   });
 
   it('admin login works with correct ADMIN_PIN', async () => {
-    const res = await loginUser('test', '0000');
+    const res = await loginUser('admin', '0000');
     expect(res.status).toBe(200);
     expect(res.body.user.isAdmin).toBe(true);
   });
@@ -422,53 +427,160 @@ describe('GET/PUT /api/roundhistory', () => {
   });
 });
 
-// ── Delete user ───────────────────────────────────────────────────────────────
-describe('DELETE /api/users/:id', () => {
-  let adminToken;
-  let aliceId;
+// ── Update profile ───────────────────────────────────────────────────────────
+describe('PUT /api/users/me/profile', () => {
+  let token;
   beforeEach(async () => {
-    const created = await createUser();
-    aliceId = created.body.user.id;
-    const res = await loginUser('test', '0000');
-    adminToken = res.body.token;
+    await createUser();
+    const res = await loginUser();
+    token = res.body.token;
   });
 
-  it('admin can delete a user and all related data', async () => {
-    // Create weekly stats for alice first
-    await weeklyStatsCol().insertOne({ _id: 'test-stat', userId: aliceId, weekId: 'w2026-10', wordsCorrect: [], completed: false, creditsEarned: 0 });
-
+  it('updates name with correct current PIN', async () => {
     const res = await request(app)
-      .delete(`/api/users/${aliceId}`)
-      .set('Authorization', `Bearer ${adminToken}`);
+      .put('/api/users/me/profile')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ currentPin: '1234', newName: 'Alice B' });
     expect(res.status).toBe(200);
-    expect(await usersCol().findOne({ userId: 'alice' })).toBeNull();
-    expect(await trophiesCol().findOne({ userId: aliceId })).toBeNull();
-    expect(await wordstatsCol().findOne({ userId: aliceId })).toBeNull();
-    expect(await roundhistoryCol().findOne({ userId: aliceId })).toBeNull();
-    expect(await weeklyStatsCol().findOne({ userId: aliceId })).toBeNull();
+    expect(res.body.user.name).toBe('Alice B');
+    expect(res.body.user.userId).toBe('alice_b');
   });
 
-  it('returns 403 for non-admin token', async () => {
-    await createUser({ key: 'bob', name: 'Bob' });
-    const bobToken = (await loginUser('bob', '1234')).body.token;
+  it('rejects name change with wrong PIN', async () => {
     const res = await request(app)
-      .delete(`/api/users/${aliceId}`)
-      .set('Authorization', `Bearer ${bobToken}`);
-    expect(res.status).toBe(403);
+      .put('/api/users/me/profile')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ currentPin: '9999', newName: 'Alice B' });
+    expect(res.status).toBe(401);
   });
 
-  it('cannot delete admin account', async () => {
+  it('rejects missing current PIN', async () => {
     const res = await request(app)
-      .delete('/api/users/admin')
-      .set('Authorization', `Bearer ${adminToken}`);
+      .put('/api/users/me/profile')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ newName: 'Alice B' });
     expect(res.status).toBe(400);
   });
 
-  it('returns 404 when deleting a non-existent user ID', async () => {
+  it('rejects reserved name "test"', async () => {
     const res = await request(app)
-      .delete('/api/users/00000000-0000-0000-0000-000000000000')
+      .put('/api/users/me/profile')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ currentPin: '1234', newName: 'test' });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects duplicate name', async () => {
+    await createUser({ key: 'bob', name: 'Bob' });
+    const res = await request(app)
+      .put('/api/users/me/profile')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ currentPin: '1234', newName: 'Bob' });
+    expect(res.status).toBe(409);
+  });
+
+  it('allows keeping the same name', async () => {
+    const res = await request(app)
+      .put('/api/users/me/profile')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ currentPin: '1234', newName: 'Alice' });
+    expect(res.status).toBe(200);
+  });
+
+  it('updates PIN', async () => {
+    const res = await request(app)
+      .put('/api/users/me/profile')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ currentPin: '1234', newPin: '5678' });
+    expect(res.status).toBe(200);
+
+    // Old PIN should fail
+    const fail = await loginUser('alice', '1234');
+    expect(fail.status).toBe(401);
+    // New PIN should work
+    const ok = await loginUser('alice', '5678');
+    expect(ok.status).toBe(200);
+  });
+
+  it('rejects non-4-digit new PIN', async () => {
+    const res = await request(app)
+      .put('/api/users/me/profile')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ currentPin: '1234', newPin: '12' });
+    expect(res.status).toBe(400);
+  });
+
+  it('updates avatar (starter)', async () => {
+    const res = await request(app)
+      .put('/api/users/me/profile')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ currentPin: '1234', starterId: 4, starterSlug: 'charmander' });
+    expect(res.status).toBe(200);
+    expect(res.body.user.starterSlug).toBe('charmander');
+    expect(res.body.user.starterId).toBe(4);
+  });
+
+  it('updates multiple fields at once', async () => {
+    const res = await request(app)
+      .put('/api/users/me/profile')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ currentPin: '1234', newName: 'Alice C', starterId: 7, starterSlug: 'squirtle', newPin: '4321' });
+    expect(res.status).toBe(200);
+    expect(res.body.user.name).toBe('Alice C');
+    expect(res.body.user.starterSlug).toBe('squirtle');
+    // Verify new PIN works
+    const ok = await loginUser('alice_c', '4321');
+    expect(ok.status).toBe(200);
+  });
+
+  it('returns 401 without token', async () => {
+    const res = await request(app).put('/api/users/me/profile').send({ currentPin: '1234' });
+    expect(res.status).toBe(401);
+  });
+});
+
+// ── Admin dashboard ──────────────────────────────────────────────────────────
+describe('GET /api/admin/users', () => {
+  let adminToken;
+  beforeEach(async () => {
+    const res = await loginUser('admin', '0000');
+    adminToken = res.body.token;
+  });
+
+  it('returns user list with detailed stats', async () => {
+    await createUser();
+    const res = await request(app)
+      .get('/api/admin/users')
       .set('Authorization', `Bearer ${adminToken}`);
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].name).toBe('Alice');
+    expect(res.body[0]).toHaveProperty('masteredCount');
+    expect(res.body[0]).toHaveProperty('avgScore');
+    expect(res.body[0]).toHaveProperty('shinyCount');
+    expect(res.body[0]).toHaveProperty('rounds');
+  });
+
+  it('returns 403 for non-admin token', async () => {
+    await createUser();
+    const userToken = (await loginUser('alice', '1234')).body.token;
+    const res = await request(app)
+      .get('/api/admin/users')
+      .set('Authorization', `Bearer ${userToken}`);
+    expect(res.status).toBe(403);
+  });
+
+  it('returns 401 without token', async () => {
+    const res = await request(app).get('/api/admin/users');
+    expect(res.status).toBe(401);
+  });
+
+  it('returns empty array when no users exist', async () => {
+    const res = await request(app)
+      .get('/api/admin/users')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([]);
   });
 });
 

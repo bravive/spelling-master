@@ -74,6 +74,13 @@ export const checkPin = async (user, pin) => {
   return match;
 };
 
+// Updates a user's PIN (hashes before storing)
+export const updateUserPin = async (id, newPin) => {
+  const hashed = await bcrypt.hash(newPin, 10);
+  log('updateOne', 'users', { _id: id, op: 'updatePin' });
+  return usersCol().updateOne({ _id: id }, { $set: { pin: hashed, updated_at: now() } });
+};
+
 // Updates a user by UUID
 export const updateUser = (id, updates) => {
   log('updateOne', 'users', { _id: id });
@@ -161,4 +168,41 @@ export const saveWeeklyStats = (userId, weekId, data) => {
     { $set: { ...data, updated_at: now() }, $setOnInsert: { _id: randomUUID(), userId, weekId, created_at: now() } },
     { upsert: true }
   );
+};
+
+// ── Admin dashboard queries ──────────────────────────────────────────────────
+
+export const getAdminUsers = async () => {
+  log('find', 'users (admin)');
+  const users = await usersCol().find({}).toArray();
+  const allTrophies = await trophiesCol().find({}).toArray();
+  const allWordstats = await wordstatsCol().find({}).toArray();
+  const allRoundhistory = await roundhistoryCol().find({}).toArray();
+
+  const trophyMap = Object.fromEntries(allTrophies.map(t => [t.userId, t]));
+  const wsMap = Object.fromEntries(allWordstats.map(w => [w.userId, w]));
+  const rhMap = Object.fromEntries(allRoundhistory.map(r => [r.userId, r]));
+
+  return users.map(u => {
+    const trophy = trophyMap[u._id] || {};
+    const ws = wsMap[u._id] || {};
+    const rh = rhMap[u._id] || {};
+    const stats = ws.stats || {};
+    const masteredCount = Object.values(stats).filter(s => s.attempts >= 3 && (s.correct / s.attempts) >= 0.8).length;
+    const totalWordsAttempted = Object.keys(stats).length;
+    const rounds = rh.roundHistory || [];
+    const avgScore = rounds.length ? (rounds.reduce((sum, r) => sum + r.score, 0) / rounds.length).toFixed(1) : null;
+    const shinyCount = Object.values(trophy.collection || {}).filter(c => c.shiny).length;
+
+    return {
+      id: u._id, userId: u.userId, name: u.name,
+      level: u.level, streak: u.streak, lastPlayed: u.lastPlayed,
+      totalCredits: u.totalCredits, creditBank: u.creditBank,
+      caught: u.caught, roundCount: u.roundCount,
+      starterSlug: u.starterSlug,
+      created_at: u.created_at, updated_at: u.updated_at,
+      masteredCount, totalWordsAttempted, avgScore, shinyCount,
+      rounds,
+    };
+  });
 };

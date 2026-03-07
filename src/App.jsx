@@ -20,6 +20,7 @@ import { TrophyScreen } from './components/TrophyScreen';
 import { StatsScreen } from './components/StatsScreen';
 import { WeeklyChallengeScreen } from './components/WeeklyChallengeScreen';
 import { WeeklyResultsScreen } from './components/WeeklyResultsScreen';
+import { EditProfileScreen } from './components/EditProfileScreen';
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
@@ -351,8 +352,8 @@ export default function App() {
 
       {screen === 'selectUser' && <SelectUserScreen users={users} setLoginTarget={setLoginTarget} setLoginPin={setLoginPin} setLoginError={setLoginError} setScreen={setScreen} setCreateStep={setCreateStep} setNewName={setNewName} setNewStarter={setNewStarter} setNewPin={setNewPin} setConfirmPin={setConfirmPin} />}
       {screen === 'login' && <LoginScreen users={users} loginTarget={loginTarget} loginPin={loginPin} setLoginPin={setLoginPin} loginError={loginError} setLoginError={setLoginError} setCurrentUser={setCurrentUser} setScreen={setScreen} setGameScreen={setGameScreen} setJwt={setJwt} />}
-      {screen === 'adminLogin' && <AdminLoginScreen setCurrentUser={setCurrentUser} setScreen={setScreen} />}
-      {screen === 'parentMenu' && <ParentMenuScreen users={users} saveUsers={saveUsers} jwt={jwt} setCreateStep={setCreateStep} setNewName={setNewName} setNewStarter={setNewStarter} setNewPin={setNewPin} setConfirmPin={setConfirmPin} setScreen={setScreen} setGameScreen={setGameScreen} setCurrentUser={setCurrentUser} />}
+      {screen === 'adminLogin' && <AdminLoginScreen setCurrentUser={setCurrentUser} setScreen={setScreen} setJwt={setJwt} />}
+      {screen === 'parentMenu' && <ParentMenuScreen jwt={jwt} setScreen={setScreen} setCurrentUser={setCurrentUser} />}
       {screen === 'createUser' && <CreateUserScreen users={users} saveUsers={saveUsers} createStep={createStep} setCreateStep={setCreateStep} newName={newName} setNewName={setNewName} newStarter={newStarter} setNewStarter={setNewStarter} newPin={newPin} setNewPin={setNewPin} confirmPin={confirmPin} setConfirmPin={setConfirmPin} setScreen={setScreen} />}
       {screen === 'game' && gameScreen === 'home' && <HomeScreen getUser={getUser} wordStats={wordStats} trophyData={trophyData} weeklyWords={weeklyWords} weeklyStats={weeklyStats} setWords={setWords} setRetryCount={setRetryCount} setGameScreen={setGameScreen} setCurrentUser={setCurrentUser} setScreen={setScreen} />}
       {screen === 'game' && gameScreen === 'stage1' && <Stage1Screen words={words} retryCount={retryCount} setGameScreen={setGameScreen} />}
@@ -369,6 +370,7 @@ export default function App() {
       })()}
       {screen === 'game' && gameScreen === 'weeklyStage2' && <Stage2Screen words={words} processRound={processWeeklyRound} setRoundResults={setRoundResults} setGameScreen={setGameScreen} resultsScreen="weeklyResults" discardScreen="weekly" onQuit={handleWeeklyQuit} unlimitedRetries allowSkip />}
       {screen === 'game' && gameScreen === 'weeklyResults' && <WeeklyResultsScreen roundResults={roundResults} setGameScreen={setGameScreen} />}
+      {screen === 'game' && gameScreen === 'editProfile' && <EditProfileScreen user={getUser()} jwt={jwt} saveUsers={saveUsers} users={users} currentUser={currentUser} setGameScreen={setGameScreen} />}
 
     </div>
   );

@@ -5,15 +5,16 @@ import jwt from 'jsonwebtoken';
 import { rateLimit } from 'express-rate-limit';
 import { connectDb } from './src/db.js';
 import {
-  getAllUsers, findUser, findUserById, createUser, checkPin, updateUser, deleteUser,
+  getAllUsers, findUser, findUserById, createUser, checkPin, updateUser, updateUserPin,
   getTrophy, saveTrophy,
   getWordStats, saveWordStats,
   getRoundHistory, saveRoundHistory,
   getAllWeeks, getAllWeeklyStats, saveWeeklyStats, seedWeeklyWords,
+  getAdminUsers,
 } from './src/store.js';
 import { WEEKLY_WORDS } from './src/data/weekly-words.js';
 
-const ADMIN_KEY = 'test';
+const ADMIN_KEY = 'admin';
 const ADMIN_ID  = 'admin';
 
 const DEV_JWT_SECRET = 'dev-secret-do-not-use-in-production';
@@ -132,6 +133,7 @@ app.post('/api/users', async (req, res) => {
     return res.status(400).json({ error: 'Missing required fields' });
   if (!/^\d{4}$/.test(pin))       return res.status(400).json({ error: 'PIN must be exactly 4 digits' });
   if (key === ADMIN_KEY)           return res.status(400).json({ error: 'That name is reserved' });
+  if (key === 'test')              return res.status(400).json({ error: 'That name is reserved' });
   if (!/^[a-z0-9_]+$/.test(key))  return res.status(400).json({ error: 'Invalid key format' });
 
   if (await findUser(key)) return res.status(409).json({ error: 'Name already taken' });
@@ -150,14 +152,54 @@ app.put('/api/users/me', requireAuth, async (req, res) => {
   res.json({ ok: true });
 });
 
-// DELETE /api/users/:id — admin only, id is UUID
-app.delete('/api/users/:id', requireAdmin, async (req, res) => {
-  const { id } = req.params;
-  if (id === ADMIN_ID) return res.status(400).json({ error: 'Cannot delete admin' });
+// PUT /api/users/me/profile — update profile (name, PIN, avatar). Requires current PIN.
+app.put('/api/users/me/profile', requireAuth, async (req, res) => {
+  const { id } = req.jwtUser;
+  const user = await findUserById(id);
+  if (!user) return res.status(404).json({ error: 'User not found' });
 
-  const deleted = await deleteUser(id);
-  if (!deleted) return res.status(404).json({ error: 'User not found' });
-  res.json({ ok: true });
+  const { currentPin, newName, newPin, starterId, starterSlug } = req.body;
+  if (!currentPin) return res.status(400).json({ error: 'Current PIN is required' });
+
+  const match = await checkPin(user, currentPin);
+  if (!match) return res.status(401).json({ error: 'Wrong PIN' });
+
+  const updates = {};
+
+  if (newName !== undefined) {
+    const trimmed = newName.trim();
+    if (!trimmed) return res.status(400).json({ error: 'Name cannot be empty' });
+    const key = trimmed.toLowerCase().replace(/\s+/g, '_');
+    if (key === ADMIN_KEY || key === 'test') return res.status(400).json({ error: 'That name is reserved' });
+    if (!/^[a-z0-9_]+$/.test(key)) return res.status(400).json({ error: 'Invalid name format' });
+    const existing = await findUser(key);
+    if (existing && existing._id !== id) return res.status(409).json({ error: 'Name already taken' });
+    updates.name = trimmed;
+    updates.userId = key;
+  }
+
+  if (newPin !== undefined) {
+    if (!/^\d{4}$/.test(newPin)) return res.status(400).json({ error: 'PIN must be exactly 4 digits' });
+    await updateUserPin(id, newPin);
+  }
+
+  if (starterId !== undefined && starterSlug !== undefined) {
+    updates.starterId = starterId;
+    updates.starterSlug = starterSlug;
+  }
+
+  if (Object.keys(updates).length > 0) {
+    await updateUser(id, updates);
+  }
+
+  const updated = await findUserById(id);
+  res.json({ ok: true, user: publicUser(updated) });
+});
+
+// GET /api/admin/users — admin dashboard: all users with detailed stats
+app.get('/api/admin/users', requireAdmin, async (_req, res) => {
+  const users = await getAdminUsers();
+  res.json(users);
 });
 
 app.get('/api/trophy', requireAuth, async (req, res) => {

@@ -35,7 +35,7 @@ describe('JWT tokens', () => {
   });
 
   it('issues an admin token with isAdmin flag', () => {
-    const token = jwt.sign({ userId: 'test', isAdmin: true }, SECRET, { expiresIn: '8h' });
+    const token = jwt.sign({ userId: 'admin', isAdmin: true }, SECRET, { expiresIn: '8h' });
     const payload = jwt.verify(token, SECRET);
     expect(payload.isAdmin).toBe(true);
   });

@@ -2,7 +2,7 @@ import { pkImg } from '../data/pokemon';
 import { C, s } from '../shared';
 
 export const SelectUserScreen = ({ users, setLoginTarget, setLoginPin, setLoginError, setScreen, setCreateStep, setNewName, setNewStarter, setNewPin, setConfirmPin }) => {
-  const profiles = Object.entries(users).filter(([k]) => k !== 'test');
+  const profiles = Object.entries(users).filter(([k]) => k !== 'admin');
   return (
     <div style={{ width: '100%', maxWidth: 480 }}>
       <div style={{ textAlign: 'center', marginBottom: 32 }}>

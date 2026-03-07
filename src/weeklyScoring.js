@@ -39,11 +39,17 @@ export const computeWeeklyScore = (prev, results, today, totalWords) => {
     earned += 2;
   }
 
+  // Set lastDailyReward to today on first completion (no daily bonus that day)
+  // or when daily bonus is earned
+  let lastDailyReward = prev.lastDailyReward;
+  if (breakdown.daily > 0) lastDailyReward = today;
+  else if (nowCompleted && !prev.completed) lastDailyReward = today;
+
   const updated = {
     wordsCorrect: allCorrectWords,
     completed,
     creditsEarned: (prev.creditsEarned || 0) + earned,
-    lastDailyReward: breakdown.daily > 0 ? today : prev.lastDailyReward,
+    lastDailyReward,
   };
 
   return { earned, breakdown, updated };

@@ -88,8 +88,13 @@ describe('daily replay bonus', () => {
   });
 
   it('does not award daily on the very first completion', () => {
-    const { breakdown } = computeWeeklyScore(fresh(), [ok1('cat')], TODAY, 2);
+    const { breakdown } = computeWeeklyScore(fresh(), [ok1('cat'), ok1('dog')], TODAY, 2);
     expect(breakdown.daily).toBe(0);
+  });
+
+  it('sets lastDailyReward to today on first completion to prevent same-day replay bonus', () => {
+    const { updated } = computeWeeklyScore(fresh(), [ok1('cat'), ok1('dog')], TODAY, 2);
+    expect(updated.lastDailyReward).toBe(TODAY);
   });
 
   it('does not award daily if already claimed today', () => {

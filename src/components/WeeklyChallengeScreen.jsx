@@ -23,36 +23,43 @@ export const WeeklyChallengeScreen = ({ weeklyWords, weeklyStats, setWords, setR
   const selected = all.find(w => w.id === selectedId);
   const isLocked = selected ? selected.startDate > today : true;
 
-  const startChallenge = (week) => {
+  const startChallenge = (week, wordList) => {
     setActiveWeekId(week.id);
-    setWords(week.words);
+    setWords(wordList);
     setRetryCount(0);
     setGameScreen('weeklyStage1');
   };
 
   return (
     <div style={{ width: '100%', maxWidth: 640 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
         <button style={{ ...s.btn('rgba(255,255,255,0.1)', 'sm'), color: C.muted }} onClick={() => setGameScreen('home')}>← Back</button>
-        <h2 style={{ color: C.yellow, margin: 0, fontSize: 20 }}>Weekly Challenge</h2>
+        <h2 style={{ color: C.yellow, margin: 0, fontSize: 20, flex: 1, textAlign: 'center' }}>Weekly Challenge</h2>
         <div style={{ width: 60 }} />
       </div>
 
-      <div style={{ display: 'flex', gap: 12, height: 'calc(100vh - 140px)', minHeight: 400 }}>
+      <div style={{ display: 'flex', gap: 12 }}>
         {/* Sidebar — scrollable week list */}
         <div style={{
-          width: 110, flexShrink: 0, overflowY: 'auto',
+          width: 110, flexShrink: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch',
           display: 'flex', flexDirection: 'column', gap: 4,
-          paddingRight: 4, maxHeight: 500,
+          paddingRight: 4, maxHeight: 'min(500px, calc(100vh - 160px))',
         }}>
           {all.map(week => {
             const isAvailable = week.startDate <= today;
             const wp = weeklyStats[week.id] || {};
-            const firstCorrect = (wp.wordsCorrect || []).length;
+            const wordsCorrect = (wp.wordsCorrect || []).length;
             const completed = wp.completed || false;
             const credits = wp.creditsEarned || 0;
             const isSelected = selectedId === week.id;
+            const isCurrent = isAvailable && available[available.length - 1]?.id === week.id;
             const shortDate = week.startDate.slice(5); // MM-DD
+
+            // Has points to collect: not started, incomplete, or daily replay available
+            const hasCredits = isAvailable && (
+              !wp.wordsCorrect || wordsCorrect < week.words.length ||
+              (completed && wp.lastDailyReward !== today)
+            );
 
             return (
               <div
@@ -60,18 +67,28 @@ export const WeeklyChallengeScreen = ({ weeklyWords, weeklyStats, setWords, setR
                 onClick={() => setSelectedId(week.id)}
                 style={{
                   padding: '8px 10px', borderRadius: 8, cursor: 'pointer',
+                  position: 'relative',
                   background: isSelected ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.05)',
-                  border: isSelected ? `2px solid ${C.yellow}` : completed ? `2px solid ${C.green}` : `1px solid ${C.border}`,
+                  border: isCurrent ? `2px solid ${C.yellow}` : isSelected ? `2px solid rgba(255,255,255,0.3)` : completed ? `1px solid ${C.green}` : isAvailable ? `1px solid #d4c89a55` : `1px solid ${C.border}`,
                   opacity: isAvailable ? 1 : 0.4,
                   transition: 'background 0.15s',
                 }}
               >
-                <div style={{ fontWeight: 700, fontSize: 12, color: isSelected ? C.yellow : '#fff' }}>
-                  {shortDate}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ fontWeight: 700, fontSize: 12, color: isCurrent ? C.yellow : '#fff' }}>
+                    {shortDate}
+                  </div>
+                  {hasCredits && (
+                    <div style={{
+                      background: C.yellow, borderRadius: '50%', width: 8, height: 8,
+                      boxShadow: `0 0 6px ${C.yellow}`,
+                      animation: 'pulse 1.5s ease infinite',
+                    }} />
+                  )}
                 </div>
                 {isAvailable ? (
                   <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
-                    <span>{firstCorrect}/{week.words.length}</span>
+                    <span>{wordsCorrect}/{week.words.length}</span>
                     {credits > 0 && <span style={{ color: C.yellow, marginLeft: 4 }}>{credits}cr</span>}
                   </div>
                 ) : (
@@ -83,14 +100,14 @@ export const WeeklyChallengeScreen = ({ weeklyWords, weeklyStats, setWords, setR
         </div>
 
         {/* Main panel — selected week details */}
-        <div style={{ flex: 1, overflowY: 'auto' }}>
+        <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
           {selected ? (
             <WeekDetail
               week={selected}
               progress={weeklyStats[selected.id]}
               isLocked={isLocked}
               today={today}
-              onStart={() => startChallenge(selected)}
+              onStart={(wordList) => startChallenge(selected, wordList)}
             />
           ) : (
             <div style={{ color: C.muted, textAlign: 'center', padding: '40px 0' }}>
@@ -105,11 +122,13 @@ export const WeeklyChallengeScreen = ({ weeklyWords, weeklyStats, setWords, setR
 
 const WeekDetail = ({ week, progress, isLocked, today, onStart }) => {
   const wp = progress || {};
-  const firstCorrect = (wp.wordsCorrect || []).length;
+  const correctSet = new Set(wp.wordsCorrect || []);
+  const correctCount = correctSet.size;
   const completed = wp.completed || false;
   const credits = wp.creditsEarned || 0;
   const canEarnDaily = completed && wp.lastDailyReward !== today;
-  const firstSet = new Set(wp.wordsCorrect || []);
+  const hasPartialProgress = correctCount > 0 && !completed;
+  const remainingWords = week.words.filter(entry => !correctSet.has(entry.w));
 
   if (isLocked) {
     return (
@@ -141,14 +160,14 @@ const WeekDetail = ({ week, progress, isLocked, today, onStart }) => {
       {/* Word list preview */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 16 }}>
         {week.words.map((entry, i) => {
-          const gotFirst = firstSet.has(entry.w);
+          const correct = correctSet.has(entry.w);
           return (
             <div key={i} style={{
               background: C.card, borderRadius: 10, padding: '8px 12px',
-              border: gotFirst ? `1px solid ${C.green}` : `1px solid ${C.border}`,
+              border: correct ? `1px solid ${C.green}` : `1px solid ${C.border}`,
             }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: gotFirst ? C.green : '#fff' }}>
-                {gotFirst && <span style={{ marginRight: 4 }}>✓</span>}
+              <div style={{ fontSize: 15, fontWeight: 700, color: correct ? C.green : '#fff' }}>
+                {correct && <span style={{ marginRight: 4 }}>✓</span>}
                 {entry.w}
               </div>
               <div style={{ fontSize: 11, color: C.muted, marginTop: 2, lineHeight: 1.3 }}>{entry.s}</div>
@@ -157,18 +176,43 @@ const WeekDetail = ({ week, progress, isLocked, today, onStart }) => {
         })}
       </div>
 
-      {firstCorrect > 0 && (
+      {correctCount > 0 && !completed && (
         <div style={{ textAlign: 'center', fontSize: 13, color: C.blue, marginBottom: 12 }}>
-          {firstCorrect}/{week.words.length} correct
+          {correctCount}/{week.words.length} correct
         </div>
       )}
 
-      <button
-        style={{ ...s.btn(C.yellow, 'lg'), width: '100%' }}
-        onClick={onStart}
-      >
-        {completed ? '🔁 Replay Challenge' : '🚀 Start Challenge'}
-      </button>
+      {/* Buttons: no progress → Start, partial → Restart + Resume, completed → Replay */}
+      {completed ? (
+        <button
+          style={{ ...s.btn(C.yellow, 'lg'), width: '100%' }}
+          onClick={() => onStart(week.words)}
+        >
+          🔁 Replay
+        </button>
+      ) : hasPartialProgress ? (
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            style={{ ...s.btn('rgba(255,255,255,0.15)'), flex: 1 }}
+            onClick={() => onStart(week.words)}
+          >
+            🔄 Restart
+          </button>
+          <button
+            style={{ ...s.btn(C.yellow, 'lg'), flex: 1 }}
+            onClick={() => onStart(remainingWords)}
+          >
+            ▶️ Resume ({remainingWords.length})
+          </button>
+        </div>
+      ) : (
+        <button
+          style={{ ...s.btn(C.yellow, 'lg'), width: '100%' }}
+          onClick={() => onStart(week.words)}
+        >
+          🚀 Start
+        </button>
+      )}
     </div>
   );
 };

@@ -340,8 +340,9 @@ export default function App() {
       {screen === 'game' && gameScreen === 'weekly' && <WeeklyChallengeScreen weeklyWords={weeklyWords} weeklyStats={weeklyStats} setWords={setWords} setRetryCount={setRetryCount} setGameScreen={setGameScreen} setActiveWeekId={setActiveWeekId} />}
       {screen === 'game' && gameScreen === 'weeklyStage1' && (() => {
         const wp = weeklyStats[activeWeekId];
-        const hasProgress = (wp?.wordsCorrect?.length || 0) > 0;
-        return <Stage1Screen words={words} retryCount={retryCount} setGameScreen={setGameScreen} nextScreen="weeklyStage2" discardScreen="weekly" quitLabel="Quit" readyLabel={hasProgress ? '🔁 Resume!' : "🚀 Start!"} />;
+        const completed = wp?.completed;
+        const label = completed ? '🔁 Replay!' : "✅ I'm Ready!";
+        return <Stage1Screen words={words} retryCount={retryCount} setGameScreen={setGameScreen} nextScreen="weeklyStage2" discardScreen="weekly" quitLabel="Quit" readyLabel={label} />;
       })()}
       {screen === 'game' && gameScreen === 'weeklyStage2' && <Stage2Screen words={words} processRound={processWeeklyRound} setRoundResults={setRoundResults} setGameScreen={setGameScreen} resultsScreen="weeklyResults" discardScreen="weekly" onQuit={handleWeeklyQuit} />}
       {screen === 'game' && gameScreen === 'weeklyResults' && <WeeklyResultsScreen roundResults={roundResults} setGameScreen={setGameScreen} />}

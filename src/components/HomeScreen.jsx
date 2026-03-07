@@ -21,7 +21,7 @@ export const HomeScreen = ({ getUser, wordStats, trophyData, weeklyWords, weekly
   });
 
   return (
-    <div style={{ width: '100%', maxWidth: 480 }}>
+    <div style={{ width: '100%', maxWidth: 480, position: 'relative' }}>
       {/* Top bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <span
@@ -38,35 +38,56 @@ export const HomeScreen = ({ getUser, wordStats, trophyData, weeklyWords, weekly
         </div>
       </div>
 
-      {/* Profile row: avatar + name on left, weekly on right */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
-        <img src={pkImg(user.starterSlug)} alt="" style={{ width: 80, height: 80, objectFit: 'contain', animation: 'float 3s ease-in-out infinite', flexShrink: 0 }} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <h2 style={{ margin: '0 0 2px', fontSize: 24 }}>{user.name}</h2>
-          <div style={{ color: C.purple, fontSize: 14 }}>Level {user.level} Speller</div>
-        </div>
+      {/* Profile: centered avatar + name */}
+      <div style={{ textAlign: 'center', marginBottom: 20 }}>
+        <img src={pkImg(user.starterSlug)} alt="" style={{ width: 90, height: 90, objectFit: 'contain', animation: 'float 3s ease-in-out infinite' }} />
+        <h2 style={{ margin: '8px 0 4px', fontSize: 26 }}>{user.name}</h2>
+        <div style={{ color: C.purple }}>Level {user.level} Speller</div>
+      </div>
+
+      {/* Weekly floating notification */}
+      {hasWeeklyCredits && (
         <div
           onClick={() => setGameScreen('weekly')}
           style={{
-            ...s.card, width: 56, textAlign: 'center', padding: '8px 4px',
-            cursor: 'pointer', position: 'relative', flexShrink: 0,
-            border: hasWeeklyCredits ? `2px solid ${C.yellow}` : `1px solid ${C.border}`,
-            boxShadow: hasWeeklyCredits ? `0 0 10px ${C.yellow}44, 0 0 20px ${C.yellow}22` : 'none',
-            animation: hasWeeklyCredits ? 'pulse 1.5s ease infinite' : 'none',
+            position: 'absolute', top: 44, right: 0,
+            cursor: 'pointer',
+            background: 'rgba(251,191,36,0.12)',
+            border: `1.5px solid ${C.yellow}`,
+            borderRadius: 12, padding: '6px 12px',
+            display: 'flex', alignItems: 'center', gap: 6,
+            animation: 'pulse 1.5s ease infinite',
+            boxShadow: `0 0 12px ${C.yellow}33`,
           }}
         >
-          <div style={{ fontSize: 22 }}>📅</div>
-          <div style={{ fontSize: 10, fontWeight: 700, color: hasWeeklyCredits ? C.yellow : C.muted, marginTop: 2, lineHeight: 1.2 }}>Weekly</div>
-          {hasWeeklyCredits && (
-            <div style={{
-              position: 'absolute', top: -5, right: -5,
-              background: C.yellow, borderRadius: '50%', width: 12, height: 12,
-              animation: 'bounce 1s ease infinite',
-              boxShadow: `0 0 6px ${C.yellow}`,
-            }} />
-          )}
+          <span style={{ fontSize: 16 }}>📅</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: C.yellow }}>Weekly</span>
+          <div style={{
+            width: 8, height: 8, borderRadius: '50%',
+            background: C.yellow,
+            boxShadow: `0 0 6px ${C.yellow}`,
+            animation: 'bounce 1s ease infinite',
+          }} />
         </div>
-      </div>
+      )}
+
+      {!hasWeeklyCredits && (
+        <div
+          onClick={() => setGameScreen('weekly')}
+          style={{
+            position: 'absolute', top: 44, right: 0,
+            cursor: 'pointer',
+            background: C.card,
+            border: `1px solid ${C.border}`,
+            borderRadius: 12, padding: '6px 12px',
+            display: 'flex', alignItems: 'center', gap: 6,
+            opacity: 0.6,
+          }}
+        >
+          <span style={{ fontSize: 16 }}>📅</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: C.muted }}>Weekly</span>
+        </div>
+      )}
 
       {/* Stats row */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>

@@ -108,13 +108,15 @@ app.get('/api/users', async (_req, res) => {
 
 // POST /api/auth/login — validate PIN, return JWT with user UUID
 app.post('/api/auth/login', loginLimiter, async (req, res) => {
-  const { userId, pin } = req.body;
+  const { userId, pin, rememberMe } = req.body;
   if (!userId || typeof pin !== 'string')
     return res.status(400).json({ error: 'userId and pin are required' });
 
+  const expiry = rememberMe ? '30d' : '8h';
+
   if (userId === ADMIN_KEY) {
     if (pin !== ADMIN_PIN) return res.status(401).json({ error: 'Wrong PIN' });
-    const token = jwt.sign({ id: ADMIN_ID, isAdmin: true }, JWT_SECRET, { expiresIn: '8h' });
+    const token = jwt.sign({ id: ADMIN_ID, isAdmin: true }, JWT_SECRET, { expiresIn: expiry });
     return res.json({ token, user: { name: 'Admin', isAdmin: true } });
   }
 
@@ -124,7 +126,7 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
   const match = await checkPin(user, pin);
   if (!match) return res.status(401).json({ error: 'Wrong PIN' });
 
-  const token = jwt.sign({ id: user._id, isAdmin: false }, JWT_SECRET, { expiresIn: '8h' });
+  const token = jwt.sign({ id: user._id, isAdmin: false }, JWT_SECRET, { expiresIn: expiry });
   res.json({ token, user: publicUser(user) });
 });
 

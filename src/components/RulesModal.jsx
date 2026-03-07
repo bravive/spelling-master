@@ -52,6 +52,21 @@ export const RulesModal = () => {
               After catching 3 Pokemon in a row, you get a <strong style={{ color: '#a78bfa' }}>shiny chance</strong>! Your next catch has a 50% chance to be a rare shiny version.
             </Section>
 
+            <div style={{ height: 1, background: 'rgba(255,255,255,0.1)', margin: '16px 0' }} />
+            <h3 style={{ color: C.yellow, margin: '0 0 12px', textAlign: 'center', fontSize: 18 }}>Weekly Challenge</h3>
+
+            <Section title="6. Weekly Words" icon="📅">
+              Each week there is a special word list to practice. New lists unlock every Monday!
+            </Section>
+
+            <Section title="7. Word Bonus" icon="⭐">
+              Get a word correct = <strong style={{ color: C.yellow }}>0.5 credits</strong>. When <strong style={{ color: C.yellow }}>ALL words</strong> are completed = 3 bonus credits!
+            </Section>
+
+            <Section title="8. Daily Replay" icon="🔁">
+              You can replay any previous weekly list every day! Get all words correct in one run = <strong style={{ color: C.yellow }}>2 credits per day per list</strong> (once per list per day).
+            </Section>
+
             <button
               style={{ ...s.btn(C.yellow), width: '100%', marginTop: 16 }}
               onClick={() => setOpen(false)}

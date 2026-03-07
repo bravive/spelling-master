@@ -1,6 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { makeAuthFetch } from './authFetch';
 import { ALL_POKEMON } from './data/pokemon';
 import { selectWords, updateWordStats, checkLevelUp } from './wordSelection';
+import { computeWeeklyScore } from './weeklyScoring';
 import { todayStr, localDateStr, injectCSS, C, s } from './shared';
 
 import { Confetti } from './components/Confetti';
@@ -14,8 +16,10 @@ import { HomeScreen } from './components/HomeScreen';
 import { Stage1Screen } from './components/Stage1Screen';
 import { Stage2Screen } from './components/Stage2Screen';
 import { ResultsScreen } from './components/ResultsScreen';
-import { CollectionScreen } from './components/CollectionScreen';
+import { TrophyScreen } from './components/TrophyScreen';
 import { StatsScreen } from './components/StatsScreen';
+import { WeeklyChallengeScreen } from './components/WeeklyChallengeScreen';
+import { WeeklyResultsScreen } from './components/WeeklyResultsScreen';
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
@@ -29,6 +33,36 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [jwt, setJwt] = useState(() => sessionStorage.getItem('jwt') || null);
   const hasRestored = useRef(false);
+
+  // Weekly challenge data
+  const [weeklyWords, setWeeklyWords] = useState([]);
+  const [weeklyStats, setWeeklyStats] = useState({});
+
+  useEffect(() => {
+    fetch('/api/weekly-words').then(r => r.json()).then(weeks =>
+      setWeeklyWords(weeks.map(w => ({ ...w, id: w.id || w.weekId })))
+    ).catch(() => {});
+  }, []);
+
+  // Per-user data fetched from their dedicated API endpoints after login
+  const [wordStats, setWordStats] = useState({});
+  const [roundHistory, setRoundHistory] = useState([]);
+  const [trophyData, setTrophyData] = useState(null); // { collection, shinyEligible, consecutiveRegular }
+
+  useEffect(() => {
+    if (!jwt || !currentUser) {
+      setWeeklyStats({});
+      setWordStats({});
+      setRoundHistory([]);
+      setTrophyData(null);
+      return;
+    }
+    const headers = { Authorization: `Bearer ${jwt}` };
+    apiFetch('/api/weekly-stats', { headers }).then(r => r.json()).then(setWeeklyStats).catch(() => {});
+    apiFetch('/api/wordstats', { headers }).then(r => r.json()).then(setWordStats).catch(() => {});
+    apiFetch('/api/roundhistory', { headers }).then(r => r.json()).then(d => setRoundHistory(d.roundHistory || [])).catch(() => {});
+    apiFetch('/api/trophy', { headers }).then(r => r.json()).then(setTrophyData).catch(() => {});
+  }, [jwt, currentUser]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     fetch('/api/users').then(r => r.json()).then(data => {
@@ -67,18 +101,11 @@ export default function App() {
   const [loginTarget, setLoginTarget] = useState(null);
   const [loginError, setLoginError] = useState('');
 
-  // Per-user word stats (loaded separately from users.json)
-  const [wordStats, setWordStats] = useState({});
-
-  useEffect(() => {
-    if (!currentUser) { setWordStats({}); return; }
-    setWordStats(users[currentUser]?.wordStats || {});
-  }, [currentUser]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // Game state
   const [words, setWords] = useState([]);
   const [retryCount, setRetryCount] = useState(0);
   const [roundResults, setRoundResults] = useState(null);
+  const [activeWeekId, setActiveWeekId] = useState(null);
 
   // Persist session whenever screen/user changes
   useEffect(() => {
@@ -99,19 +126,35 @@ export default function App() {
 
   const saveUsers = setUsers;
 
+  // Redirect to login on any 401 (expired/invalid JWT)
+  const logout = useCallback(() => {
+    setCurrentUser(null);
+    setJwt(null);
+    setScreen('selectUser');
+  }, []);
+
+  const apiFetch = useMemo(() => makeAuthFetch(logout), [logout]);
+
   const saveUserToServer = useCallback((userId, userData) => {
     if (!jwt) return;
     const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${jwt}` };
-    fetch('/api/users/me', {
-      method: 'PUT', headers, body: JSON.stringify(userData),
-    });
-    if (userData.collection) {
-      fetch('/api/collection', {
+    apiFetch('/api/users/me', { method: 'PUT', headers, body: JSON.stringify(userData) }).catch(() => {});
+    if (userData.collection !== undefined) {
+      apiFetch('/api/trophy', {
         method: 'PUT', headers,
-        body: JSON.stringify({ collection: userData.collection, shinyEligible: userData.shinyEligible, consecutiveRegular: userData.consecutiveRegular }),
-      });
+        body: JSON.stringify({ collection: userData.collection, shinyEligible: userData.shinyEligible ?? false, consecutiveRegular: userData.consecutiveRegular ?? 0 }),
+      }).catch(() => {});
     }
-  }, [jwt]);
+    if (userData.wordStats) {
+      apiFetch('/api/wordstats', { method: 'PUT', headers, body: JSON.stringify(userData.wordStats) }).catch(() => {});
+    }
+    if (userData.roundHistory) {
+      apiFetch('/api/roundhistory', {
+        method: 'PUT', headers,
+        body: JSON.stringify({ roundHistory: userData.roundHistory, bestScores: userData.bestScores ?? {} }),
+      }).catch(() => {});
+    }
+  }, [jwt, apiFetch]);
 
   const getUser = useCallback(() => users[currentUser] || null, [users, currentUser]);
 
@@ -133,7 +176,9 @@ export default function App() {
     else if (score === 8) earned = 2;
 
     const today = todayStr();
-    let { streak, lastPlayed, streakDates, creditBank, consecutiveRegular, shinyEligible, collection, totalCredits } = user;
+    let { streak, lastPlayed, streakDates, creditBank, consecutiveRegular, shinyEligible, totalCredits } = user;
+    // Use trophyData for collection since it's the authoritative source
+    let collection = trophyData?.collection || user.collection || {};
     const newDates = [...(streakDates || [])];
     if (!newDates.includes(today)) newDates.push(today);
 
@@ -176,13 +221,15 @@ export default function App() {
     const newWordStats = updateWordStats(wordStats, results, newRoundCount);
     const newLevel = checkLevelUp(newWordStats, user.level);
 
-    const roundHistory = [...(user.roundHistory || []), { date: today, score, earned, pass: score >= 6 }].slice(-200);
+    const newRoundHistory = [...roundHistory, { date: today, score, earned, pass: score >= 6 }].slice(-200);
 
     const caught = Object.values(col).filter(c => c.regular || c.shiny).length;
-    const updated = { ...user, streak, lastPlayed: today, streakDates: newDates.slice(-90), creditBank, totalCredits, caught, collection: col, shinyEligible, consecutiveRegular, roundHistory, roundCount: newRoundCount, level: newLevel };
+    const updated = { ...user, streak, lastPlayed: today, streakDates: newDates.slice(-90), creditBank, totalCredits, caught, collection: col, shinyEligible, consecutiveRegular, roundHistory: newRoundHistory, roundCount: newRoundCount, level: newLevel };
 
     const fullUpdate = { ...updated, wordStats: newWordStats };
     setWordStats(newWordStats);
+    setRoundHistory(newRoundHistory);
+    setTrophyData(prev => prev ? { ...prev, collection: col, shinyEligible, consecutiveRegular } : { collection: col, shinyEligible, consecutiveRegular });
     setUsers(prev => ({ ...prev, [currentUser]: fullUpdate }));
     saveUserToServer(currentUser, fullUpdate);
     if (newUnlocks.length) setUnlockQueue(newUnlocks);
@@ -192,7 +239,80 @@ export default function App() {
       confettiTimer.current = setTimeout(() => setShowConfetti(false), 4000);
     }
     return { earned, pass: score >= 6, shouldRetry: score < 6 };
-  }, [users, currentUser, wordStats]);
+  }, [users, currentUser, wordStats, roundHistory, trophyData, saveUserToServer]);
+
+  // ── Weekly challenge scoring ───────────────────────────────────────────────
+  const processWeeklyRound = useCallback((score, results) => {
+    const user = users[currentUser];
+    if (!user || !activeWeekId) return { earned: 0 };
+    const today = todayStr();
+    const prev = weeklyStats[activeWeekId] || { wordsCorrect: [], completed: false, creditsEarned: 0, lastDailyReward: null };
+
+    const week = weeklyWords.find(w => w.id === activeWeekId);
+    const totalWords = week ? week.words.length : 0;
+    const { earned, breakdown, updated } = computeWeeklyScore(prev, results, today, totalWords);
+
+    // Save to API
+    if (jwt) {
+      apiFetch(`/api/weekly-stats/${activeWeekId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` },
+        body: JSON.stringify(updated),
+      }).catch(() => {});
+    }
+    setWeeklyStats(prev2 => ({ ...prev2, [activeWeekId]: updated }));
+
+    // Apply credits to bank and unlock Pokemon
+    let { creditBank, consecutiveRegular, shinyEligible, totalCredits } = user;
+    let collection = trophyData?.collection || user.collection || {};
+    creditBank = (creditBank || 0) + earned;
+    totalCredits = (totalCredits || 0) + earned;
+
+    const newUnlocks = [];
+    let col = { ...collection };
+    while (creditBank >= 10) {
+      creditBank -= 10;
+      if (shinyEligible && Math.random() < 0.5) {
+        const eligible = Object.entries(col).filter(([, v]) => v.regular && !v.shiny).map(([id]) => parseInt(id));
+        if (eligible.length > 0) {
+          const shinyId = eligible[Math.floor(Math.random() * eligible.length)];
+          const pk = ALL_POKEMON.find(p => p.id === shinyId);
+          col = { ...col, [shinyId]: { ...col[shinyId], shiny: true } };
+          newUnlocks.push({ ...pk, shiny: true });
+          shinyEligible = false;
+          consecutiveRegular = 0;
+        } else { shinyEligible = false; }
+      } else {
+        const nextPk = ALL_POKEMON.find(p => !col[p.id]?.regular);
+        if (nextPk) {
+          col = { ...col, [nextPk.id]: { ...(col[nextPk.id] || {}), regular: true } };
+          newUnlocks.push({ ...nextPk, shiny: false });
+          consecutiveRegular = (consecutiveRegular || 0) + 1;
+          if (consecutiveRegular >= 3) shinyEligible = true;
+        }
+      }
+    }
+
+    const caught = Object.values(col).filter(c => c.regular || c.shiny).length;
+    const updatedUser = { ...user, creditBank, totalCredits, caught, collection: col, shinyEligible, consecutiveRegular };
+    setTrophyData(prev2 => prev2 ? { ...prev2, collection: col, shinyEligible, consecutiveRegular } : { collection: col, shinyEligible, consecutiveRegular });
+    setUsers(prev2 => ({ ...prev2, [currentUser]: updatedUser }));
+    saveUserToServer(currentUser, updatedUser);
+    if (newUnlocks.length) setUnlockQueue(newUnlocks);
+
+    return { earned, creditBreakdown: breakdown };
+  }, [users, currentUser, activeWeekId, weeklyStats, weeklyWords, jwt, trophyData, saveUserToServer, apiFetch]);
+
+  const handleWeeklyQuit = useCallback((partialResults) => {
+    if (partialResults.length > 0) {
+      const score = partialResults.filter(r => r.correct).length;
+      const outcome = processWeeklyRound(score, partialResults);
+      setRoundResults({ score, ...outcome, results: partialResults, words });
+      setGameScreen('weeklyResults');
+    } else {
+      setGameScreen('weekly');
+    }
+  }, [processWeeklyRound, words]);
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
@@ -211,12 +331,21 @@ export default function App() {
       {screen === 'adminLogin' && <AdminLoginScreen setCurrentUser={setCurrentUser} setScreen={setScreen} />}
       {screen === 'parentMenu' && <ParentMenuScreen users={users} saveUsers={saveUsers} jwt={jwt} setCreateStep={setCreateStep} setNewName={setNewName} setNewStarter={setNewStarter} setNewPin={setNewPin} setConfirmPin={setConfirmPin} setScreen={setScreen} setGameScreen={setGameScreen} setCurrentUser={setCurrentUser} />}
       {screen === 'createUser' && <CreateUserScreen users={users} saveUsers={saveUsers} createStep={createStep} setCreateStep={setCreateStep} newName={newName} setNewName={setNewName} newStarter={newStarter} setNewStarter={setNewStarter} newPin={newPin} setNewPin={setNewPin} confirmPin={confirmPin} setConfirmPin={setConfirmPin} setScreen={setScreen} />}
-      {screen === 'game' && gameScreen === 'home' && <HomeScreen getUser={getUser} wordStats={wordStats} setWords={setWords} setRetryCount={setRetryCount} setGameScreen={setGameScreen} setCurrentUser={setCurrentUser} setScreen={setScreen} />}
+      {screen === 'game' && gameScreen === 'home' && <HomeScreen getUser={getUser} wordStats={wordStats} trophyData={trophyData} weeklyWords={weeklyWords} weeklyStats={weeklyStats} setWords={setWords} setRetryCount={setRetryCount} setGameScreen={setGameScreen} setCurrentUser={setCurrentUser} setScreen={setScreen} />}
       {screen === 'game' && gameScreen === 'stage1' && <Stage1Screen words={words} retryCount={retryCount} setGameScreen={setGameScreen} />}
       {screen === 'game' && gameScreen === 'stage2' && <Stage2Screen words={words} processRound={processRound} setRoundResults={setRoundResults} setGameScreen={setGameScreen} />}
       {screen === 'game' && gameScreen === 'results' && <ResultsScreen roundResults={roundResults} getUser={getUser} wordStats={wordStats} setWords={setWords} setRetryCount={setRetryCount} setGameScreen={setGameScreen} />}
-      {screen === 'game' && gameScreen === 'collection' && <CollectionScreen getUser={getUser} currentUser={currentUser} jwt={jwt} setScreen={setScreen} setGameScreen={setGameScreen} />}
-      {screen === 'game' && gameScreen === 'stats' && <StatsScreen getUser={getUser} wordStats={wordStats} setGameScreen={setGameScreen} />}
+      {screen === 'game' && gameScreen === 'trophy' && <TrophyScreen trophyData={trophyData} currentUser={currentUser} setScreen={setScreen} setGameScreen={setGameScreen} />}
+      {screen === 'game' && gameScreen === 'stats' && <StatsScreen getUser={getUser} wordStats={wordStats} roundHistory={roundHistory} setGameScreen={setGameScreen} />}
+      {screen === 'game' && gameScreen === 'weekly' && <WeeklyChallengeScreen weeklyWords={weeklyWords} weeklyStats={weeklyStats} setWords={setWords} setRetryCount={setRetryCount} setGameScreen={setGameScreen} setActiveWeekId={setActiveWeekId} />}
+      {screen === 'game' && gameScreen === 'weeklyStage1' && (() => {
+        const wp = weeklyStats[activeWeekId];
+        const completed = wp?.completed;
+        const label = completed ? '🔁 Replay!' : "✅ I'm Ready!";
+        return <Stage1Screen words={words} retryCount={retryCount} setGameScreen={setGameScreen} nextScreen="weeklyStage2" discardScreen="weekly" quitLabel="Quit" readyLabel={label} />;
+      })()}
+      {screen === 'game' && gameScreen === 'weeklyStage2' && <Stage2Screen words={words} processRound={processWeeklyRound} setRoundResults={setRoundResults} setGameScreen={setGameScreen} resultsScreen="weeklyResults" discardScreen="weekly" onQuit={handleWeeklyQuit} />}
+      {screen === 'game' && gameScreen === 'weeklyResults' && <WeeklyResultsScreen roundResults={roundResults} setGameScreen={setGameScreen} />}
 
     </div>
   );

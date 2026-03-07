@@ -1,6 +1,6 @@
 import { todayStr, localDateStr, C, s } from '../shared';
 
-export const StatsScreen = ({ getUser, wordStats, setGameScreen }) => {
+export const StatsScreen = ({ getUser, wordStats, roundHistory, setGameScreen }) => {
   const user = getUser();
   if (!user) return null;
   const caught = user.caught || 0;
@@ -14,7 +14,7 @@ export const StatsScreen = ({ getUser, wordStats, setGameScreen }) => {
     return localDateStr(d);
   });
 
-  const recent = [...(user.roundHistory || [])].reverse().slice(0, 8);
+  const recent = [...(roundHistory || [])].reverse();
 
   return (
     <div style={{ width: '100%', maxWidth: 480 }}>
@@ -55,8 +55,8 @@ export const StatsScreen = ({ getUser, wordStats, setGameScreen }) => {
       </div>
 
       {recent.length > 0 && (
-        <div style={{ ...s.card, marginBottom: 16 }}>
-          <div style={{ fontWeight: 700, marginBottom: 10 }}>Recent Rounds</div>
+        <div style={{ ...s.card, marginBottom: 16, maxHeight: 300, overflowY: 'auto' }}>
+          <div style={{ fontWeight: 700, marginBottom: 10 }}>Round History</div>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ color: C.muted }}>

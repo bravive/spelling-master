@@ -21,7 +21,7 @@ export const CreateUserScreen = ({ users, saveUsers, createStep, setCreateStep, 
               if (!trimmed) { setErr('Please enter a name.'); return; }
               if (trimmed.toLowerCase() === 'test') { setErr('That name is reserved.'); return; }
               const key = trimmed.toLowerCase().replace(/\s+/g, '_');
-              if (users[key]) { setErr('Name already taken.'); return; }
+              if (Object.values(users).some(u => u.userId === key)) { setErr('Name already taken.'); return; }
               setNewName(trimmed); setCreateStep(1);
             }}>Next →</button>
         </div>
@@ -69,7 +69,7 @@ export const CreateUserScreen = ({ users, saveUsers, createStep, setCreateStep, 
               });
               const data = await res.json();
               if (!res.ok) { setErr(data.error || 'Failed to create profile.'); return; }
-              saveUsers({ ...users, [key]: data.user });
+              saveUsers({ ...users, [data.user.id]: data.user });
               setScreen('selectUser');
             } catch {
               setErr('Network error. Try again.');

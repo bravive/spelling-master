@@ -10,58 +10,66 @@ a MongoDB client. Local dev uses Docker; production uses Railway's MongoDB plugi
 
 ## 1. Collections & Schema
 
+All documents use `_id: UUID` (via `crypto.randomUUID()`), never MongoDB ObjectId.
+All documents carry `created_at: Date` and `updated_at: Date`; every update must
+set `updated_at` to the current timestamp.
+
+`userId` is a separate string field (the username key) with a unique index on
+each collection — it is the lookup key used in all queries.
+
+---
+
 ### `users`
-One document per user. `_id` is the username (e.g. `"dad"`).
 
 ```js
 {
-  _id: String,          // userId / username (unique, immutable)
-  name: String,         // display name
+  _id: String,          // UUID v4
+  userId: String,       // "dad" — unique index, used in JWT & queries
+  name: String,
   pin: String,          // bcrypt hash
   starterId: Number,
   starterSlug: String,
   level: Number,        // 1–5
   totalCredits: Number,
-  creditBank: Number,   // resets toward 10
+  creditBank: Number,
   streak: Number,
   lastPlayed: String,   // YYYY-MM-DD | null
   streakDates: [String],
   caught: Number,       // denormalised count for select screen
   roundCount: Number,
-  createdAt: Date,
+  created_at: Date,
+  updated_at: Date,
 }
 ```
-
-Index: unique on `_id` (default).
 
 ---
 
 ### `collections`
-One document per user — Pokémon ownership.
 
 ```js
 {
-  _id: String,              // userId
-  collection: {             // keys are pokemonId as string
+  _id: String,              // UUID v4
+  userId: String,           // unique index
+  collection: {
     "1": { regular: Boolean, shiny: Boolean },
     ...
   },
   shinyEligible: Boolean,
   consecutiveRegular: Number,
+  created_at: Date,
+  updated_at: Date,
 }
 ```
-
-Index: unique on `_id` (default).
 
 ---
 
 ### `wordstats`
-One document per user — per-word learning stats.
 
 ```js
 {
-  _id: String,    // userId
-  stats: {        // keys are word strings
+  _id: String,    // UUID v4
+  userId: String, // unique index
+  stats: {
     "cat": {
       attempts: Number,
       correct: Number,
@@ -72,80 +80,57 @@ One document per user — per-word learning stats.
     },
     ...
   },
+  created_at: Date,
+  updated_at: Date,
 }
 ```
-
-Index: unique on `_id` (default).
 
 ---
 
 ### `roundhistory`
-One document per user — play history.
 
 ```js
 {
-  _id: String,   // userId
+  _id: String,   // UUID v4
+  userId: String, // unique index
   roundHistory: [
-    {
-      date: String,    // YYYY-MM-DD
-      score: Number,   // 0–10
-      earned: Number,  // credits earned
-      pass: Boolean,
-    }
+    { date: String, score: Number, earned: Number, pass: Boolean }
   ],
-  bestScores: Object,  // reserved, currently {}
+  bestScores: Object,
+  created_at: Date,
+  updated_at: Date,
 }
 ```
-
-Index: unique on `_id` (default).
 
 ---
 
 ## 2. MongoDB Client Module (`src/db.js`)
 
-- Use the official `mongodb` npm package (not Mongoose — no schema layer needed).
-- Export a singleton `getDb()` that returns the connected `Db` instance.
-- Connection string read from `MONGODB_URI` env var.
-- On startup, call `connectDb()` which connects once and caches the client.
-- Each collection exported as a helper: `usersCol()`, `collectionsCol()`, etc.
-- All reads/writes go through the helpers — server.js never touches files.
+- Use official `mongodb` npm package (no Mongoose).
+- Export `connectDb()` — connects once, caches client.
+- Export `getDb()` — returns the connected `Db` instance.
+- Export collection helpers: `usersCol()`, `collectionsCol()`, `wordstatsCol()`, `roundhistoryCol()`.
+- On startup, create unique indexes on `userId` for all collections.
 
 ```
 src/
-  db.js           — connect(), getDb(), collection helpers
-```
-
-### Connection lifecycle
-
-```js
-let client;
-export const connectDb = async () => {
-  client = new MongoClient(process.env.MONGODB_URI);
-  await client.connect();
-};
-export const getDb = () => client.db();
-export const usersCol      = () => getDb().collection('users');
-export const collectionsCol = () => getDb().collection('collections');
-export const wordstatsCol  = () => getDb().collection('wordstats');
-export const roundhistoryCol = () => getDb().collection('roundhistory');
+  db.js   — connectDb(), getDb(), collection helpers, ensureIndexes()
 ```
 
 ---
 
 ## 3. server.js Changes
 
-Replace all `readFileSync` / `writeFileSync` calls with async MongoDB ops.
+Replace all file I/O with MongoDB client calls. All mutating route handlers become async.
+`app.listen` is called only after `connectDb()` resolves.
 
-| Current (JSON)                        | New (MongoDB)                              |
-|---------------------------------------|--------------------------------------------|
-| `readUsers()`                         | `await usersCol().find().toArray()`        |
-| `writeUsers(data)`                    | `await usersCol().replaceOne({_id}, doc)`  |
-| `readCollections()[userId]`           | `await collectionsCol().findOne({_id})`    |
-| `writeCollections(all)`               | `await collectionsCol().replaceOne(...)`   |
-| `readFile('wordstats')[userId]`       | `await wordstatsCol().findOne({_id})`      |
-| `readFile('roundhistory')[userId]`    | `await roundhistoryCol().findOne({_id})`   |
-
-All route handlers become `async`. `app.listen` called after `connectDb()`.
+| Current (JSON file)                     | New (MongoDB)                                                              |
+|-----------------------------------------|----------------------------------------------------------------------------|
+| `readUsers()`                           | `await usersCol().find({}).toArray()`                                      |
+| `writeUsers({ [userId]: doc })`         | `updateOne({ userId }, { $set: { ...doc, updated_at } }, { upsert: true })`|
+| `readCollections()[userId]`             | `await collectionsCol().findOne({ userId })`                               |
+| `writeCollections(all)[userId] = data`  | `updateOne({ userId }, { $set: { ...data, updated_at } }, { upsert: true })`|
+| (same pattern)                          | wordstatsCol, roundhistoryCol                                              |
 
 ---
 
@@ -173,21 +158,28 @@ volumes:
 MONGODB_URI=mongodb://localhost:27017/spellmaster
 ```
 
-Makefile targets to add:
+`.env.example` (committed):
+```
+MONGODB_URI=mongodb://localhost:27017/spellmaster
+JWT_SECRET=dev-secret-do-not-use-in-production
+ADMIN_PIN=0000
+```
+
+Makefile targets:
 ```makefile
-mongo-up:    # docker compose up -d
-mongo-down:  # docker compose down
-mongo-shell: # docker exec -it ... mongosh
+mongo-up:    docker compose up -d
+mongo-down:  docker compose down
+mongo-shell: docker compose exec mongo mongosh spellmaster
 ```
 
 ---
 
 ## 5. Railway Production Setup
 
-1. Add MongoDB plugin to Railway project (Railway provides `MONGODB_URL` env var).
-2. Set `MONGODB_URI` in Railway service env to `${{MongoDB.MONGODB_URL}}`.
-3. No persistent volume needed for data — MongoDB plugin handles it.
-4. Keep `JWT_SECRET` and `ADMIN_PIN` as Railway env vars.
+1. Add MongoDB plugin to Railway project.
+2. Set `MONGODB_URI = ${{MongoDB.MONGODB_URL}}` in service env vars.
+3. Set `JWT_SECRET` and `ADMIN_PIN` as Railway env vars.
+4. No persistent volume needed — MongoDB plugin handles storage.
 
 ---
 
@@ -197,66 +189,64 @@ One-shot script to import existing JSON files into MongoDB.
 
 Steps:
 1. Read `data/users.json`, `data/collection.json`, `data/wordstats.json`, `data/roundhistory.json`
-2. For each JSON file, map the object entries to MongoDB documents with `_id = userId`
-3. For `wordstats`, rename top-level keys to `{ _id, stats: {...} }` (server uses `stats` field)
-4. Use `insertMany` with `ordered: false` to skip existing docs
-5. Print counts of inserted vs skipped
+2. Map each `{ [userId]: data }` entry to a document with:
+   - `_id: crypto.randomUUID()`
+   - `userId: key`
+   - `created_at: existing createdAt || now`
+   - `updated_at: now`
+3. For `wordstats`: rename the per-word map to `stats` field
+4. `insertMany` with `ordered: false` to skip already-migrated docs
+5. Print inserted / skipped counts per collection
 
-```
+```bash
 node scripts/migrate-to-mongo.js
+# Requires MONGODB_URI in env or .env file
 ```
-
-Requires `MONGODB_URI` in env (or `.env` via `--env-file`).
 
 ---
 
 ## 7. Tests
 
-### Unit tests (`src/__tests__/db.test.js`)
-- Mock the `mongodb` module
-- Test `connectDb`, `getDb`, each collection helper
-- Verify collection names are correct strings
+### Unit — `src/__tests__/db.test.js`
+- Verify `connectDb` calls `MongoClient.connect`
+- Verify each collection helper returns correct collection name
+- Verify `ensureIndexes` creates unique index on `userId`
 
-### Unit tests (`src/__tests__/server.test.js`)
-- Mock collection helpers to return controlled data
-- Test each route: correct status codes, response shapes, auth checks
-- Test login: correct PIN → 200 + JWT, wrong PIN → 401
-- Test `requireAuth` / `requireAdmin` middleware rejection paths
-- Test `publicUser` strips `pin` field
+### Unit — `src/__tests__/server.test.js`
+- Mock collection helpers
+- Test each route: status codes, response shapes, auth enforcement
+- Test login: correct PIN → 200 + JWT, wrong PIN → 401, missing fields → 400
+- Test `requireAuth` / `requireAdmin` rejection paths
+- Test `publicUser` strips `pin`
 
-### Integration tests (`src/__tests__/server.integration.test.js`)
-- Spin up real MongoDB (use `@testcontainers/mongodb` or `mongodb-memory-server`)
-- Start the Express app
-- Seed test users before each suite
-- Full request/response cycle via `supertest`
-- Test: create user → login → update state → read back → verify persistence
-- Test: admin delete user flow
-- Test: rate limiter triggers after 10 failed logins
-- Clean up (drop test DB) after each suite
+### Integration — `src/__tests__/server.integration.test.js`
+- Use `mongodb-memory-server` (in-memory real MongoDB)
+- Use `supertest` for HTTP requests against the Express app
+- Seed test users before each suite; drop DB after
+- Cover: create user → login → update state → read back → verify persistence
+- Cover: admin delete flow, rate limiter after 10 failed logins
 
-### Test infrastructure additions
-```
+```bash
 npm install --save-dev mongodb-memory-server supertest
 ```
 
-`vitest.config.js` — set `testTimeout: 30000` for integration tests (MongoDB startup).
+`vitest.config.js`: set `testTimeout: 30000` for integration tests.
 
 ---
 
 ## 8. Implementation Order
 
-1. [ ] Add `mongodb` to dependencies
-2. [ ] Create `docker-compose.yml` + `.env.example`
-3. [ ] Add Makefile `mongo-up / mongo-down / mongo-shell` targets
-4. [ ] Write `src/db.js` (connection + collection helpers)
+1. [ ] `npm install mongodb`
+2. [ ] Create `docker-compose.yml` + `.env.example`; update `.gitignore`
+3. [ ] Add `mongo-up / mongo-down / mongo-shell` to Makefile
+4. [ ] Write `src/db.js`
 5. [ ] Write `scripts/migrate-to-mongo.js`
-6. [ ] Rewrite `server.js` to use async MongoDB ops
+6. [ ] Rewrite `server.js` to use MongoDB client
 7. [ ] Write unit tests for `db.js` and `server.js` routes
-8. [ ] Write integration tests with `mongodb-memory-server`
-9. [ ] Run migration script against local Docker MongoDB
-10. [ ] Verify app works end-to-end locally with MongoDB
-11. [ ] Configure Railway MongoDB plugin + env vars
-12. [ ] Deploy and verify production
+8. [ ] Write integration tests
+9. [ ] `make mongo-up` → run migration script → verify data
+10. [ ] End-to-end smoke test with app running against local MongoDB
+11. [ ] Configure Railway + deploy
 
 ---
 
@@ -264,14 +254,15 @@ npm install --save-dev mongodb-memory-server supertest
 
 | File | Action |
 |------|--------|
-| `src/db.js` | Create — MongoDB connection + collection helpers |
-| `server.js` | Modify — replace file I/O with async MongoDB calls |
-| `scripts/migrate-to-mongo.js` | Create — one-shot JSON → MongoDB import |
-| `docker-compose.yml` | Create — local MongoDB via Docker |
-| `.env.example` | Create — document required env vars |
-| `Makefile` | Modify — add mongo-up / mongo-down / mongo-shell |
+| `src/db.js` | Create |
+| `server.js` | Modify — replace file I/O with MongoDB client calls |
+| `scripts/migrate-to-mongo.js` | Create |
+| `docker-compose.yml` | Create |
+| `.env.example` | Create |
+| `.gitignore` | Modify — add `.env` |
+| `Makefile` | Modify — add mongo targets |
 | `package.json` | Modify — add `mongodb`, `mongodb-memory-server`, `supertest` |
-| `src/__tests__/db.test.js` | Create — unit tests for db module |
-| `src/__tests__/server.test.js` | Create — unit tests for route handlers |
-| `src/__tests__/server.integration.test.js` | Create — integration tests |
-| `data/*.json` | Keep as backup; gitignored; not used after migration |
+| `src/__tests__/db.test.js` | Create |
+| `src/__tests__/server.test.js` | Create |
+| `src/__tests__/server.integration.test.js` | Create |
+| `data/*.json` | Keep as migration source; not used after migration |

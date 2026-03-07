@@ -31,8 +31,8 @@ export const ParentMenuScreen = ({ users, saveUsers, jwt, setCreateStep, setNewN
         ➕ Create New Profile
       </button>
       <button style={{ ...s.btn(C.purple), width: '100%', marginTop: 8 }}
-        onClick={() => { setScreen('game'); setGameScreen('collection'); }}>
-        🏆 Preview Full Collection
+        onClick={() => { setScreen('game'); setGameScreen('trophy'); }}>
+        🏆 Preview Full Trophies
       </button>
       <button style={{ ...s.btn(C.red, 'sm'), marginTop: 12 }}
         onClick={() => { setCurrentUser(null); setScreen('selectUser'); }}>🚪 Logout</button>

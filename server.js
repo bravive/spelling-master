@@ -92,7 +92,7 @@ const requireAdmin = (req, res, next) => {
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 
-app.get('/ping', (_req, res) => res.json({ ok: true, db: 'mongodb' }));
+app.get('/ping', (_req, res) => res.json({ ok: true }));
 
 // GET /api/users — public profile list, keyed by UUID
 app.get('/api/users', async (_req, res) => {

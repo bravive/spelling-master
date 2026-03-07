@@ -73,10 +73,10 @@ describe('GET /api/users', () => {
 
 // ── Health check ──────────────────────────────────────────────────────────────
 describe('GET /ping', () => {
-  it('returns ok and db:mongodb', async () => {
+  it('returns ok', async () => {
     const res = await request(app).get('/ping');
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ok: true, db: 'mongodb' });
+    expect(res.body).toEqual({ ok: true });
   });
 });
 

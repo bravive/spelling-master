@@ -26,6 +26,9 @@ Follow these steps for every change, no matter how small:
 ### 5. Push after committing
 - After each commit (or a small batch of related commits), push to `origin main`
 
+### 6. "Release" shortcut
+- When the user says **"release"**, run: `npm test`, then commit, then `git push origin main`
+
 ---
 
 ## Project Overview
@@ -78,7 +81,7 @@ npm run build
 
 - Login screen shows all profiles as cards (avatar, name, credits, streak, level)
 - Any user can create a new profile (no admin required)
-- **Admin account**: username `test`, PIN `0000` — can delete any non-admin profile
+- **Admin account**: username `admin`, PIN via `ADMIN_PIN` env var (default `0000`) — monitoring dashboard only, no destructive actions
 - Each profile: name, 4-digit PIN, starter Pokémon
 - PIN entry: large numpad UI + physical keyboard number input
 - On login, show user's starter Pokémon above PIN pad

@@ -8,7 +8,7 @@ import { todayStr, localDateStr, injectCSS, C, s } from './shared';
 import { Confetti } from './components/Confetti';
 import { TrophyModal } from './components/TrophyModal';
 import { SelectUserScreen } from './components/SelectUserScreen';
-import { LoginScreen } from './components/LoginScreen';
+
 import { AdminLoginScreen } from './components/AdminLoginScreen';
 import { ParentMenuScreen } from './components/ParentMenuScreen';
 import { CreateUserScreen } from './components/CreateUserScreen';
@@ -26,9 +26,9 @@ import { EditProfileScreen } from './components/EditProfileScreen';
 export default function App() {
   injectCSS();
 
-  const isAdminBackdoor = new URLSearchParams(window.location.search).get('admin') === '1';
+  const isAdminRoute = window.location.pathname.startsWith('/admin');
 
-  const [screen, setScreen] = useState(() => isAdminBackdoor ? 'adminLogin' : 'selectUser');
+  const [screen, setScreen] = useState(() => isAdminRoute ? 'adminLogin' : 'selectUser');
   const [gameScreen, setGameScreen] = useState('home');
   const [users, setUsers] = useState({});
   const [currentUser, setCurrentUser] = useState(null);
@@ -61,11 +61,6 @@ export default function App() {
   const [newStarter, setNewStarter] = useState(null);
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
-
-  // Login
-  const [loginPin, setLoginPin] = useState('');
-  const [loginTarget, setLoginTarget] = useState(null);
-  const [loginError, setLoginError] = useState('');
 
   // Game state
   const [words, setWords] = useState([]);
@@ -145,7 +140,7 @@ export default function App() {
     fetch('/api/users').then(r => r.json()).then(data => {
       setUsers(data);
       hasRestored.current = true;
-      if (isAdminBackdoor) return;
+      if (isAdminRoute) return;
 
       // Restore session if one exists
       const savedUser = sessionStorage.getItem('currentUser');
@@ -372,8 +367,7 @@ export default function App() {
         />
       )}
 
-      {screen === 'selectUser' && <SelectUserScreen users={users} setLoginTarget={setLoginTarget} setLoginPin={setLoginPin} setLoginError={setLoginError} setScreen={setScreen} setCreateStep={setCreateStep} setNewName={setNewName} setNewStarter={setNewStarter} setNewPin={setNewPin} setConfirmPin={setConfirmPin} />}
-      {screen === 'login' && <LoginScreen users={users} loginTarget={loginTarget} loginPin={loginPin} setLoginPin={setLoginPin} loginError={loginError} setLoginError={setLoginError} setCurrentUser={setCurrentUser} setScreen={setScreen} setGameScreen={setGameScreen} setJwt={setJwt} />}
+      {screen === 'selectUser' && <SelectUserScreen setCurrentUser={setCurrentUser} setScreen={setScreen} setGameScreen={setGameScreen} setJwt={setJwt} setCreateStep={setCreateStep} setNewName={setNewName} setNewStarter={setNewStarter} setNewPin={setNewPin} setConfirmPin={setConfirmPin} />}
       {screen === 'adminLogin' && <AdminLoginScreen setCurrentUser={setCurrentUser} setScreen={setScreen} setJwt={setJwt} />}
       {screen === 'parentMenu' && <ParentMenuScreen jwt={jwt} setScreen={setScreen} setCurrentUser={setCurrentUser} />}
       {screen === 'createUser' && <CreateUserScreen users={users} saveUsers={saveUsers} createStep={createStep} setCreateStep={setCreateStep} newName={newName} setNewName={setNewName} newStarter={newStarter} setNewStarter={setNewStarter} newPin={newPin} setNewPin={setNewPin} confirmPin={confirmPin} setConfirmPin={setConfirmPin} setScreen={setScreen} />}

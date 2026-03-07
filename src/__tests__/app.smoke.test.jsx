@@ -14,9 +14,9 @@ describe('App smoke test', () => {
     expect(() => render(<App />)).not.toThrow();
   });
 
-  it('shows the select user screen on initial load', () => {
+  it('shows the sign-in screen on initial load', () => {
     const { container } = render(<App />);
-    expect(container.textContent).toContain("Who's playing today?");
-    expect(container.textContent).toContain('Create New Profile');
+    expect(container.textContent).toContain('Sign in to start playing!');
+    expect(container.textContent).toContain('Sign Up');
   });
 });

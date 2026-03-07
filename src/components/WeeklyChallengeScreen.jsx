@@ -61,11 +61,6 @@ export const WeeklyChallengeScreen = ({ weeklyWords, weeklyStats, setWords, setR
 
   return (
     <div style={{ width: '100%', maxWidth: 640 }}>
-      <div style={{ textAlign: 'center', marginBottom: 12, position: 'relative' }}>
-        <button style={{ ...s.btn('rgba(255,255,255,0.1)', 'sm'), color: C.muted, position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)' }} onClick={() => setGameScreen('home')}>← Back</button>
-        <h2 style={{ color: C.yellow, margin: 0, fontSize: 20 }}>Weekly Challenge</h2>
-      </div>
-
       <div style={{ display: 'flex', gap: 12 }}>
         {/* Sidebar — scrollable week list */}
         <div style={{
@@ -137,6 +132,11 @@ export const WeeklyChallengeScreen = ({ weeklyWords, weeklyStats, setWords, setR
 
         {/* Main panel — selected week details */}
         <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12, position: 'relative' }}>
+            <button style={{ ...s.btn('rgba(255,255,255,0.1)', 'sm'), color: C.muted }} onClick={() => setGameScreen('home')}>← Back</button>
+            <h2 style={{ color: C.yellow, margin: 0, fontSize: 20, flex: 1, textAlign: 'center' }}>Weekly Challenge</h2>
+            <div style={{ width: 60 }} />
+          </div>
           {selected ? (
             <WeekDetail
               week={selected}

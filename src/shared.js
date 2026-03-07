@@ -77,6 +77,7 @@ export const injectCSS = () => {
     .pk-card-inner.flipped { transform: rotateY(180deg); }
     .pk-face { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
     .pk-back  { backface-visibility: hidden; -webkit-backface-visibility: hidden; transform: rotateY(180deg); }
+    .wk-hint-wrap:hover .wk-hint { display: block !important; }
     * { box-sizing: border-box; }
     body { margin: 0; }
   `;

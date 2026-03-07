@@ -16,7 +16,7 @@ export const HomeScreen = ({ getUser, wordStats, trophyData, weeklyWords, weekly
     const wp = weeklyStats[week.id];
     if (!wp) return true;
     if ((wp.wordsCorrect || []).length < week.words.length) return true;
-    if (wp.completed && wp.lastDailyReward !== today) return true;
+    if (wp.completed && wp.lastDailyReward && wp.lastDailyReward !== today) return true;
     return false;
   });
 

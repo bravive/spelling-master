@@ -1,6 +1,29 @@
 import { useState } from 'react';
 import { todayStr, C, s } from '../shared';
 
+// Compute what credits are available today for a week
+const weekCreditHint = (wp, totalWords, today) => {
+  const wordsCorrect = (wp?.wordsCorrect || []).length;
+  const completed = wp?.completed || false;
+  const remaining = totalWords - wordsCorrect;
+  const parts = [];
+  let total = 0;
+
+  if (!completed && remaining > 0) {
+    const cr = remaining * 0.5;
+    total += cr;
+    parts.push(`${remaining} words: ${cr}cr`);
+    // completion bonus if they could finish all
+    total += 3;
+    parts.push('All done: +3cr');
+  }
+  if (completed && wp?.lastDailyReward && wp.lastDailyReward !== today) {
+    total += 2;
+    parts.push('Daily replay: +2cr');
+  }
+  return { total, parts, hasCredits: total > 0 };
+};
+
 const weekLabel = (startDate) => {
   const d = new Date(startDate + 'T00:00:00');
   const year = d.getFullYear();
@@ -32,10 +55,9 @@ export const WeeklyChallengeScreen = ({ weeklyWords, weeklyStats, setWords, setR
 
   return (
     <div style={{ width: '100%', maxWidth: 640 }}>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-        <button style={{ ...s.btn('rgba(255,255,255,0.1)', 'sm'), color: C.muted }} onClick={() => setGameScreen('home')}>← Back</button>
-        <h2 style={{ color: C.yellow, margin: 0, fontSize: 20, flex: 1, textAlign: 'center' }}>Weekly Challenge</h2>
-        <div style={{ width: 60 }} />
+      <div style={{ textAlign: 'center', marginBottom: 12, position: 'relative' }}>
+        <button style={{ ...s.btn('rgba(255,255,255,0.1)', 'sm'), color: C.muted, position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)' }} onClick={() => setGameScreen('home')}>← Back</button>
+        <h2 style={{ color: C.yellow, margin: 0, fontSize: 20 }}>Weekly Challenge</h2>
       </div>
 
       <div style={{ display: 'flex', gap: 12 }}>
@@ -55,15 +77,12 @@ export const WeeklyChallengeScreen = ({ weeklyWords, weeklyStats, setWords, setR
             const isCurrent = isAvailable && available[available.length - 1]?.id === week.id;
             const shortDate = week.startDate.slice(5); // MM-DD
 
-            // Has points to collect: not started, incomplete, or daily replay available
-            const hasCredits = isAvailable && (
-              !wp.wordsCorrect || wordsCorrect < week.words.length ||
-              (completed && wp.lastDailyReward !== today)
-            );
+            const hint = isAvailable ? weekCreditHint(wp, week.words.length, today) : { hasCredits: false };
 
             return (
               <div
                 key={week.id}
+                className={hint.hasCredits ? 'wk-hint-wrap' : undefined}
                 onClick={() => setSelectedId(week.id)}
                 style={{
                   padding: '8px 10px', borderRadius: 8, cursor: 'pointer',
@@ -74,11 +93,22 @@ export const WeeklyChallengeScreen = ({ weeklyWords, weeklyStats, setWords, setR
                   transition: 'background 0.15s',
                 }}
               >
+                {hint.hasCredits && (
+                  <div className="wk-hint" style={{
+                    display: 'none', position: 'absolute', left: '100%', top: '50%', transform: 'translateY(-50%)',
+                    marginLeft: 8, background: '#1e1b3a', border: `1px solid ${C.border}`, borderRadius: 8,
+                    padding: '6px 10px', fontSize: 11, color: '#fff', whiteSpace: 'nowrap', zIndex: 10,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                  }}>
+                    <div style={{ fontWeight: 700, color: C.yellow, marginBottom: 2 }}>Up to {hint.total}cr</div>
+                    {hint.parts.map((p, i) => <div key={i} style={{ color: C.muted }}>{p}</div>)}
+                  </div>
+                )}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ fontWeight: 700, fontSize: 12, color: isCurrent ? C.yellow : '#fff' }}>
                     {shortDate}
                   </div>
-                  {hasCredits && (
+                  {hint.hasCredits && (
                     <div style={{
                       background: C.yellow, borderRadius: '50%', width: 8, height: 8,
                       boxShadow: `0 0 6px ${C.yellow}`,
@@ -126,7 +156,7 @@ const WeekDetail = ({ week, progress, isLocked, today, onStart }) => {
   const correctCount = correctSet.size;
   const completed = wp.completed || false;
   const credits = wp.creditsEarned || 0;
-  const canEarnDaily = completed && wp.lastDailyReward !== today;
+  const canEarnDaily = completed && wp.lastDailyReward && wp.lastDailyReward !== today;
   const hasPartialProgress = correctCount > 0 && !completed;
   const remainingWords = week.words.filter(entry => !correctSet.has(entry.w));
 

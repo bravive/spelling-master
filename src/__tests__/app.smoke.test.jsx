@@ -16,7 +16,7 @@ describe('App smoke test', () => {
 
   it('shows the sign-in screen on initial load', () => {
     const { container } = render(<App />);
-    expect(container.textContent).toContain('Sign in to start playing!');
-    expect(container.textContent).toContain('Sign Up');
+    expect(container.textContent).toContain('Sign in to start playing');
+    expect(container.textContent).toContain('Create an account');
   });
 });

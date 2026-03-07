@@ -92,16 +92,9 @@ A daily spelling practice web app for elementary school kids (K–5). Kids memor
 
 ### Environment Variables
 
-The server constructs the MongoDB connection string from individual variables.
-`MONGOUSER` and `MONGOPASSWORD` must be provided together or not at all (local dev without auth can omit both).
-
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `MONGOHOST` | **Yes** | _(none)_ | MongoDB hostname |
-| `MONGOPORT` | **Yes** | _(none)_ | MongoDB port |
-| `MONGODATABASE` | **Yes** | _(none)_ | Database name (e.g. `spell-master`) |
-| `MONGOUSER` | With password | _(none)_ | MongoDB username |
-| `MONGOPASSWORD` | With user | _(none)_ | MongoDB password |
+| `MONGO_URL` | **Yes** | _(none)_ | Full MongoDB connection string (e.g. `mongodb://user:pass@host:27017/dbname`) |
 | `JWT_SECRET` | **Yes in production** | `dev-secret-do-not-use-in-production` | Secret for signing JWTs — server refuses to start in production without this |
 | `ADMIN_PIN` | No | `0000` | PIN for the admin (`test`) account |
 | `PORT` | No | `3001` | Port for the Express API server |
@@ -187,13 +180,12 @@ src/
 
    | Variable | Value |
    |---|---|
-   | `MONGODATABASE` | `spell-master` |
+   | `MONGO_URL` | `${{MongoDB.MONGO_URL}}` |
    | `JWT_SECRET` | A long random string (`openssl rand -base64 32`) |
    | `ADMIN_PIN` | Your chosen admin PIN (default `0000`) |
    | `NODE_ENV` | `production` |
 
    Railway sets `PORT` automatically — do not override it.
-   The four `MONGO*` variables are injected automatically from the MongoDB service — do not set them manually.
 
 4. **Deploy** — Railway auto-detects the `build` and `start` scripts:
    - Build: `npm run build` (compiles React to `dist/`)

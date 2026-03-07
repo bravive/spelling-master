@@ -14,6 +14,7 @@ export default defineConfig({
     testTimeout: 30000,
     environmentMatchGlobs: [
       ['src/__tests__/server.integration.test.js', 'node'],
+      ['src/__tests__/friends.integration.test.js', 'node'],
       ['src/__tests__/db.test.js', 'node'],
     ],
   },

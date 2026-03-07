@@ -1,0 +1,290 @@
+import { useState, useEffect, useRef } from 'react';
+import { pkImg } from '../data/pokemon';
+import { C, s } from '../shared';
+
+const Tab = ({ active, label, badge, onClick }) => (
+  <button onClick={onClick} style={{
+    background: active ? 'rgba(255,255,255,0.12)' : 'transparent',
+    border: active ? `1px solid ${C.yellow}` : '1px solid transparent',
+    borderRadius: 8, padding: '8px 16px', color: active ? C.yellow : C.muted,
+    fontWeight: active ? 700 : 400, fontSize: 14, cursor: 'pointer',
+    position: 'relative',
+  }}>
+    {label}
+    {badge > 0 && <span style={{
+      position: 'absolute', top: -4, right: -4,
+      background: C.red, color: '#fff', fontSize: 10, fontWeight: 700,
+      borderRadius: '50%', width: 18, height: 18,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>{badge}</span>}
+  </button>
+);
+
+const FriendCard = ({ friend, unreadCount, onMessage, onRemove }) => (
+  <div style={{ ...s.card, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, padding: 14 }}>
+    <img src={pkImg(friend.starterSlug)} alt="" style={{ width: 48, height: 48, objectFit: 'contain' }} />
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ fontWeight: 700, fontSize: 15 }}>{friend.name}</div>
+      <div style={{ color: C.muted, fontSize: 12 }}>Level {friend.level} | {friend.caught} caught | {friend.shinyCount} shiny | {friend.streak} streak</div>
+    </div>
+    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+      <button onClick={onMessage} style={{ ...s.btn(C.blue, 'sm'), position: 'relative', padding: '6px 12px', fontSize: 13 }}>
+        Message
+        {unreadCount > 0 && <span style={{
+          position: 'absolute', top: -6, right: -6,
+          background: C.red, color: '#fff', fontSize: 10, fontWeight: 700,
+          borderRadius: '50%', width: 18, height: 18,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>{unreadCount}</span>}
+      </button>
+      <button onClick={onRemove} style={{ ...s.btn('rgba(255,255,255,0.1)', 'sm'), color: C.red, padding: '6px 10px', fontSize: 13 }}>X</button>
+    </div>
+  </div>
+);
+
+const RequestCard = ({ req: r, myId, onAccept, onDecline }) => {
+  const isSent = r.initiator === myId;
+  return (
+    <div style={{ ...s.card, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, padding: 14 }}>
+      <img src={pkImg(r.starterSlug)} alt="" style={{ width: 40, height: 40, objectFit: 'contain' }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 700, fontSize: 15 }}>{r.name}</div>
+        <div style={{ color: C.muted, fontSize: 12 }}>{isSent ? 'Invite sent' : 'Wants to be your friend'}</div>
+      </div>
+      <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+        {!isSent && <button onClick={onAccept} style={{ ...s.btn(C.green, 'sm'), padding: '6px 12px', fontSize: 13 }}>Accept</button>}
+        <button onClick={onDecline} style={{ ...s.btn('rgba(255,255,255,0.1)', 'sm'), color: C.red, padding: '6px 12px', fontSize: 13 }}>
+          {isSent ? 'Cancel' : 'Decline'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const MessageView = ({ friend, jwt, myId, onBack }) => {
+  const [messages, setMessages] = useState([]);
+  const [text, setText] = useState('');
+  const [sending, setSending] = useState(false);
+  const scrollRef = useRef(null);
+  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` };
+
+  const loadMessages = () => {
+    fetch(`/api/friends/${friend.friendId}/messages`, { headers })
+      .then(r => r.json()).then(setMessages).catch(() => {});
+  };
+
+  useEffect(() => {
+    loadMessages();
+    const interval = setInterval(loadMessages, 5000);
+    return () => clearInterval(interval);
+  }, [friend.friendId]);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight);
+  }, [messages]);
+
+  const send = async () => {
+    if (!text.trim() || sending) return;
+    setSending(true);
+    try {
+      const res = await fetch(`/api/friends/${friend.friendId}/messages`, {
+        method: 'POST', headers, body: JSON.stringify({ text: text.trim() }),
+      });
+      if (res.ok) {
+        const msg = await res.json();
+        setMessages(prev => [...prev, msg]);
+        setText('');
+      }
+    } catch { /* ignore */ }
+    setSending(false);
+  };
+
+  return (
+    <div style={{ width: '100%', maxWidth: 480, display: 'flex', flexDirection: 'column', height: '80dvh' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+        <button onClick={onBack} style={{ ...s.btn('rgba(255,255,255,0.1)', 'sm'), color: C.muted }}>Back</button>
+        <img src={pkImg(friend.starterSlug)} alt="" style={{ width: 32, height: 32, objectFit: 'contain' }} />
+        <span style={{ fontWeight: 700, fontSize: 16 }}>{friend.name}</span>
+      </div>
+
+      <div ref={scrollRef} style={{
+        flex: 1, overflowY: 'auto', ...s.card, padding: 12, marginBottom: 10,
+        display: 'flex', flexDirection: 'column', gap: 6,
+      }}>
+        {messages.length === 0 && <div style={{ color: C.muted, textAlign: 'center', padding: 24 }}>No messages yet. Say hi!</div>}
+        {messages.map(m => {
+          const mine = m.from === myId;
+          return (
+            <div key={m._id} style={{
+              alignSelf: mine ? 'flex-end' : 'flex-start',
+              background: mine ? C.blue : 'rgba(255,255,255,0.12)',
+              color: mine ? '#1a1a2e' : '#fff',
+              borderRadius: 12, padding: '8px 12px', maxWidth: '75%',
+              fontSize: 14, wordBreak: 'break-word',
+            }}>
+              {m.text}
+              <div style={{ fontSize: 10, opacity: 0.6, marginTop: 2, textAlign: 'right' }}>
+                {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input
+          value={text}
+          onChange={e => setText(e.target.value.slice(0, 200))}
+          onKeyDown={e => e.key === 'Enter' && send()}
+          placeholder="Type a message..."
+          style={{ ...s.input, flex: 1, fontSize: 14 }}
+        />
+        <button onClick={send} disabled={sending || !text.trim()} style={{
+          ...s.btn(C.yellow, 'sm'), opacity: (sending || !text.trim()) ? 0.5 : 1,
+        }}>Send</button>
+      </div>
+      <div style={{ color: C.muted, fontSize: 11, textAlign: 'right', marginTop: 4 }}>{text.length}/200</div>
+    </div>
+  );
+};
+
+export const FriendsScreen = ({ jwt, currentUser, setGameScreen }) => {
+  const [tab, setTab] = useState('friends');
+  const [friends, setFriends] = useState([]);
+  const [unread, setUnread] = useState({});
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [messageTarget, setMessageTarget] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` };
+
+  const loadFriends = () => {
+    Promise.all([
+      fetch('/api/friends', { headers }).then(r => r.json()),
+      fetch('/api/friends/unread', { headers }).then(r => r.json()),
+    ]).then(([f, u]) => {
+      setFriends(f);
+      setUnread(u);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  };
+
+  useEffect(() => { loadFriends(); }, []);
+
+  const accepted = friends.filter(f => f.status === 'accepted');
+  const pending = friends.filter(f => f.status === 'pending');
+  const pendingReceived = pending.filter(f => f.initiator !== currentUser);
+  const totalUnread = Object.values(unread).reduce((sum, n) => sum + n, 0);
+
+  const doSearch = async () => {
+    if (!searchQuery.trim()) return;
+    setSearching(true);
+    try {
+      const res = await fetch(`/api/friends/search?q=${encodeURIComponent(searchQuery.trim())}`, { headers });
+      setSearchResults(await res.json());
+    } catch { /* ignore */ }
+    setSearching(false);
+  };
+
+  const invite = async (userId) => {
+    try {
+      await fetch('/api/friends/invite', {
+        method: 'POST', headers, body: JSON.stringify({ toUserId: userId }),
+      });
+      loadFriends();
+      setSearchResults(prev => prev.filter(u => u.id !== userId));
+    } catch { /* ignore */ }
+  };
+
+  const accept = async (friendshipId) => {
+    await fetch(`/api/friends/${friendshipId}/accept`, { method: 'PUT', headers });
+    loadFriends();
+  };
+
+  const remove = async (friendshipId) => {
+    await fetch(`/api/friends/${friendshipId}`, { method: 'DELETE', headers });
+    loadFriends();
+  };
+
+  if (messageTarget) {
+    return <MessageView friend={messageTarget} jwt={jwt} myId={currentUser} onBack={() => { setMessageTarget(null); loadFriends(); }} />;
+  }
+
+  return (
+    <div style={{ width: '100%', maxWidth: 480 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <h2 style={{ color: C.yellow, margin: 0, fontSize: 22 }}>Friends</h2>
+        <button style={{ ...s.btn('rgba(255,255,255,0.1)', 'sm'), color: C.muted }}
+          onClick={() => setGameScreen('home')}>Back</button>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <Tab active={tab === 'friends'} label="Friends" badge={totalUnread} onClick={() => setTab('friends')} />
+        <Tab active={tab === 'requests'} label="Requests" badge={pendingReceived.length} onClick={() => setTab('requests')} />
+        <Tab active={tab === 'search'} label="Search" onClick={() => setTab('search')} />
+      </div>
+
+      {loading && <div style={{ color: C.muted, textAlign: 'center', padding: 32 }}>Loading...</div>}
+
+      {!loading && tab === 'friends' && (
+        <>
+          {accepted.length === 0 && <div style={{ ...s.card, textAlign: 'center', color: C.muted, padding: 32 }}>
+            No friends yet. Search for users to add!
+          </div>}
+          {accepted.map(f => (
+            <FriendCard key={f.friendshipId} friend={f} unreadCount={unread[f.friendId] || 0}
+              onMessage={() => setMessageTarget(f)} onRemove={() => remove(f.friendshipId)} />
+          ))}
+        </>
+      )}
+
+      {!loading && tab === 'requests' && (
+        <>
+          {pending.length === 0 && <div style={{ ...s.card, textAlign: 'center', color: C.muted, padding: 32 }}>
+            No pending requests.
+          </div>}
+          {pending.map(r => (
+            <RequestCard key={r.friendshipId} req={r} myId={currentUser}
+              onAccept={() => accept(r.friendshipId)} onDecline={() => remove(r.friendshipId)} />
+          ))}
+        </>
+      )}
+
+      {!loading && tab === 'search' && (
+        <>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <input
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && doSearch()}
+              placeholder="Search by username..."
+              style={{ ...s.input, flex: 1, fontSize: 14 }}
+            />
+            <button onClick={doSearch} disabled={searching} style={{ ...s.btn(C.yellow, 'sm') }}>
+              {searching ? '...' : 'Search'}
+            </button>
+          </div>
+          {searchResults.map(u => {
+            const alreadyFriend = friends.some(f => f.friendId === u.id);
+            return (
+              <div key={u.id} style={{ ...s.card, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, padding: 14 }}>
+                <img src={pkImg(u.starterSlug)} alt="" style={{ width: 40, height: 40, objectFit: 'contain' }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 15 }}>{u.name}</div>
+                  <div style={{ color: C.muted, fontSize: 12 }}>Level {u.level}</div>
+                </div>
+                {alreadyFriend
+                  ? <span style={{ color: C.muted, fontSize: 13 }}>Added</span>
+                  : <button onClick={() => invite(u.id)} style={{ ...s.btn(C.green, 'sm'), padding: '6px 12px', fontSize: 13 }}>
+                      Add Friend
+                    </button>
+                }
+              </div>
+            );
+          })}
+        </>
+      )}
+    </div>
+  );
+};

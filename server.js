@@ -11,6 +11,8 @@ import {
   getRoundHistory, saveRoundHistory,
   getAllWeeks, getAllWeeklyStats, saveWeeklyStats,
   getAdminUsers,
+  createFriendship, findFriendship, findFriendshipById, acceptFriendship, deleteFriendship, getUserFriendships,
+  createMessage, getMessages, markMessagesRead, getUnreadCounts,
 } from './src/store.js';
 
 const ADMIN_KEY = 'admin';
@@ -245,6 +247,148 @@ app.get('/api/weekly-stats', requireAuth, async (req, res) => {
 app.put('/api/weekly-stats/:weekId', requireAuth, async (req, res) => {
   await saveWeeklyStats(req.jwtUser.id, req.params.weekId, req.body);
   res.json({ ok: true });
+});
+
+// ── Friends ──────────────────────────────────────────────────────────────────
+
+// Search users by name (excludes self)
+app.get('/api/friends/search', requireAuth, async (req, res) => {
+  const q = (req.query.q || '').trim().toLowerCase();
+  if (!q) return res.json([]);
+  const { usersCol: _uc } = await import('./src/db.js');
+  const col = _uc();
+  const users = await col.find({
+    userId: { $regex: q, $options: 'i' },
+    _id: { $ne: req.jwtUser.id },
+  }).limit(10).toArray();
+  res.json(users.map(u => ({ id: u._id, userId: u.userId, name: u.name, starterSlug: u.starterSlug, level: u.level })));
+});
+
+// Get unread message counts per friend
+app.get('/api/friends/unread', requireAuth, async (req, res) => {
+  res.json(await getUnreadCounts(req.jwtUser.id));
+});
+
+// List all friendships (accepted + pending received)
+app.get('/api/friends', requireAuth, async (req, res) => {
+  const myId = req.jwtUser.id;
+  const friendships = await getUserFriendships(myId);
+
+  // Collect friend user IDs to look up their profiles + trophies
+  const friendIds = friendships.map(f => f.user1 === myId ? f.user2 : f.user1);
+  const { usersCol: _uc, trophiesCol: _tc } = await import('./src/db.js');
+  const [friendUsers, friendTrophies] = await Promise.all([
+    _uc().find({ _id: { $in: friendIds } }).toArray(),
+    _tc().find({ userId: { $in: friendIds } }).toArray(),
+  ]);
+  const userMap = Object.fromEntries(friendUsers.map(u => [u._id, u]));
+  const trophyMap = Object.fromEntries(friendTrophies.map(t => [t.userId, t]));
+
+  const result = friendships.map(f => {
+    const friendId = f.user1 === myId ? f.user2 : f.user1;
+    const u = userMap[friendId] || {};
+    const t = trophyMap[friendId] || {};
+    const col = t.collection || {};
+    const caught = Object.values(col).filter(c => c.regular).length;
+    const shinyCount = Object.values(col).filter(c => c.shiny).length;
+    return {
+      friendshipId: f._id,
+      status: f.status,
+      initiator: f.initiator,
+      friendId,
+      name: u.name,
+      userId: u.userId,
+      starterSlug: u.starterSlug,
+      level: u.level,
+      streak: u.streak,
+      caught,
+      shinyCount,
+    };
+  });
+  res.json(result);
+});
+
+// Send friend invite
+app.post('/api/friends/invite', requireAuth, async (req, res) => {
+  const { toUserId } = req.body;
+  if (!toUserId) return res.status(400).json({ error: 'toUserId is required' });
+  const myId = req.jwtUser.id;
+  if (toUserId === myId) return res.status(400).json({ error: 'Cannot friend yourself' });
+
+  // Check target exists
+  const target = await findUserById(toUserId);
+  if (!target) return res.status(404).json({ error: 'User not found' });
+
+  // Check existing
+  const existing = await findFriendship(myId, toUserId);
+  if (existing) {
+    if (existing.status === 'accepted') return res.status(409).json({ error: 'Already friends' });
+    return res.status(409).json({ error: 'Invite already pending' });
+  }
+
+  const doc = await createFriendship(myId, toUserId);
+  res.status(201).json({ ok: true, friendshipId: doc._id });
+});
+
+// Accept friend invite
+app.put('/api/friends/:friendshipId/accept', requireAuth, async (req, res) => {
+  const f = await findFriendshipById(req.params.friendshipId);
+  if (!f) return res.status(404).json({ error: 'Not found' });
+
+  const myId = req.jwtUser.id;
+  // Only the non-initiator can accept
+  if (f.initiator === myId) return res.status(403).json({ error: 'Cannot accept your own invite' });
+  // Must be a participant
+  if (f.user1 !== myId && f.user2 !== myId) return res.status(403).json({ error: 'Not your invite' });
+  if (f.status === 'accepted') return res.json({ ok: true });
+
+  await acceptFriendship(f._id);
+  res.json({ ok: true });
+});
+
+// Decline invite or remove friend
+app.delete('/api/friends/:friendshipId', requireAuth, async (req, res) => {
+  const f = await findFriendshipById(req.params.friendshipId);
+  if (!f) return res.status(404).json({ error: 'Not found' });
+
+  const myId = req.jwtUser.id;
+  if (f.user1 !== myId && f.user2 !== myId) return res.status(403).json({ error: 'Not your friendship' });
+
+  await deleteFriendship(f._id);
+  res.json({ ok: true });
+});
+
+// Get messages with a friend
+app.get('/api/friends/:friendId/messages', requireAuth, async (req, res) => {
+  const myId = req.jwtUser.id;
+  const friendId = req.params.friendId;
+
+  // Verify friendship exists and is accepted
+  const f = await findFriendship(myId, friendId);
+  if (!f || f.status !== 'accepted') return res.status(403).json({ error: 'Not friends' });
+
+  const msgs = await getMessages(myId, friendId);
+  // Mark messages from friend as read
+  await markMessagesRead(myId, friendId);
+  res.json(msgs.reverse());
+});
+
+// Send message to a friend
+app.post('/api/friends/:friendId/messages', requireAuth, async (req, res) => {
+  const myId = req.jwtUser.id;
+  const friendId = req.params.friendId;
+  const { text } = req.body;
+
+  if (!text || typeof text !== 'string' || text.trim().length === 0)
+    return res.status(400).json({ error: 'Message text is required' });
+  if (text.length > 200)
+    return res.status(400).json({ error: 'Message too long (max 200 characters)' });
+
+  const f = await findFriendship(myId, friendId);
+  if (!f || f.status !== 'accepted') return res.status(403).json({ error: 'Not friends' });
+
+  const msg = await createMessage(myId, friendId, text.trim());
+  res.status(201).json(msg);
 });
 
 // ── Serve React app in production ─────────────────────────────────────────────

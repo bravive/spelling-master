@@ -133,6 +133,7 @@ export const HomeScreen = ({ getUser, wordStats, trophyData, weeklyWords, weekly
       {/* Bottom buttons */}
       <div style={{ display: 'flex', gap: 8 }}>
         <button style={{ ...s.btn(C.blue), flex: 1 }} onClick={() => setGameScreen('stats')}>📊 Stats</button>
+        <button style={{ ...s.btn(C.pink), flex: 1 }} onClick={() => setGameScreen('friends')}>👫 Friends</button>
         <button style={{ ...s.btn(C.purple), flex: 1 }} onClick={() => setGameScreen('trophy')}>🏆 Trophies</button>
       </div>
     </div>

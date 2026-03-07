@@ -36,6 +36,8 @@ export const wordstatsCol            = () => getDb().collection('wordstats');
 export const roundhistoryCol         = () => getDb().collection('roundhistory');
 export const weeklyChallengeWordsCol = () => getDb().collection('weeklychallengewords');
 export const weeklyStatsCol          = () => getDb().collection('weeklychallengestats');
+export const friendshipsCol          = () => getDb().collection('friendships');
+export const messagesCol             = () => getDb().collection('messages');
 
 // ── Indexes ───────────────────────────────────────────────────────────────────
 const ensureIndexes = async () => {
@@ -48,5 +50,10 @@ const ensureIndexes = async () => {
     weeklyChallengeWordsCol().createIndex({ startDate: 1 }),
     weeklyStatsCol().createIndex({ userId: 1, weekId: 1 }, { unique: true }),
     weeklyStatsCol().createIndex({ userId: 1 }),
+    friendshipsCol().createIndex({ user1: 1, user2: 1 }, { unique: true }),
+    friendshipsCol().createIndex({ user2: 1, status: 1 }),
+    friendshipsCol().createIndex({ user1: 1, status: 1 }),
+    messagesCol().createIndex({ from: 1, to: 1, created_at: 1 }),
+    messagesCol().createIndex({ to: 1, read: 1 }),
   ]);
 };

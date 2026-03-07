@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import bcrypt from 'bcryptjs';
-import { usersCol, trophiesCol, wordstatsCol, roundhistoryCol, weeklyChallengeWordsCol, weeklyStatsCol } from './db.js';
+import { usersCol, trophiesCol, wordstatsCol, roundhistoryCol, weeklyChallengeWordsCol, weeklyStatsCol, friendshipsCol, messagesCol } from './db.js';
 
 const now = () => new Date();
 
@@ -157,6 +157,91 @@ export const saveWeeklyStats = (userId, weekId, data) => {
     { $set: { ...data, updated_at: now() }, $setOnInsert: { _id: randomUUID(), userId, weekId, created_at: now() } },
     { upsert: true }
   );
+};
+
+// ── Friendships ─────────────────────────────────────────────────────────────
+
+// Ensure user1 < user2 for the unique compound index
+const orderedPair = (a, b) => a < b ? [a, b] : [b, a];
+
+export const createFriendship = async (fromId, toId) => {
+  const [user1, user2] = orderedPair(fromId, toId);
+  const t = now();
+  const doc = {
+    _id: randomUUID(), user1, user2, initiator: fromId,
+    status: 'pending', created_at: t, updated_at: t,
+  };
+  log('insertOne', 'friendships', { user1, user2 });
+  await friendshipsCol().insertOne(doc);
+  return doc;
+};
+
+export const findFriendship = (id1, id2) => {
+  const [user1, user2] = orderedPair(id1, id2);
+  log('findOne', 'friendships', { user1, user2 });
+  return friendshipsCol().findOne({ user1, user2 });
+};
+
+export const findFriendshipById = (id) => {
+  log('findOne', 'friendships', { _id: id });
+  return friendshipsCol().findOne({ _id: id });
+};
+
+export const acceptFriendship = (id) => {
+  log('updateOne', 'friendships', { _id: id, op: 'accept' });
+  return friendshipsCol().updateOne(
+    { _id: id },
+    { $set: { status: 'accepted', updated_at: now() } }
+  );
+};
+
+export const deleteFriendship = (id) => {
+  log('deleteOne', 'friendships', { _id: id });
+  return friendshipsCol().deleteOne({ _id: id });
+};
+
+export const getUserFriendships = (userId) => {
+  log('find', 'friendships', { userId });
+  return friendshipsCol().find({
+    $or: [{ user1: userId }, { user2: userId }],
+  }).toArray();
+};
+
+// ── Messages ────────────────────────────────────────────────────────────────
+
+export const createMessage = async (fromId, toId, text) => {
+  const t = now();
+  const doc = { _id: randomUUID(), from: fromId, to: toId, text, read: false, created_at: t };
+  log('insertOne', 'messages', { from: fromId, to: toId });
+  await messagesCol().insertOne(doc);
+  return doc;
+};
+
+export const getMessages = (userId1, userId2, limit = 50) => {
+  log('find', 'messages', { between: [userId1, userId2] });
+  return messagesCol().find({
+    $or: [
+      { from: userId1, to: userId2 },
+      { from: userId2, to: userId1 },
+    ],
+  }).sort({ created_at: -1 }).limit(limit).toArray();
+};
+
+export const markMessagesRead = (toId, fromId) => {
+  log('updateMany', 'messages', { to: toId, from: fromId, op: 'markRead' });
+  return messagesCol().updateMany(
+    { to: toId, from: fromId, read: false },
+    { $set: { read: true } }
+  );
+};
+
+export const getUnreadCounts = async (userId) => {
+  log('aggregate', 'messages', { to: userId, op: 'unreadCounts' });
+  const results = await messagesCol().aggregate([
+    { $match: { to: userId, read: false } },
+    { $group: { _id: '$from', count: { $sum: 1 } } },
+  ]).toArray();
+  return Object.fromEntries(results.map(r => [r._id, r.count]));
 };
 
 // ── Admin dashboard queries ──────────────────────────────────────────────────

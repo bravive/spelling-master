@@ -27,14 +27,17 @@ const Tab = ({ active, label, onClick }) => (
 
 export const ParentMenuScreen = ({ jwt, setScreen, setCurrentUser }) => {
   const [users, setUsers] = useState([]);
+  const [friendships, setFriendships] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('overview');
 
   useEffect(() => {
     if (!jwt) return;
-    fetch('/api/admin/users', { headers: { Authorization: `Bearer ${jwt}` } })
-      .then(r => r.json())
-      .then(data => { setUsers(data); setLoading(false); })
+    const headers = { Authorization: `Bearer ${jwt}` };
+    Promise.all([
+      fetch('/api/admin/users', { headers }).then(r => r.json()),
+      fetch('/api/admin/friendships', { headers }).then(r => r.json()),
+    ]).then(([u, f]) => { setUsers(u); setFriendships(f); setLoading(false); })
       .catch(() => setLoading(false));
   }, [jwt]);
 
@@ -47,6 +50,9 @@ export const ParentMenuScreen = ({ jwt, setScreen, setCurrentUser }) => {
   const activeToday = users.filter(u => u.lastPlayed === today).length;
   const activeWeek = users.filter(u => u.lastPlayed && u.lastPlayed >= weekAgo).length;
   const totalMastered = users.reduce((s, u) => s + (u.masteredCount || 0), 0);
+  const acceptedFriendships = friendships.filter(f => f.status === 'accepted').length;
+  const pendingFriendships = friendships.filter(f => f.status === 'pending').length;
+  const totalMessages = friendships.reduce((s, f) => s + (f.messageCount || 0), 0);
 
   // Rounds per day (last 14 days)
   const allRounds = users.flatMap(u => u.rounds || []);
@@ -93,6 +99,7 @@ export const ParentMenuScreen = ({ jwt, setScreen, setCurrentUser }) => {
         <Tab active={tab === 'overview'} label="Overview" onClick={() => setTab('overview')} />
         <Tab active={tab === 'users'} label="Users" onClick={() => setTab('users')} />
         <Tab active={tab === 'usage'} label="Usage" onClick={() => setTab('usage')} />
+        <Tab active={tab === 'friendships'} label="Friendships" onClick={() => setTab('friendships')} />
       </div>
 
       {/* ── Overview Tab ─────────────────────────────────────────── */}
@@ -103,6 +110,8 @@ export const ParentMenuScreen = ({ jwt, setScreen, setCurrentUser }) => {
           <StatCard label="Total Rounds" value={totalRounds} color={C.blue} />
           <StatCard label="Pokemon Caught" value={totalCaught} sub={`${totalShiny} shiny`} color={C.pink} />
           <StatCard label="Words Mastered" value={totalMastered} color={C.purple} />
+          <StatCard label="Friendships" value={acceptedFriendships} sub={`${pendingFriendships} pending`} color={C.pink} />
+          <StatCard label="Messages" value={totalMessages} color={C.blue} />
         </div>
 
         {/* Quick user summary */}
@@ -240,6 +249,48 @@ export const ParentMenuScreen = ({ jwt, setScreen, setCurrentUser }) => {
             ))}
           </div>
         </div>
+      </>}
+
+      {/* ── Friendships Tab ────────────────────────────────────────── */}
+      {tab === 'friendships' && <>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
+          <StatCard label="Accepted" value={acceptedFriendships} color={C.green} />
+          <StatCard label="Pending" value={pendingFriendships} color={C.yellow} />
+          <StatCard label="Total Messages" value={totalMessages} color={C.blue} />
+        </div>
+
+        {friendships.length === 0 && <div style={{ ...s.card, textAlign: 'center', color: C.muted, padding: 32 }}>No friendships yet</div>}
+
+        {friendships.map(f => (
+          <div key={f.id} style={{ ...s.card, marginBottom: 10, padding: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
+                <img src={pkImg(f.user1.starterSlug)} alt="" style={{ width: 32, height: 32, objectFit: 'contain' }} />
+                <span style={{ fontWeight: 600, fontSize: 14 }}>{f.user1.name || f.user1.userId}</span>
+              </div>
+              <div style={{
+                background: f.status === 'accepted' ? C.green : C.yellow,
+                color: '#1a1a2e', padding: '2px 10px', borderRadius: 10,
+                fontSize: 11, fontWeight: 700,
+              }}>
+                {f.status === 'accepted' ? 'Friends' : 'Pending'}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, justifyContent: 'flex-end' }}>
+                <span style={{ fontWeight: 600, fontSize: 14 }}>{f.user2.name || f.user2.userId}</span>
+                <img src={pkImg(f.user2.starterSlug)} alt="" style={{ width: 32, height: 32, objectFit: 'contain' }} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 12, color: C.muted }}>
+              <span>{f.messageCount} message{f.messageCount !== 1 ? 's' : ''}</span>
+              <span>
+                {f.lastMessage
+                  ? `Last msg: ${new Date(f.lastMessage).toLocaleDateString()}`
+                  : f.status === 'pending' ? `Invited by ${f.initiator === f.user1.id ? f.user1.name : f.user2.name}` : 'No messages'}
+              </span>
+              <span>Since {new Date(f.created_at).toLocaleDateString()}</span>
+            </div>
+          </div>
+        ))}
       </>}
     </div>
   );

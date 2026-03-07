@@ -246,6 +246,44 @@ export const getUnreadCounts = async (userId) => {
 
 // ── Admin dashboard queries ──────────────────────────────────────────────────
 
+export const getAdminFriendships = async () => {
+  log('find', 'friendships (admin)');
+  const [friendships, allMessages, users] = await Promise.all([
+    friendshipsCol().find({}).toArray(),
+    messagesCol().aggregate([
+      { $group: {
+        _id: { $cond: [{ $lt: ['$from', '$to'] }, { u1: '$from', u2: '$to' }, { u1: '$to', u2: '$from' }] },
+        count: { $sum: 1 },
+        last: { $max: '$created_at' },
+      }},
+    ]).toArray(),
+    usersCol().find({}).toArray(),
+  ]);
+
+  const userMap = Object.fromEntries(users.map(u => [u._id, u]));
+  const msgMap = {};
+  allMessages.forEach(m => {
+    const key = `${m._id.u1}:${m._id.u2}`;
+    msgMap[key] = { count: m.count, last: m.last };
+  });
+
+  return friendships.map(f => {
+    const u1 = userMap[f.user1] || {};
+    const u2 = userMap[f.user2] || {};
+    const key = `${f.user1}:${f.user2}`;
+    const msgs = msgMap[key] || { count: 0, last: null };
+    return {
+      id: f._id, status: f.status,
+      user1: { id: f.user1, name: u1.name, userId: u1.userId, starterSlug: u1.starterSlug },
+      user2: { id: f.user2, name: u2.name, userId: u2.userId, starterSlug: u2.starterSlug },
+      initiator: f.initiator,
+      messageCount: msgs.count,
+      lastMessage: msgs.last,
+      created_at: f.created_at,
+    };
+  });
+};
+
 export const getAdminUsers = async () => {
   log('find', 'users (admin)');
   const users = await usersCol().find({}).toArray();

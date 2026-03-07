@@ -13,6 +13,7 @@ import {
   getAdminUsers,
   createFriendship, findFriendship, findFriendshipById, acceptFriendship, deleteFriendship, getUserFriendships,
   createMessage, getMessages, markMessagesRead, getUnreadCounts,
+  getAdminFriendships,
 } from './src/store.js';
 
 const ADMIN_KEY = 'admin';
@@ -201,6 +202,11 @@ app.put('/api/users/me/profile', requireAuth, async (req, res) => {
 app.get('/api/admin/users', requireAdmin, async (_req, res) => {
   const users = await getAdminUsers();
   res.json(users);
+});
+
+// GET /api/admin/friendships — admin dashboard: all friendships with message stats
+app.get('/api/admin/friendships', requireAdmin, async (_req, res) => {
+  res.json(await getAdminFriendships());
 });
 
 app.get('/api/trophy', requireAuth, async (req, res) => {

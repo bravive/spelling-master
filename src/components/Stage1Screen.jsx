@@ -36,9 +36,9 @@ export const Stage1Screen = ({ words, retryCount, setGameScreen, nextScreen = 's
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
         {words.map((entry, i) => (
-          <div key={i} style={{ ...s.card, padding: '14px 16px', cursor: 'pointer' }}
+          <div key={i} className="word-card" style={{ ...s.card, padding: '14px 16px', cursor: 'pointer', transition: 'background 0.15s' }}
             onClick={() => speakTimes(`${entry.w}. ${entry.s}`, 1)}>
-            <div style={{ fontSize: 22, fontWeight: 800, color: C.yellow }}>🔊 {entry.w}</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: C.yellow }}>{entry.w}</div>
             <div style={{ fontSize: 13, color: C.muted, fontStyle: 'italic', marginTop: 4 }}>{entry.s}</div>
           </div>
         ))}

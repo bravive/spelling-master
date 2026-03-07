@@ -201,14 +201,14 @@ const WeekDetail = ({ week, progress, isLocked, today, onStart }) => {
         {week.words.map((entry, i) => {
           const correct = correctSet.has(entry.w);
           return (
-            <div key={i} style={{
+            <div key={i} className="word-card" style={{
               background: C.card, borderRadius: 10, padding: '8px 12px',
               border: correct ? `1px solid ${C.green}` : `1px solid ${C.border}`,
-              cursor: 'pointer',
+              cursor: 'pointer', transition: 'background 0.15s',
             }} onClick={() => speakTimes(`${entry.w}. ${entry.s}`, 1)}>
               <div style={{ fontSize: 15, fontWeight: 700, color: correct ? C.green : '#fff' }}>
                 {correct && <span style={{ marginRight: 4 }}>✓</span>}
-                🔊 {entry.w}
+                {entry.w}
               </div>
               <div style={{ fontSize: 11, color: C.muted, marginTop: 2, lineHeight: 1.3 }}>{entry.s}</div>
             </div>

@@ -26,11 +26,16 @@ export const HomeScreen = ({ getUser, wordStats, trophyData, weeklyWords, weekly
 
       {/* Main content */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ marginBottom: 8 }}>
+        <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span
             style={{ color: C.muted, fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}
             onClick={() => { setCurrentUser(null); setScreen('selectUser'); }}
           >Exit</span>
+          <span
+            style={{ color: C.muted, fontSize: 18, cursor: 'pointer' }}
+            title="Edit Profile"
+            onClick={() => setGameScreen('editProfile')}
+          >&#9881;</span>
         </div>
 
         <div style={{ textAlign: 'center', marginBottom: 20 }}>

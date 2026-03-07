@@ -51,6 +51,55 @@ export default function App() {
   const [creditHistory, setCreditHistory] = useState([]);
   const [trophyData, setTrophyData] = useState(null); // { collection, shinyEligible, consecutiveRegular }
 
+  const [unlockQueue, setUnlockQueue] = useState([]);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const confettiTimer = useRef(null);
+
+  // Create user flow
+  const [createStep, setCreateStep] = useState(0);
+  const [newName, setNewName] = useState('');
+  const [newStarter, setNewStarter] = useState(null);
+  const [newPin, setNewPin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
+
+  // Login
+  const [loginPin, setLoginPin] = useState('');
+  const [loginTarget, setLoginTarget] = useState(null);
+  const [loginError, setLoginError] = useState('');
+
+  // Game state
+  const [words, setWords] = useState([]);
+  const [retryCount, setRetryCount] = useState(0);
+  const [roundResults, setRoundResults] = useState(null);
+  const [activeWeekId, setActiveWeekId] = useState(null);
+
+  // Persist session whenever screen/user changes
+  useEffect(() => {
+    if (currentUser) {
+      sessionStorage.setItem('currentUser', currentUser);
+      sessionStorage.setItem('screen', screen);
+      sessionStorage.setItem('gameScreen', gameScreen);
+      if (jwt) sessionStorage.setItem('jwt', jwt);
+    } else if (hasRestored.current) {
+      sessionStorage.removeItem('currentUser');
+      sessionStorage.removeItem('screen');
+      sessionStorage.removeItem('gameScreen');
+      sessionStorage.removeItem('jwt');
+      setJwt(null);
+    }
+  }, [currentUser, screen, gameScreen, jwt]);
+
+  const saveUsers = setUsers;
+
+  // Redirect to login on any 401 (expired/invalid JWT)
+  const logout = useCallback(() => {
+    setCurrentUser(null);
+    setJwt(null);
+    setScreen('selectUser');
+  }, []);
+
+  const apiFetch = useMemo(() => makeAuthFetch(logout), [logout]);
+
   const refreshUserData = useCallback(() => {
     if (!jwt || !currentUser) return;
     const headers = { Authorization: `Bearer ${jwt}` };
@@ -85,6 +134,13 @@ export default function App() {
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [refreshUserData]);
 
+  // Refresh data when returning to home (e.g. after completing a round)
+  const prevGameScreen = useRef(gameScreen);
+  useEffect(() => {
+    if (gameScreen === 'home' && prevGameScreen.current !== 'home') refreshUserData();
+    prevGameScreen.current = gameScreen;
+  }, [gameScreen, refreshUserData]);
+
   useEffect(() => {
     fetch('/api/users').then(r => r.json()).then(data => {
       setUsers(data);
@@ -106,62 +162,6 @@ export default function App() {
       }
     }).catch(() => {});
   }, []);
-  const [unlockQueue, setUnlockQueue] = useState([]);
-  const [showConfetti, setShowConfetti] = useState(false);
-  const confettiTimer = useRef(null);
-
-  // Create user flow
-  const [createStep, setCreateStep] = useState(0);
-  const [newName, setNewName] = useState('');
-  const [newStarter, setNewStarter] = useState(null);
-  const [newPin, setNewPin] = useState('');
-  const [confirmPin, setConfirmPin] = useState('');
-
-  // Login
-  const [loginPin, setLoginPin] = useState('');
-  const [loginTarget, setLoginTarget] = useState(null);
-  const [loginError, setLoginError] = useState('');
-
-  // Game state
-  const [words, setWords] = useState([]);
-  const [retryCount, setRetryCount] = useState(0);
-  const [roundResults, setRoundResults] = useState(null);
-  const [activeWeekId, setActiveWeekId] = useState(null);
-
-  // Refresh data when returning to home (e.g. after completing a round)
-  const prevGameScreen = useRef(gameScreen);
-  useEffect(() => {
-    if (gameScreen === 'home' && prevGameScreen.current !== 'home') refreshUserData();
-    prevGameScreen.current = gameScreen;
-  }, [gameScreen, refreshUserData]);
-
-  // Persist session whenever screen/user changes
-  useEffect(() => {
-    if (currentUser) {
-      sessionStorage.setItem('currentUser', currentUser);
-      sessionStorage.setItem('screen', screen);
-      sessionStorage.setItem('gameScreen', gameScreen);
-      if (jwt) sessionStorage.setItem('jwt', jwt);
-    } else if (hasRestored.current) {
-      // Only clear after restoration is done — avoids wiping storage on mount
-      sessionStorage.removeItem('currentUser');
-      sessionStorage.removeItem('screen');
-      sessionStorage.removeItem('gameScreen');
-      sessionStorage.removeItem('jwt');
-      setJwt(null);
-    }
-  }, [currentUser, screen, gameScreen, jwt]);
-
-  const saveUsers = setUsers;
-
-  // Redirect to login on any 401 (expired/invalid JWT)
-  const logout = useCallback(() => {
-    setCurrentUser(null);
-    setJwt(null);
-    setScreen('selectUser');
-  }, []);
-
-  const apiFetch = useMemo(() => makeAuthFetch(logout), [logout]);
 
   const saveUserToServer = useCallback((userId, userData) => {
     if (!jwt) return;

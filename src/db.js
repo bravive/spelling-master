@@ -13,7 +13,7 @@ export const connectDb = async (uriOverride) => {
   const uri = uriOverride ?? resolveMongoUri();
   client = new MongoClient(uri);
   await client.connect();
-  db = client.db();
+  db = client.db(process.env.MONGODATABASE || 'spell-master');
   await ensureIndexes();
   console.log(`[db] Connected to MongoDB: ${db.databaseName}`);
 };

@@ -61,9 +61,11 @@ export const WeeklyChallengeScreen = ({ weeklyWords, weeklyStats, setWords, setR
 
   return (
     <div style={{ width: '100%', maxWidth: 640 }}>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12, position: 'relative' }}>
-        <button style={{ ...s.btn('rgba(255,255,255,0.1)', 'sm'), color: C.muted }} onClick={() => setGameScreen('home')}>← Back</button>
-        <h2 style={{ color: C.yellow, margin: 0, fontSize: 26, position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>Weekly Challenge</h2>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+        <div style={{ width: 110, flexShrink: 0 }}>
+          <button style={{ ...s.btn('rgba(255,255,255,0.1)', 'sm'), color: C.muted }} onClick={() => setGameScreen('home')}>← Back</button>
+        </div>
+        <h2 style={{ color: C.yellow, margin: 0, fontSize: 26, flex: 1, textAlign: 'center' }}>Weekly Challenge</h2>
       </div>
 
       <div style={{ display: 'flex', gap: 12 }}>

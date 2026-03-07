@@ -83,7 +83,7 @@ export const ParentMenuScreen = ({ jwt, setScreen, setCurrentUser }) => {
           <div style={{ color: C.muted, fontSize: 13 }}>{today}</div>
         </div>
         <button style={{ ...s.btn(C.red, 'sm') }}
-          onClick={() => { setCurrentUser(null); setScreen('selectUser'); }}>
+          onClick={() => { setCurrentUser(null); window.history.replaceState(null, '', '/'); setScreen('selectUser'); }}>
           Logout
         </button>
       </div>

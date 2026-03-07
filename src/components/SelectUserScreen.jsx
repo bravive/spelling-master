@@ -1,6 +1,79 @@
 import { useState, useRef, useEffect } from 'react';
 import { C, s } from '../shared';
 
+const PinBoxes = ({ value, onChange, onComplete }) => {
+  const refs = [useRef(null), useRef(null), useRef(null), useRef(null)];
+  const digits = value.padEnd(4, '').split('').slice(0, 4);
+
+  const handleChange = (i, e) => {
+    const v = e.target.value.replace(/\D/g, '');
+    if (!v) return;
+    const digit = v.slice(-1);
+    const next = value.slice(0, i) + digit + value.slice(i + 1);
+    const trimmed = next.replace(/[^0-9]/g, '').slice(0, 4);
+    onChange(trimmed);
+    if (i < 3) refs[i + 1].current?.focus();
+    if (trimmed.length === 4) onComplete?.(trimmed);
+  };
+
+  const handleKeyDown = (i, e) => {
+    if (e.key === 'Backspace') {
+      e.preventDefault();
+      if (digits[i] && digits[i] !== ' ') {
+        const next = value.slice(0, i) + value.slice(i + 1);
+        onChange(next);
+      } else if (i > 0) {
+        const next = value.slice(0, i - 1) + value.slice(i);
+        onChange(next);
+        refs[i - 1].current?.focus();
+      }
+    }
+  };
+
+  const handlePaste = (e) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 4);
+    if (pasted) {
+      onChange(pasted);
+      const focusIdx = Math.min(pasted.length, 3);
+      refs[focusIdx].current?.focus();
+      if (pasted.length === 4) onComplete?.(pasted);
+    }
+  };
+
+  const boxStyle = {
+    width: 52, height: 60, borderRadius: 12,
+    background: 'rgba(255,255,255,0.1)',
+    border: `2px solid ${C.border}`,
+    color: '#fff', fontSize: 28, fontWeight: 800,
+    textAlign: 'center', outline: 'none',
+    transition: 'border-color 0.15s',
+  };
+
+  return (
+    <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+      {[0, 1, 2, 3].map(i => (
+        <input
+          key={i}
+          ref={refs[i]}
+          type="text"
+          inputMode="numeric"
+          maxLength={1}
+          value={digits[i]?.trim() ? '\u2022' : ''}
+          onChange={e => handleChange(i, e)}
+          onKeyDown={e => handleKeyDown(i, e)}
+          onPaste={handlePaste}
+          onFocus={e => e.target.select()}
+          style={{
+            ...boxStyle,
+            borderColor: digits[i]?.trim() ? C.yellow : C.border,
+          }}
+        />
+      ))}
+    </div>
+  );
+};
+
 export const SelectUserScreen = ({ setCurrentUser, setScreen, setGameScreen, setJwt, setCreateStep, setNewName, setNewStarter, setNewPin, setConfirmPin }) => {
   const [username, setUsername] = useState('');
   const [pin, setPin] = useState('');
@@ -46,7 +119,7 @@ export const SelectUserScreen = ({ setCurrentUser, setScreen, setGameScreen, set
         <div style={{ color: C.muted }}>Sign in to start playing!</div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 16 }}>
         <input
           ref={usernameRef}
           type="text"
@@ -57,17 +130,10 @@ export const SelectUserScreen = ({ setCurrentUser, setScreen, setGameScreen, set
           autoComplete="username"
           style={{ ...s.input, textAlign: 'center' }}
         />
-        <input
-          type="password"
-          inputMode="numeric"
-          placeholder="4-digit PIN"
-          maxLength={4}
-          value={pin}
-          onChange={e => { const v = e.target.value.replace(/\D/g, ''); setPin(v); }}
-          onKeyDown={handleKeyDown}
-          autoComplete="current-password"
-          style={{ ...s.input, textAlign: 'center', letterSpacing: 8 }}
-        />
+        <div>
+          <div style={{ color: C.muted, fontSize: 13, marginBottom: 8 }}>PIN</div>
+          <PinBoxes value={pin} onChange={setPin} onComplete={() => handleLogin()} />
+        </div>
       </div>
 
       {error && <div style={{ color: C.red, marginBottom: 12, animation: 'shake 0.3s ease' }}>{error}</div>}

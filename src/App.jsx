@@ -51,6 +51,19 @@ export default function App() {
   const [creditHistory, setCreditHistory] = useState([]);
   const [trophyData, setTrophyData] = useState(null); // { collection, shinyEligible, consecutiveRegular }
 
+  const refreshUserData = useCallback(() => {
+    if (!jwt || !currentUser) return;
+    const headers = { Authorization: `Bearer ${jwt}` };
+    fetch('/api/users').then(r => r.json()).then(setUsers).catch(() => {});
+    apiFetch('/api/weekly-stats', { headers }).then(r => r.json()).then(setWeeklyStats).catch(() => {});
+    apiFetch('/api/wordstats', { headers }).then(r => r.json()).then(setWordStats).catch(() => {});
+    apiFetch('/api/roundhistory', { headers }).then(r => r.json()).then(d => {
+      setRoundHistory(d.roundHistory || []);
+      setCreditHistory(d.creditHistory || []);
+    }).catch(() => {});
+    apiFetch('/api/trophy', { headers }).then(r => r.json()).then(setTrophyData).catch(() => {});
+  }, [jwt, currentUser, apiFetch]);
+
   useEffect(() => {
     if (!jwt || !currentUser) {
       setWeeklyStats({});
@@ -60,15 +73,17 @@ export default function App() {
       setTrophyData(null);
       return;
     }
-    const headers = { Authorization: `Bearer ${jwt}` };
-    apiFetch('/api/weekly-stats', { headers }).then(r => r.json()).then(setWeeklyStats).catch(() => {});
-    apiFetch('/api/wordstats', { headers }).then(r => r.json()).then(setWordStats).catch(() => {});
-    apiFetch('/api/roundhistory', { headers }).then(r => r.json()).then(d => {
-      setRoundHistory(d.roundHistory || []);
-      setCreditHistory(d.creditHistory || []);
-    }).catch(() => {});
-    apiFetch('/api/trophy', { headers }).then(r => r.json()).then(setTrophyData).catch(() => {});
+    refreshUserData();
   }, [jwt, currentUser]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reload data when tab becomes visible again (e.g. after locking/unlocking phone)
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refreshUserData();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [refreshUserData]);
 
   useEffect(() => {
     fetch('/api/users').then(r => r.json()).then(data => {
@@ -112,6 +127,13 @@ export default function App() {
   const [retryCount, setRetryCount] = useState(0);
   const [roundResults, setRoundResults] = useState(null);
   const [activeWeekId, setActiveWeekId] = useState(null);
+
+  // Refresh data when returning to home (e.g. after completing a round)
+  const prevGameScreen = useRef(gameScreen);
+  useEffect(() => {
+    if (gameScreen === 'home' && prevGameScreen.current !== 'home') refreshUserData();
+    prevGameScreen.current = gameScreen;
+  }, [gameScreen, refreshUserData]);
 
   // Persist session whenever screen/user changes
   useEffect(() => {

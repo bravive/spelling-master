@@ -4,8 +4,7 @@ on:
   push:
     branches:
       - 'claude/**'
-      - 'bot/**'
-      - 'auto/**'
+      - 'feature/**'
 
 jobs:
   test-and-merge:

@@ -99,11 +99,12 @@ const RequestCard = ({ req: r, myId, onAccept, onDecline }) => {
   );
 };
 
-const MessageView = ({ friend, jwt, myId, onBack }) => {
+const MessageDialog = ({ friend, jwt, myId, onClose }) => {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const scrollRef = useRef(null);
+  const inputRef = useRef(null);
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` };
 
   const loadMessages = () => {
@@ -113,6 +114,7 @@ const MessageView = ({ friend, jwt, myId, onBack }) => {
 
   useEffect(() => {
     loadMessages();
+    inputRef.current?.focus();
     const interval = setInterval(loadMessages, 5000);
     return () => clearInterval(interval);
   }, [friend.friendId]);
@@ -135,53 +137,67 @@ const MessageView = ({ friend, jwt, myId, onBack }) => {
       }
     } catch { /* ignore */ }
     setSending(false);
+    inputRef.current?.focus();
   };
 
   return (
-    <div style={{ width: '100%', maxWidth: 480, display: 'flex', flexDirection: 'column', height: '80dvh' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-        <button onClick={onBack} style={{ ...s.btn('rgba(255,255,255,0.1)', 'sm'), color: C.muted }}>Back</button>
-        <img src={pkImg(friend.starterSlug)} alt="" style={{ width: 32, height: 32, objectFit: 'contain' }} />
-        <span style={{ fontWeight: 700, fontSize: 16 }}>{friend.name}</span>
-      </div>
-
-      <div ref={scrollRef} style={{
-        flex: 1, overflowY: 'auto', ...s.card, padding: 12, marginBottom: 10,
-        display: 'flex', flexDirection: 'column', gap: 6,
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      zIndex: 1000, padding: 16,
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        ...s.card, width: '100%', maxWidth: 420,
+        display: 'flex', flexDirection: 'column',
+        height: 'min(75dvh, 520px)', padding: 16,
+        animation: 'popIn 0.25s ease',
       }}>
-        {messages.length === 0 && <div style={{ color: C.muted, textAlign: 'center', padding: 24 }}>No messages yet. Say hi!</div>}
-        {messages.map(m => {
-          const mine = m.from === myId;
-          return (
-            <div key={m._id} style={{
-              alignSelf: mine ? 'flex-end' : 'flex-start',
-              background: mine ? C.blue : 'rgba(255,255,255,0.12)',
-              color: mine ? '#1a1a2e' : '#fff',
-              borderRadius: 12, padding: '8px 12px', maxWidth: '75%',
-              fontSize: 14, wordBreak: 'break-word',
-            }}>
-              {m.text}
-              <div style={{ fontSize: 10, opacity: 0.6, marginTop: 2, textAlign: 'right' }}>
-                {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexShrink: 0 }}>
+          <img src={pkImg(friend.starterSlug)} alt="" style={{ width: 32, height: 32, objectFit: 'contain' }} />
+          <span style={{ fontWeight: 700, fontSize: 16, flex: 1 }}>{friend.name}</span>
+          <button onClick={onClose} style={{ ...s.btn('rgba(255,255,255,0.1)', 'sm'), color: C.muted, padding: '4px 10px' }}>Close</button>
+        </div>
 
-      <div style={{ display: 'flex', gap: 8 }}>
-        <input
-          value={text}
-          onChange={e => setText(e.target.value.slice(0, 200))}
-          onKeyDown={e => e.key === 'Enter' && send()}
-          placeholder="Type a message..."
-          style={{ ...s.input, flex: 1, fontSize: 14 }}
-        />
-        <button onClick={send} disabled={sending || !text.trim()} style={{
-          ...s.btn(C.yellow, 'sm'), opacity: (sending || !text.trim()) ? 0.5 : 1,
-        }}>Send</button>
+        <div ref={scrollRef} style={{
+          flex: 1, overflowY: 'auto', padding: 8, marginBottom: 8,
+          background: 'rgba(0,0,0,0.2)', borderRadius: 10,
+          display: 'flex', flexDirection: 'column', gap: 6,
+        }}>
+          {messages.length === 0 && <div style={{ color: C.muted, textAlign: 'center', padding: 24 }}>No messages yet. Say hi!</div>}
+          {messages.map(m => {
+            const mine = m.from === myId;
+            return (
+              <div key={m._id} style={{
+                alignSelf: mine ? 'flex-end' : 'flex-start',
+                background: mine ? C.blue : 'rgba(255,255,255,0.12)',
+                color: mine ? '#1a1a2e' : '#fff',
+                borderRadius: 12, padding: '8px 12px', maxWidth: '75%',
+                fontSize: 14, wordBreak: 'break-word',
+              }}>
+                {m.text}
+                <div style={{ fontSize: 10, opacity: 0.6, marginTop: 2, textAlign: 'right' }}>
+                  {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+          <input
+            ref={inputRef}
+            value={text}
+            onChange={e => setText(e.target.value.slice(0, 200))}
+            onKeyDown={e => e.key === 'Enter' && send()}
+            placeholder="Type a message..."
+            style={{ ...s.input, flex: 1, fontSize: 14 }}
+          />
+          <button onClick={send} disabled={sending || !text.trim()} style={{
+            ...s.btn(C.yellow, 'sm'), opacity: (sending || !text.trim()) ? 0.5 : 1,
+          }}>Send</button>
+        </div>
+        <div style={{ color: C.muted, fontSize: 11, textAlign: 'right', marginTop: 2 }}>{text.length}/200</div>
       </div>
-      <div style={{ color: C.muted, fontSize: 11, textAlign: 'right', marginTop: 4 }}>{text.length}/200</div>
     </div>
   );
 };
@@ -245,10 +261,6 @@ export const FriendsScreen = ({ jwt, currentUser, setGameScreen }) => {
     await fetch(`/api/friends/${friendshipId}`, { method: 'DELETE', headers });
     loadFriends();
   };
-
-  if (messageTarget) {
-    return <MessageView friend={messageTarget} jwt={jwt} myId={currentUser} onBack={() => { setMessageTarget(null); loadFriends(); }} />;
-  }
 
   return (
     <div style={{ width: '100%', maxWidth: 480 }}>
@@ -329,8 +341,17 @@ export const FriendsScreen = ({ jwt, currentUser, setGameScreen }) => {
         <FriendDetailModal
           friend={selectedFriend}
           onClose={() => setSelectedFriend(null)}
-          onMessage={() => setMessageTarget(selectedFriend)}
+          onMessage={() => { setSelectedFriend(null); setMessageTarget(selectedFriend); }}
           onRemove={() => { remove(selectedFriend.friendshipId); setSelectedFriend(null); }}
+        />
+      )}
+
+      {messageTarget && (
+        <MessageDialog
+          friend={messageTarget}
+          jwt={jwt}
+          myId={currentUser}
+          onClose={() => { setMessageTarget(null); loadFriends(); }}
         />
       )}
     </div>

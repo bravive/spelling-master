@@ -373,6 +373,50 @@ describe('GET/PUT /api/roundhistory', () => {
     expect(res.body.roundHistory).toEqual([]);
   });
 
+  it('saves and retrieves creditHistory', async () => {
+    const creditHistory = [
+      { date: '2026-03-06', amount: 5, source: 'round', description: 'Score 10/10' },
+      { date: '2026-03-06', amount: 1, source: 'streak', description: '3-day streak bonus' },
+    ];
+    await request(app).put('/api/roundhistory').set('Authorization', `Bearer ${token}`)
+      .send({ roundHistory: [], bestScores: {}, creditHistory });
+    const res = await request(app).get('/api/roundhistory').set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.creditHistory).toHaveLength(2);
+    expect(res.body.creditHistory[0]).toMatchObject({ source: 'round', amount: 5 });
+    expect(res.body.creditHistory[1]).toMatchObject({ source: 'streak', amount: 1 });
+  });
+
+  it('creditHistory is empty array for new user', async () => {
+    const res = await request(app).get('/api/roundhistory').set('Authorization', `Bearer ${token}`);
+    expect(res.body.creditHistory).toEqual([]);
+  });
+
+  it('creditHistory persists across updates', async () => {
+    const firstEvent = { date: '2026-03-05', amount: 3, source: 'round', description: 'Score 9/10' };
+    await request(app).put('/api/roundhistory').set('Authorization', `Bearer ${token}`)
+      .send({ roundHistory: [], bestScores: {}, creditHistory: [firstEvent] });
+
+    const secondEvent = { date: '2026-03-06', amount: 0.5, source: 'weekly', description: 'Week w2026-10: 1 new word(s)' };
+    await request(app).put('/api/roundhistory').set('Authorization', `Bearer ${token}`)
+      .send({ roundHistory: [], bestScores: {}, creditHistory: [firstEvent, secondEvent] });
+
+    const res = await request(app).get('/api/roundhistory').set('Authorization', `Bearer ${token}`);
+    expect(res.body.creditHistory).toHaveLength(2);
+    expect(res.body.creditHistory[1]).toMatchObject({ source: 'weekly', amount: 0.5 });
+  });
+
+  it("does not return another user's creditHistory", async () => {
+    const creditHistory = [{ date: '2026-03-06', amount: 5, source: 'round', description: 'Score 10/10' }];
+    await request(app).put('/api/roundhistory').set('Authorization', `Bearer ${token}`)
+      .send({ roundHistory: [], bestScores: {}, creditHistory });
+
+    await createUser({ key: 'bob', name: 'Bob' });
+    const bobToken = (await loginUser('bob', '1234')).body.token;
+    const res = await request(app).get('/api/roundhistory').set('Authorization', `Bearer ${bobToken}`);
+    expect(res.body.creditHistory).toEqual([]);
+  });
+
   it('returns 401 without token', async () => {
     const res = await request(app).get('/api/roundhistory');
     expect(res.status).toBe(401);

@@ -180,7 +180,7 @@ app.put('/api/wordstats', requireAuth, async (req, res) => {
 
 app.get('/api/roundhistory', requireAuth, async (req, res) => {
   const doc = await getRoundHistory(req.jwtUser.id);
-  res.json(doc ?? { roundHistory: [], bestScores: {} });
+  res.json(doc ?? { roundHistory: [], bestScores: {}, creditHistory: [] });
 });
 
 app.put('/api/roundhistory', requireAuth, async (req, res) => {

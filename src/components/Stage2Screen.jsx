@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { speakTimes, speak, C, s } from '../shared';
 
-export const Stage2Screen = ({ words, processRound, setRoundResults, setGameScreen, resultsScreen = 'results', discardScreen = 'home', onQuit }) => {
+export const Stage2Screen = ({ words, processRound, setRoundResults, setGameScreen, resultsScreen = 'results', discardScreen = 'home', onQuit, unlimitedRetries = false, allowSkip = false }) => {
   const [idx, setIdx] = useState(0);
   const [attempt, setAttempt] = useState(0);
   const [typed, setTyped] = useState('');
@@ -74,11 +74,11 @@ export const Stage2Screen = ({ words, processRound, setRoundResults, setGameScre
         });
       } else {
         setAttempt(prev => {
-          if (prev < 2) {
+          if (unlimitedRetries || prev < 2) {
             setFeedback('wrong');
             speak('Not quite, try again!');
             setTimeout(() => { lockRef.current = false; setFeedback(null); setTyped(''); inputRef.current?.focus(); }, 1300);
-            return prev + 1;
+            return unlimitedRetries ? prev : prev + 1;
           } else {
             setFeedback('reveal');
             setResults(prev2 => {
@@ -105,6 +105,34 @@ export const Stage2Screen = ({ words, processRound, setRoundResults, setGameScre
         });
       }
       return cur;
+    });
+  };
+
+  const doSkip = () => {
+    if (lockRef.current || !currentWordRef.current) return;
+    const word = currentWordRef.current;
+    lockRef.current = true;
+    setTyped('');
+    setFeedback('reveal');
+    speak('Let\'s move on!');
+    setResults(prev => {
+      const newResults = [...prev, { word: word.w, correct: false, attemptNumber: attempt + 1, skipped: true }];
+      setTimeout(() => {
+        lockRef.current = false;
+        setFeedback(null);
+        setAttempt(0);
+        setIdx(i => {
+          const nextIdx = i + 1;
+          if (nextIdx >= order.length) {
+            const score = newResults.filter(r => r.correct).length;
+            const outcome = processRound(score, newResults);
+            setRoundResults({ score, ...outcome, results: newResults, words: order });
+            setGameScreen(resultsScreen);
+          }
+          return nextIdx;
+        });
+      }, 2000);
+      return newResults;
     });
   };
 
@@ -156,9 +184,11 @@ export const Stage2Screen = ({ words, processRound, setRoundResults, setGameScre
         <button style={{ ...s.btn(C.blue, 'sm') }} onClick={() => speakWord(currentWord)}>🔁 Replay</button>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 12 }}>
-        {[0,1,2].map(i => <div key={i} style={{ fontSize: 24 }}>{i >= attempt ? '❤️' : '🖤'}</div>)}
-      </div>
+      {!unlimitedRetries && (
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 12 }}>
+          {[0,1,2].map(i => <div key={i} style={{ fontSize: 24 }}>{i >= attempt ? '❤️' : '🖤'}</div>)}
+        </div>
+      )}
 
       {feedback === 'correct' && (
         <div style={{ textAlign: 'center', color: C.green, fontSize: 28, animation: 'pop 0.4s ease', marginBottom: 8 }}>✅ Correct!</div>
@@ -201,6 +231,10 @@ export const Stage2Screen = ({ words, processRound, setRoundResults, setGameScre
       <div style={{ display: 'flex', gap: 8 }}>
         <button style={{ ...s.btn(C.red, 'lg'), flex: 1 }}
           onClick={() => !lockRef.current && setTyped(t => t.slice(0, -1))}>⌫ Delete</button>
+        {allowSkip && (
+          <button style={{ ...s.btn('rgba(255,255,255,0.15)', 'lg'), flex: 1, color: C.muted }}
+            onClick={doSkip}>⏭ Skip</button>
+        )}
         <button style={{ ...s.btn(C.green, 'lg'), flex: 1 }} onClick={doSubmit}>✅ Submit</button>
       </div>
     </div>

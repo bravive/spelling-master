@@ -8,10 +8,9 @@ let mongod;
 
 beforeAll(async () => {
   mongod = await MongoMemoryServer.create();
-  process.env.MONGODB_URI = mongod.getUri();
-  process.env.JWT_SECRET  = 'test-secret';
-  process.env.ADMIN_PIN   = '0000';
-  await connectDb();
+  process.env.JWT_SECRET = 'test-secret';
+  process.env.ADMIN_PIN  = '0000';
+  await connectDb(mongod.getUri());
 });
 
 afterAll(async () => {

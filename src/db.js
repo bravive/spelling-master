@@ -4,18 +4,16 @@ let client;
 let db;
 
 export const resolveMongoUri = () => {
-  if (process.env.MONGODB_URI) return process.env.MONGODB_URI;
   const { MONGOUSER, MONGOPASSWORD, MONGOHOST, MONGOPORT, MONGODATABASE } = process.env;
-  if (MONGOHOST && MONGOUSER && MONGOPASSWORD) {
-    const db = MONGODATABASE || 'spell-master';
-    const port = MONGOPORT ? `:${MONGOPORT}` : '';
-    return `mongodb://${MONGOUSER}:${encodeURIComponent(MONGOPASSWORD)}@${MONGOHOST}${port}/${db}`;
-  }
-  throw new Error('Set MONGODB_URI or MONGOHOST/MONGOUSER/MONGOPASSWORD env vars');
+  const missingRequired = ['MONGOHOST', 'MONGOPORT', 'MONGODATABASE'].filter(k => !process.env[k]);
+  if (missingRequired.length) throw new Error(`Missing required env vars: ${missingRequired.join(', ')}`);
+  if (!!MONGOUSER !== !!MONGOPASSWORD) throw new Error('Both MONGOUSER and MONGOPASSWORD must be set together');
+  const auth = MONGOUSER ? `${MONGOUSER}:${encodeURIComponent(MONGOPASSWORD)}@` : '';
+  return `mongodb://${auth}${MONGOHOST}:${MONGOPORT}/${MONGODATABASE}`;
 };
 
-export const connectDb = async () => {
-  const uri = resolveMongoUri();
+export const connectDb = async (uriOverride) => {
+  const uri = uriOverride ?? resolveMongoUri();
   client = new MongoClient(uri);
   await client.connect();
   db = client.db();

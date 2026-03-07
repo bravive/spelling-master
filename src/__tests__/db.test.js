@@ -20,15 +20,14 @@ const { connectDb, getDb, closeDb, usersCol, trophiesCol, wordstatsCol, roundhis
 
 describe('db module', () => {
   beforeEach(async () => {
-    process.env.MONGODB_URI = 'mongodb://localhost:27017/test';
-    await connectDb();
+    await connectDb('mongodb://localhost:27017/test');
   });
 
   afterEach(async () => {
     await closeDb();
   });
 
-  it('connects using MONGODB_URI env var', async () => {
+  it('connects with the provided URI', async () => {
     const { MongoClient } = await import('mongodb');
     expect(MongoClient).toHaveBeenCalledWith('mongodb://localhost:27017/test');
   });
@@ -38,11 +37,9 @@ describe('db module', () => {
     expect(getDb().databaseName).toBe('test');
   });
 
-  it('throws if MONGODB_URI is not set', async () => {
+  it('throws when no URI and required env vars are missing', async () => {
     await closeDb();
-    delete process.env.MONGODB_URI;
-    await expect(connectDb()).rejects.toThrow();
-    process.env.MONGODB_URI = 'mongodb://localhost:27017/test';
+    await expect(connectDb()).rejects.toThrow('Missing required env vars');
   });
 
   it('usersCol returns collection named "users"', () => {
@@ -83,49 +80,67 @@ describe('db module', () => {
 
 // ── resolveMongoUri ───────────────────────────────────────────────────────────
 describe('resolveMongoUri', () => {
-  const VARS = ['MONGODB_URI', 'MONGOHOST', 'MONGOPORT', 'MONGOUSER', 'MONGOPASSWORD', 'MONGODATABASE'];
+  const VARS = ['MONGOHOST', 'MONGOPORT', 'MONGOUSER', 'MONGOPASSWORD', 'MONGODATABASE'];
 
   beforeEach(() => VARS.forEach(v => delete process.env[v]));
   afterEach(() => VARS.forEach(v => delete process.env[v]));
 
-  it('returns MONGODB_URI directly when set', () => {
-    process.env.MONGODB_URI = 'mongodb://custom-uri/db';
-    expect(resolveMongoUri()).toBe('mongodb://custom-uri/db');
-  });
-
-  it('constructs URI from Railway vars', () => {
-    process.env.MONGOUSER = 'user';
-    process.env.MONGOPASSWORD = 'pass';
-    process.env.MONGOHOST = 'host.railway.internal';
-    process.env.MONGOPORT = '27017';
+  it('constructs URI with auth when all vars are set', () => {
+    process.env.MONGOHOST     = 'host.railway.internal';
+    process.env.MONGOPORT     = '27017';
     process.env.MONGODATABASE = 'mydb';
+    process.env.MONGOUSER     = 'user';
+    process.env.MONGOPASSWORD = 'pass';
     expect(resolveMongoUri()).toBe('mongodb://user:pass@host.railway.internal:27017/mydb');
   });
 
+  it('constructs URI without auth when MONGOUSER/MONGOPASSWORD are omitted (local dev)', () => {
+    process.env.MONGOHOST     = 'localhost';
+    process.env.MONGOPORT     = '27017';
+    process.env.MONGODATABASE = 'spellmaster';
+    expect(resolveMongoUri()).toBe('mongodb://localhost:27017/spellmaster');
+  });
+
   it('encodes special characters in password', () => {
-    process.env.MONGOUSER = 'user';
+    process.env.MONGOHOST     = 'host';
+    process.env.MONGOPORT     = '27017';
+    process.env.MONGODATABASE = 'mydb';
+    process.env.MONGOUSER     = 'user';
     process.env.MONGOPASSWORD = 'p@ss:w/ord';
+    expect(resolveMongoUri()).toBe('mongodb://user:p%40ss%3Aw%2Ford@host:27017/mydb');
+  });
+
+  it('throws when MONGOHOST is missing', () => {
+    process.env.MONGOPORT     = '27017';
+    process.env.MONGODATABASE = 'mydb';
+    expect(() => resolveMongoUri()).toThrow('Missing required env vars: MONGOHOST');
+  });
+
+  it('throws when MONGOPORT is missing', () => {
+    process.env.MONGOHOST     = 'host';
+    process.env.MONGODATABASE = 'mydb';
+    expect(() => resolveMongoUri()).toThrow('Missing required env vars: MONGOPORT');
+  });
+
+  it('throws when MONGODATABASE is missing', () => {
     process.env.MONGOHOST = 'host';
     process.env.MONGOPORT = '27017';
-    expect(resolveMongoUri()).toBe('mongodb://user:p%40ss%3Aw%2Ford@host:27017/spell-master');
+    expect(() => resolveMongoUri()).toThrow('Missing required env vars: MONGODATABASE');
   });
 
-  it('defaults database to spell-master when MONGODATABASE is not set', () => {
-    process.env.MONGOUSER = 'user';
+  it('throws when only MONGOUSER is set without MONGOPASSWORD', () => {
+    process.env.MONGOHOST     = 'host';
+    process.env.MONGOPORT     = '27017';
+    process.env.MONGODATABASE = 'mydb';
+    process.env.MONGOUSER     = 'user';
+    expect(() => resolveMongoUri()).toThrow('Both MONGOUSER and MONGOPASSWORD must be set together');
+  });
+
+  it('throws when only MONGOPASSWORD is set without MONGOUSER', () => {
+    process.env.MONGOHOST     = 'host';
+    process.env.MONGOPORT     = '27017';
+    process.env.MONGODATABASE = 'mydb';
     process.env.MONGOPASSWORD = 'pass';
-    process.env.MONGOHOST = 'host';
-    process.env.MONGOPORT = '27017';
-    expect(resolveMongoUri()).toContain('/spell-master');
-  });
-
-  it('omits port when MONGOPORT is not set', () => {
-    process.env.MONGOUSER = 'user';
-    process.env.MONGOPASSWORD = 'pass';
-    process.env.MONGOHOST = 'host';
-    expect(resolveMongoUri()).toBe('mongodb://user:pass@host/spell-master');
-  });
-
-  it('throws when no URI can be constructed', () => {
-    expect(() => resolveMongoUri()).toThrow();
+    expect(() => resolveMongoUri()).toThrow('Both MONGOUSER and MONGOPASSWORD must be set together');
   });
 });

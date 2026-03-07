@@ -143,14 +143,20 @@ const MessageDialog = ({ friend, jwt, myId, myStarterSlug, onClose }) => {
   return (
     <div onClick={onClose} style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      zIndex: 1000, padding: 16,
+      display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+      zIndex: 1000,
+      paddingTop: 'max(16px, env(safe-area-inset-top))',
+      paddingLeft: 'max(16px, env(safe-area-inset-left))',
+      paddingRight: 'max(16px, env(safe-area-inset-right))',
+      paddingBottom: 'max(16px, env(safe-area-inset-bottom))',
+      boxSizing: 'border-box',
     }}>
       <div onClick={e => e.stopPropagation()} style={{
         background: '#1e1b3a', border: `1px solid ${C.border}`, borderRadius: 16,
         width: '100%', maxWidth: 420,
         display: 'flex', flexDirection: 'column',
-        height: 'min(75dvh, 520px)', padding: 16,
+        height: 'min(75dvh, 520px)', maxHeight: '100%',
+        padding: 16, overflow: 'hidden',
         animation: 'popIn 0.25s ease',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexShrink: 0 }}>
@@ -197,7 +203,7 @@ const MessageDialog = ({ friend, jwt, myId, myStarterSlug, onClose }) => {
             onChange={e => setText(e.target.value.slice(0, 200))}
             onKeyDown={e => e.key === 'Enter' && send()}
             placeholder="Type a message..."
-            style={{ ...s.input, flex: 1, fontSize: 14 }}
+            style={{ ...s.input, flex: 1, fontSize: 16 }}
           />
           <button onClick={send} disabled={sending || !text.trim()} style={{
             ...s.btn(C.yellow, 'sm'), opacity: (sending || !text.trim()) ? 0.5 : 1,

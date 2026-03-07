@@ -3,9 +3,19 @@ import { MongoClient } from 'mongodb';
 let client;
 let db;
 
+export const resolveMongoUri = () => {
+  if (process.env.MONGODB_URI) return process.env.MONGODB_URI;
+  const { MONGOUSER, MONGOPASSWORD, MONGOHOST, MONGOPORT, MONGODATABASE } = process.env;
+  if (MONGOHOST && MONGOUSER && MONGOPASSWORD) {
+    const db = MONGODATABASE || 'spell-master';
+    const port = MONGOPORT ? `:${MONGOPORT}` : '';
+    return `mongodb://${MONGOUSER}:${encodeURIComponent(MONGOPASSWORD)}@${MONGOHOST}${port}/${db}`;
+  }
+  throw new Error('Set MONGODB_URI or MONGOHOST/MONGOUSER/MONGOPASSWORD env vars');
+};
+
 export const connectDb = async () => {
-  const uri = process.env.MONGODB_URI;
-  if (!uri) throw new Error('MONGODB_URI environment variable is not set');
+  const uri = resolveMongoUri();
   client = new MongoClient(uri);
   await client.connect();
   db = client.db();

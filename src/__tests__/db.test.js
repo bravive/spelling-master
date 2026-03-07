@@ -16,7 +16,7 @@ vi.mock('mongodb', () => {
 });
 
 // Import after mocking
-const { connectDb, getDb, closeDb, usersCol, trophiesCol, wordstatsCol, roundhistoryCol, weeklyChallengeWordsCol, weeklyStatsCol } = await import('../db.js');
+const { connectDb, getDb, closeDb, usersCol, trophiesCol, wordstatsCol, roundhistoryCol, weeklyChallengeWordsCol, weeklyStatsCol, resolveMongoUri } = await import('../db.js');
 
 describe('db module', () => {
   beforeEach(async () => {
@@ -41,7 +41,7 @@ describe('db module', () => {
   it('throws if MONGODB_URI is not set', async () => {
     await closeDb();
     delete process.env.MONGODB_URI;
-    await expect(connectDb()).rejects.toThrow('MONGODB_URI environment variable is not set');
+    await expect(connectDb()).rejects.toThrow();
     process.env.MONGODB_URI = 'mongodb://localhost:27017/test';
   });
 
@@ -78,5 +78,54 @@ describe('db module', () => {
   it('ensureIndexes creates unique index on userId for all collections', async () => {
     const col = getDb().collection('users');
     expect(col.createIndex).toHaveBeenCalledWith({ userId: 1 }, { unique: true });
+  });
+});
+
+// ── resolveMongoUri ───────────────────────────────────────────────────────────
+describe('resolveMongoUri', () => {
+  const VARS = ['MONGODB_URI', 'MONGOHOST', 'MONGOPORT', 'MONGOUSER', 'MONGOPASSWORD', 'MONGODATABASE'];
+
+  beforeEach(() => VARS.forEach(v => delete process.env[v]));
+  afterEach(() => VARS.forEach(v => delete process.env[v]));
+
+  it('returns MONGODB_URI directly when set', () => {
+    process.env.MONGODB_URI = 'mongodb://custom-uri/db';
+    expect(resolveMongoUri()).toBe('mongodb://custom-uri/db');
+  });
+
+  it('constructs URI from Railway vars', () => {
+    process.env.MONGOUSER = 'user';
+    process.env.MONGOPASSWORD = 'pass';
+    process.env.MONGOHOST = 'host.railway.internal';
+    process.env.MONGOPORT = '27017';
+    process.env.MONGODATABASE = 'mydb';
+    expect(resolveMongoUri()).toBe('mongodb://user:pass@host.railway.internal:27017/mydb');
+  });
+
+  it('encodes special characters in password', () => {
+    process.env.MONGOUSER = 'user';
+    process.env.MONGOPASSWORD = 'p@ss:w/ord';
+    process.env.MONGOHOST = 'host';
+    process.env.MONGOPORT = '27017';
+    expect(resolveMongoUri()).toBe('mongodb://user:p%40ss%3Aw%2Ford@host:27017/spell-master');
+  });
+
+  it('defaults database to spell-master when MONGODATABASE is not set', () => {
+    process.env.MONGOUSER = 'user';
+    process.env.MONGOPASSWORD = 'pass';
+    process.env.MONGOHOST = 'host';
+    process.env.MONGOPORT = '27017';
+    expect(resolveMongoUri()).toContain('/spell-master');
+  });
+
+  it('omits port when MONGOPORT is not set', () => {
+    process.env.MONGOUSER = 'user';
+    process.env.MONGOPASSWORD = 'pass';
+    process.env.MONGOHOST = 'host';
+    expect(resolveMongoUri()).toBe('mongodb://user:pass@host/spell-master');
+  });
+
+  it('throws when no URI can be constructed', () => {
+    expect(() => resolveMongoUri()).toThrow();
   });
 });

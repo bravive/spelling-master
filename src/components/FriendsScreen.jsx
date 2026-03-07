@@ -20,27 +20,65 @@ const Tab = ({ active, label, badge, onClick }) => (
   </button>
 );
 
-const FriendCard = ({ friend, unreadCount, onMessage, onRemove }) => (
-  <div style={{ ...s.card, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, padding: 14 }}>
+const FriendCard = ({ friend, unreadCount, onMessage, onSelect }) => (
+  <div onClick={onSelect} style={{ ...s.card, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, padding: 14, cursor: 'pointer' }}>
     <img src={pkImg(friend.starterSlug)} alt="" style={{ width: 48, height: 48, objectFit: 'contain' }} />
     <div style={{ flex: 1, minWidth: 0 }}>
       <div style={{ fontWeight: 700, fontSize: 15 }}>{friend.name}</div>
       <div style={{ color: C.muted, fontSize: 12 }}>Level {friend.level} | {friend.caught} caught | {friend.shinyCount} shiny | {friend.streak} streak</div>
     </div>
-    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-      <button onClick={onMessage} style={{ ...s.btn(C.blue, 'sm'), position: 'relative', padding: '6px 12px', fontSize: 13 }}>
-        Message
-        {unreadCount > 0 && <span style={{
-          position: 'absolute', top: -6, right: -6,
-          background: C.red, color: '#fff', fontSize: 10, fontWeight: 700,
-          borderRadius: '50%', width: 18, height: 18,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>{unreadCount}</span>}
-      </button>
-      <button onClick={onRemove} style={{ ...s.btn('rgba(255,255,255,0.1)', 'sm'), color: C.red, padding: '6px 10px', fontSize: 13 }}>X</button>
-    </div>
+    <button onClick={e => { e.stopPropagation(); onMessage(); }} style={{ ...s.btn(C.blue, 'sm'), position: 'relative', padding: '6px 12px', fontSize: 13, flexShrink: 0 }}>
+      Message
+      {unreadCount > 0 && <span style={{
+        position: 'absolute', top: -6, right: -6,
+        background: C.red, color: '#fff', fontSize: 10, fontWeight: 700,
+        borderRadius: '50%', width: 18, height: 18,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>{unreadCount}</span>}
+    </button>
   </div>
 );
+
+const FriendDetailModal = ({ friend, onClose, onMessage, onRemove }) => {
+  const [confirming, setConfirming] = useState(false);
+  return (
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      zIndex: 1000, padding: 16,
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        ...s.card, width: '100%', maxWidth: 340, textAlign: 'center',
+        padding: 24, animation: 'popIn 0.25s ease',
+      }}>
+        <img src={pkImg(friend.starterSlug)} alt="" style={{ width: 80, height: 80, objectFit: 'contain', animation: 'float 3s ease-in-out infinite' }} />
+        <h3 style={{ margin: '12px 0 4px', fontSize: 20, color: C.yellow }}>{friend.name}</h3>
+        <div style={{ color: C.muted, fontSize: 13, marginBottom: 16 }}>
+          Level {friend.level} | {friend.caught} caught | {friend.shinyCount} shiny | {friend.streak} streak
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <button onClick={() => { onClose(); onMessage(); }} style={{ ...s.btn(C.blue), width: '100%' }}>Message</button>
+
+          {!confirming
+            ? <button onClick={() => setConfirming(true)} style={{ ...s.btn('rgba(255,255,255,0.1)'), width: '100%', color: C.red }}>
+                Remove Friend
+              </button>
+            : <div style={{ ...s.card, background: 'rgba(239,68,68,0.1)', border: `1px solid ${C.red}`, padding: 14 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 10 }}>Remove {friend.name} as a friend?</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => setConfirming(false)} style={{ ...s.btn('rgba(255,255,255,0.1)', 'sm'), flex: 1, color: C.muted }}>Cancel</button>
+                  <button onClick={onRemove} style={{ ...s.btn(C.red, 'sm'), flex: 1 }}>Confirm</button>
+                </div>
+              </div>
+          }
+
+          <button onClick={onClose} style={{ ...s.btn('rgba(255,255,255,0.1)', 'sm'), color: C.muted, width: '100%' }}>Close</button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const RequestCard = ({ req: r, myId, onAccept, onDecline }) => {
   const isSent = r.initiator === myId;
@@ -156,6 +194,7 @@ export const FriendsScreen = ({ jwt, currentUser, setGameScreen }) => {
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [messageTarget, setMessageTarget] = useState(null);
+  const [selectedFriend, setSelectedFriend] = useState(null);
   const [loading, setLoading] = useState(true);
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` };
 
@@ -234,7 +273,7 @@ export const FriendsScreen = ({ jwt, currentUser, setGameScreen }) => {
           </div>}
           {accepted.map(f => (
             <FriendCard key={f.friendshipId} friend={f} unreadCount={unread[f.friendId] || 0}
-              onMessage={() => setMessageTarget(f)} onRemove={() => remove(f.friendshipId)} />
+              onMessage={() => setMessageTarget(f)} onSelect={() => setSelectedFriend(f)} />
           ))}
         </>
       )}
@@ -284,6 +323,15 @@ export const FriendsScreen = ({ jwt, currentUser, setGameScreen }) => {
             );
           })}
         </>
+      )}
+
+      {selectedFriend && (
+        <FriendDetailModal
+          friend={selectedFriend}
+          onClose={() => setSelectedFriend(null)}
+          onMessage={() => setMessageTarget(selectedFriend)}
+          onRemove={() => { remove(selectedFriend.friendshipId); setSelectedFriend(null); }}
+        />
       )}
     </div>
   );

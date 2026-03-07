@@ -92,10 +92,17 @@ A daily spelling practice web app for elementary school kids (K–5). Kids memor
 
 ### Environment Variables
 
-| Variable | Required in Production | Default | Description |
+The server constructs the MongoDB connection string from individual variables.
+`MONGOUSER` and `MONGOPASSWORD` must be provided together or not at all (local dev without auth can omit both).
+
+| Variable | Required | Default | Description |
 |---|---|---|---|
-| `JWT_SECRET` | **Yes** | `dev-secret-do-not-use-in-production` | Secret for signing JWTs — server refuses to start in production without this |
-| `MONGODB_URI` | **Yes** | _(none)_ | MongoDB connection string (e.g. from Railway MongoDB plugin) |
+| `MONGOHOST` | **Yes** | _(none)_ | MongoDB hostname |
+| `MONGOPORT` | **Yes** | _(none)_ | MongoDB port |
+| `MONGODATABASE` | **Yes** | _(none)_ | Database name (e.g. `spell-master`) |
+| `MONGOUSER` | With password | _(none)_ | MongoDB username |
+| `MONGOPASSWORD` | With user | _(none)_ | MongoDB password |
+| `JWT_SECRET` | **Yes in production** | `dev-secret-do-not-use-in-production` | Secret for signing JWTs — server refuses to start in production without this |
 | `ADMIN_PIN` | No | `0000` | PIN for the admin (`test`) account |
 | `PORT` | No | `3001` | Port for the Express API server |
 | `NODE_ENV` | No | _(unset)_ | Set to `production` to enable static file serving and enforce `JWT_SECRET` |
@@ -159,32 +166,36 @@ src/
     words.js     — Word bank (5 levels, each with word + example sentence)
     pokemon.js   — 60-Pokémon roster with image URL helpers
   __tests__/
-    auth.test.js              — Unit tests for PIN hashing, JWT, and auth helpers
-    api.test.js               — Integration tests for all REST API endpoints
-    wordSelection.test.js     — Unit tests for word selection, stats, and level-up logic
-    server.production.test.js — Integration tests for production static-file serving
+    auth.test.js                   — PIN hashing, JWT, and auth helpers
+    authFetch.test.js              — makeAuthFetch 401 redirect behaviour
+    db.test.js                     — MongoDB connection and resolveMongoUri
+    server.integration.test.js     — Integration tests for all REST API endpoints
+    server.production.test.js      — Production static-file serving
+    weeklyScoring.test.js          — Weekly challenge credit scoring logic
+    weeklyChallengeScreen.test.js  — Week selection / initial week resolution
+    wordSelection.test.js          — Word selection, stats, and level-up logic
 ```
 
 ## Deploying to Railway
 
 1. **Connect your repo** — create a new Railway project and link the GitHub repo.
 
-2. **Add a MongoDB database** — Railway dashboard → your project → "New" → "Database" → "MongoDB":
-   - Railway automatically injects `MONGODB_URL` into your service environment.
-   - Set `MONGODB_URI` in your service variables to the value of `${{MongoDB.MONGODB_URL}}`.
+2. **Add a MongoDB database** — Railway dashboard → your project → "New" → "Database" → "MongoDB".
+   Railway automatically injects `MONGOHOST`, `MONGOPORT`, `MONGOUSER`, and `MONGOPASSWORD` into your web service.
 
-3. **Set environment variables** in the Railway service dashboard → Variables:
+3. **Set these variables** in the Railway web service → Variables:
 
-   | Variable | Required | Notes |
-   |---|---|---|
-   | `JWT_SECRET` | **Yes** | Any long random string — server won't start without it |
-   | `MONGODB_URI` | **Yes** | Reference the Railway MongoDB plugin, e.g. `${{MongoDB.MONGODB_URL}}` |
-   | `ADMIN_PIN` | No | Defaults to `0000` |
-   | `NODE_ENV` | **Yes** | Set to `production` |
+   | Variable | Value |
+   |---|---|
+   | `MONGODATABASE` | `spell-master` |
+   | `JWT_SECRET` | A long random string (`openssl rand -base64 32`) |
+   | `ADMIN_PIN` | Your chosen admin PIN (default `0000`) |
+   | `NODE_ENV` | `production` |
 
    Railway sets `PORT` automatically — do not override it.
+   The four `MONGO*` variables are injected automatically from the MongoDB service — do not set them manually.
 
-4. **Deploy** — Railway auto-detects the `build` and `start` scripts from `railway.json`:
+4. **Deploy** — Railway auto-detects the `build` and `start` scripts:
    - Build: `npm run build` (compiles React to `dist/`)
    - Start: `npm start` (`NODE_ENV=production node server.js` — serves API + static files)
 
@@ -199,6 +210,13 @@ src/
 | `POST` | `/api/users` | None | Create new user profile |
 | `PUT` | `/api/users/me` | JWT | Save game state for current user (derived from token) |
 | `DELETE` | `/api/users/:id` | JWT (admin only) | Delete a profile |
-| `GET` | `/api/collection` | JWT | Get current user's Pokémon collection data |
-| `PUT` | `/api/collection` | JWT | Save current user's Pokémon collection data |
+| `GET` | `/api/trophy` | JWT | Get current user's Pokémon trophy data |
+| `PUT` | `/api/trophy` | JWT | Save current user's Pokémon trophy data |
+| `GET` | `/api/wordstats` | JWT | Get current user's word performance stats |
+| `PUT` | `/api/wordstats` | JWT | Save current user's word performance stats |
+| `GET` | `/api/roundhistory` | JWT | Get current user's round history and credit ledger |
+| `PUT` | `/api/roundhistory` | JWT | Save current user's round history and credit ledger |
+| `GET` | `/api/weekly-words` | None | All weekly challenge word lists |
+| `GET` | `/api/weekly-stats` | JWT | Get current user's weekly challenge progress |
+| `PUT` | `/api/weekly-stats/:weekId` | JWT | Save progress for a specific week |
 | `GET` | `/ping` | None | Health check |

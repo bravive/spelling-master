@@ -136,7 +136,7 @@ export const WeeklyChallengeScreen = ({ weeklyWords, weeklyStats, setWords, setR
 
         {/* Main panel — selected week details */}
         <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
-          <h2 style={{ color: C.yellow, margin: '0 0 12px', fontSize: 20, textAlign: 'center' }}>Weekly Challenge</h2>
+          <h2 style={{ color: C.yellow, margin: '0 0 12px', fontSize: 26, textAlign: 'center' }}>Weekly Challenge</h2>
           {selected ? (
             <WeekDetail
               week={selected}

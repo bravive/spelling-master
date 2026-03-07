@@ -56,6 +56,7 @@ export const s = {
     transition: 'opacity 0.15s',
   }),
   input: { background: 'rgba(255,255,255,0.1)', border: `1px solid ${C.border}`, borderRadius: 10, color: '#fff', fontSize: 18, padding: '12px 16px', width: '100%', boxSizing: 'border-box', outline: 'none' },
+  backBtn: { background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', fontSize: 20, color: '#fff', flexShrink: 0, lineHeight: '34px', textAlign: 'center', padding: 0 },
 };
 
 // ─── CSS animations injected once ────────────────────────────────────────────

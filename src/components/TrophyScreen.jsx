@@ -127,7 +127,7 @@ export const TrophyScreen = ({ trophyData, currentUser, setScreen, setGameScreen
   return (
     <div style={{ width: '100%', maxWidth: 600 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <button style={{ ...s.btn('rgba(255,255,255,0.1)', 'sm'), color: C.muted }} onClick={() => isAdmin ? setScreen('parentMenu') : setGameScreen('home')}>← Back</button>
+        <button style={{ ...s.backBtn }} onClick={() => isAdmin ? setScreen('parentMenu') : setGameScreen('home')}>←</button>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontWeight: 700, fontSize: 18 }}>🏆 Trophies</div>
           <div style={{ color: C.muted, fontSize: 13 }}>{regular} / {ALL_POKEMON.length} caught · {shiny} ✨ shiny</div>

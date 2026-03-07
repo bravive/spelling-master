@@ -7,6 +7,10 @@ export const CreateUserScreen = ({ users, saveUsers, createStep, setCreateStep, 
   const [err, setErr] = useState('');
   return (
     <div style={{ width: '100%', maxWidth: 420, textAlign: 'center' }}>
+      <div style={{ textAlign: 'left', marginBottom: 8 }}>
+        <button style={{ ...s.backBtn }}
+          onClick={() => createStep > 0 ? setCreateStep(createStep - 1) : setScreen('selectUser')}>←</button>
+      </div>
       <h2 style={{ color: C.yellow }}>Create Profile</h2>
       <div style={{ color: C.muted, marginBottom: 20 }}>Step {createStep + 1} of 4</div>
 
@@ -79,8 +83,6 @@ export const CreateUserScreen = ({ users, saveUsers, createStep, setCreateStep, 
         </div>
       )}
 
-      <button style={{ ...s.btn('rgba(255,255,255,0.1)', 'sm'), color: C.muted, marginTop: 16 }}
-        onClick={() => createStep > 0 ? setCreateStep(createStep - 1) : setScreen('selectUser')}>← Back</button>
     </div>
   );
 };

@@ -147,8 +147,8 @@ npm run build
 
 ### Shiny System
 - After every 3 consecutive regular Pokémon → shiny chance activates
-- Next 10-credit unlock: 50% chance for bonus shiny
-- Shiny = same Pokémon shiny variant, chosen randomly from collected (without shiny)
+- Next 10-credit unlock: guaranteed bonus shiny alongside the regular unlock
+- Shiny = shiny variant of a random collected Pokémon that doesn't have one yet
 - Pulsing "✨ Shiny chance active!" banner on home screen when eligible
 
 ### Trophy Unlock Modal

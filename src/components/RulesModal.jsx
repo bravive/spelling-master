@@ -49,7 +49,7 @@ export const RulesModal = () => {
             </Section>
 
             <Section title="5. Shiny Pokemon" icon="✨">
-              After catching 3 Pokemon in a row, you get a <strong style={{ color: '#a78bfa' }}>shiny chance</strong>! Your next catch has a 50% chance to be a rare shiny version.
+              After catching 3 Pokemon in a row, you get a <strong style={{ color: '#a78bfa' }}>shiny chance</strong>! Your next catch will also unlock a rare shiny version of one of your Pokemon.
             </Section>
 
             <div style={{ height: 1, background: 'rgba(255,255,255,0.1)', margin: '16px 0' }} />

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { makeAuthFetch } from './authFetch';
 import { ALL_POKEMON } from './data/pokemon';
+import { unlockPokemon } from './unlockPokemon';
 import { selectWords, updateWordStats, checkLevelUp } from './wordSelection';
 import { computeWeeklyScore } from './weeklyScoring';
 import { todayStr, localDateStr, injectCSS, C, s } from './shared';
@@ -223,30 +224,12 @@ export default function App() {
     creditBank = (creditBank || 0) + earned;
     totalCredits = (totalCredits || 0) + earned;
 
-    const newUnlocks = [];
-    let col = { ...collection };
-    while (creditBank >= 10) {
-      creditBank -= 10;
-      if (shinyEligible) {
-        const eligible = Object.entries(col).filter(([, v]) => v.regular && !v.shiny).map(([id]) => parseInt(id));
-        if (eligible.length > 0) {
-          const shinyId = eligible[Math.floor(Math.random() * eligible.length)];
-          const pk = ALL_POKEMON.find(p => p.id === shinyId);
-          col = { ...col, [shinyId]: { ...col[shinyId], shiny: true } };
-          newUnlocks.push({ ...pk, shiny: true });
-          shinyEligible = false;
-          consecutiveRegular = 0;
-        } else { shinyEligible = false; }
-      } else {
-        const nextPk = ALL_POKEMON.find(p => !col[p.id]?.regular);
-        if (nextPk) {
-          col = { ...col, [nextPk.id]: { ...(col[nextPk.id] || {}), regular: true } };
-          newUnlocks.push({ ...nextPk, shiny: false });
-          consecutiveRegular = (consecutiveRegular || 0) + 1;
-          if (consecutiveRegular >= 3) shinyEligible = true;
-        }
-      }
-    }
+    const unlock = unlockPokemon({ creditBank, consecutiveRegular, shinyEligible, collection });
+    creditBank = unlock.creditBank;
+    consecutiveRegular = unlock.consecutiveRegular;
+    shinyEligible = unlock.shinyEligible;
+    let col = unlock.collection;
+    const newUnlocks = unlock.newUnlocks;
 
     const newRoundCount = (user.roundCount || 0) + 1;
     const newWordStats = updateWordStats(wordStats, results, newRoundCount);
@@ -301,30 +284,12 @@ export default function App() {
     creditBank = (creditBank || 0) + earned;
     totalCredits = (totalCredits || 0) + earned;
 
-    const newUnlocks = [];
-    let col = { ...collection };
-    while (creditBank >= 10) {
-      creditBank -= 10;
-      if (shinyEligible) {
-        const eligible = Object.entries(col).filter(([, v]) => v.regular && !v.shiny).map(([id]) => parseInt(id));
-        if (eligible.length > 0) {
-          const shinyId = eligible[Math.floor(Math.random() * eligible.length)];
-          const pk = ALL_POKEMON.find(p => p.id === shinyId);
-          col = { ...col, [shinyId]: { ...col[shinyId], shiny: true } };
-          newUnlocks.push({ ...pk, shiny: true });
-          shinyEligible = false;
-          consecutiveRegular = 0;
-        } else { shinyEligible = false; }
-      } else {
-        const nextPk = ALL_POKEMON.find(p => !col[p.id]?.regular);
-        if (nextPk) {
-          col = { ...col, [nextPk.id]: { ...(col[nextPk.id] || {}), regular: true } };
-          newUnlocks.push({ ...nextPk, shiny: false });
-          consecutiveRegular = (consecutiveRegular || 0) + 1;
-          if (consecutiveRegular >= 3) shinyEligible = true;
-        }
-      }
-    }
+    const unlock = unlockPokemon({ creditBank, consecutiveRegular, shinyEligible, collection });
+    creditBank = unlock.creditBank;
+    consecutiveRegular = unlock.consecutiveRegular;
+    shinyEligible = unlock.shinyEligible;
+    let col = unlock.collection;
+    const newUnlocks = unlock.newUnlocks;
 
     // Build credit history events from weekly breakdown
     const weekLabel = week?.label || activeWeekId;

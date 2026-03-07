@@ -37,7 +37,7 @@ A daily spelling practice web app for elementary school kids (K–5). Kids memor
 
 ### Pokémon Collection
 - 10 credits unlock the next Pokémon in Pokédex order
-- After every 3 consecutive regular unlocks, a 50% shiny chance activates for the next unlock
+- After every 3 consecutive regular unlocks, a shiny chance activates — the next unlock also awards a rare shiny version
 - Trophy modal with animated Pokémon reveal, confetti, and voice announcement
 - Collection page shows all 60 Pokémon (grey silhouette until caught, purple shimmer for shinies)
 - Pokémon stats sourced from [PokémonDB Pokédex](https://pokemondb.net/pokedex)

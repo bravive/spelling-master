@@ -217,9 +217,9 @@ export { app };
 // Only bind when run directly (not imported by tests)
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const PORT = process.env.PORT || 3001;
-  connectDb().then(() => {
-    app.listen(PORT, () => console.log(`Spell Master API running on http://localhost:${PORT}`));
-  }).catch(err => {
+  // Listen immediately so Railway's healthcheck can reach /ping while DB connects
+  app.listen(PORT, () => console.log(`Spell Master API running on http://localhost:${PORT}`));
+  connectDb().catch(err => {
     console.error('[ERROR] Failed to connect to MongoDB:', err.message);
     process.exit(1);
   });

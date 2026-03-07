@@ -2,7 +2,7 @@ export const WEEKLY_WORDS = [
   {
     id: 't2w1',
     label: 'T2 Week 1',
-    startDate: '2026-02-05',
+    startDate: '2026-02-12',
     words: [
       { w: 'write', s: 'Please write your thoughts down.' },
       { w: 'go', s: "Let's go for a walk." },
@@ -29,7 +29,7 @@ export const WEEKLY_WORDS = [
   {
     id: 't2w2',
     label: 'T2 Week 2',
-    startDate: '2026-02-12',
+    startDate: '2026-02-19',
     words: [
       { w: 'my', s: 'This is my new book.' },
       { w: 'been', s: 'I have been to Paris.' },
@@ -52,7 +52,7 @@ export const WEEKLY_WORDS = [
   {
     id: 't2w4',
     label: 'T2 Week 4',
-    startDate: '2026-02-19',
+    startDate: '2026-02-26',
     words: [
       { w: 'come', s: 'Please come here.' },
       { w: 'made', s: 'She made a cake yesterday.' },
@@ -75,7 +75,7 @@ export const WEEKLY_WORDS = [
   {
     id: 't2w5',
     label: 'T2 Week 5',
-    startDate: '2026-02-26',
+    startDate: '2026-03-05',
     words: [
       { w: 'way', s: 'This is the right way.' },
       { w: 'pay', s: 'You need to pay for the ticket.' },
@@ -99,7 +99,7 @@ export const WEEKLY_WORDS = [
   {
     id: 't2w6',
     label: 'T2 Week 6',
-    startDate: '2026-03-05',
+    startDate: '2026-03-12',
     words: [
       { w: 'dry', s: 'The soil is dry after no rain.' },
       { w: 'cry', s: 'Babies cry when they are hungry.' },
@@ -122,7 +122,7 @@ export const WEEKLY_WORDS = [
   {
     id: 't2w7',
     label: 'T2 Week 7',
-    startDate: '2026-03-12',
+    startDate: '2026-03-19',
     words: [
       { w: 'low', s: 'The bird flew low over the water.' },
       { w: 'snow', s: 'We built a big snowman in the yard.' },
@@ -145,7 +145,7 @@ export const WEEKLY_WORDS = [
   {
     id: 't2w8',
     label: 'T2 Week 8',
-    startDate: '2026-03-19',
+    startDate: '2026-03-26',
     words: [
       { w: 'hook', s: 'He used a hook to catch the fish.' },
       { w: 'took', s: 'She took her lunch to school.' },
@@ -168,7 +168,7 @@ export const WEEKLY_WORDS = [
   {
     id: 't2w9',
     label: 'T2 Week 9',
-    startDate: '2026-03-26',
+    startDate: '2026-04-02',
     words: [
       { w: 'moon', s: 'The moon shines brightly at night.' },
       { w: 'spoon', s: 'She stirred the soup with a wooden spoon.' },
@@ -191,7 +191,7 @@ export const WEEKLY_WORDS = [
   {
     id: 't2w10',
     label: 'T2 Week 10',
-    startDate: '2026-04-02',
+    startDate: '2026-04-09',
     words: [
       { w: 'game', s: 'We played a fun game at recess.' },
       { w: 'page', s: 'Please turn to the next page in your book.' },
@@ -214,7 +214,7 @@ export const WEEKLY_WORDS = [
   {
     id: 't2w11',
     label: 'T2 Week 11',
-    startDate: '2026-04-09',
+    startDate: '2026-04-16',
     words: [
       { w: 'moon', s: 'The moon lights up the night sky.' },
       { w: 'hook', s: 'The fisherman caught a big fish with his hook.' },
@@ -237,7 +237,7 @@ export const WEEKLY_WORDS = [
   {
     id: 't2w12',
     label: 'T2 Week 12',
-    startDate: '2026-04-16',
+    startDate: '2026-04-23',
     words: [
       { w: 'cow', s: 'The cow gives us milk every morning.' },
       { w: 'plow', s: 'Farmers use a plow to prepare the soil for planting.' },
@@ -260,7 +260,7 @@ export const WEEKLY_WORDS = [
   {
     id: 't2w13',
     label: 'T2 Week 13',
-    startDate: '2026-04-23',
+    startDate: '2026-04-30',
     words: [
       { w: 'spell', s: 'I can spell anything.' },
       { w: 'shell', s: 'I found a pretty shell at the beach.' },
@@ -286,7 +286,7 @@ export const WEEKLY_WORDS = [
   {
     id: 't2w14',
     label: 'T2 Week 14',
-    startDate: '2026-04-30',
+    startDate: '2026-05-07',
     words: [
       { w: 'door', s: 'My mom painted the door blue.' },
       { w: 'rug', s: 'My rug is soft and green.' },
@@ -313,7 +313,7 @@ export const WEEKLY_WORDS = [
   {
     id: 't2w15',
     label: 'T2 Week 15',
-    startDate: '2026-05-07',
+    startDate: '2026-05-14',
     words: [
       { w: 'chop', s: 'I will chop all the vegetables ahead of time.' },
       { w: 'May', s: 'Our next BBQ will be in May.' },
@@ -340,7 +340,7 @@ export const WEEKLY_WORDS = [
   {
     id: 't2w16',
     label: 'T2 Week 16',
-    startDate: '2026-05-14',
+    startDate: '2026-05-21',
     words: [
       { w: 'grass', s: 'My sister helps mow the grass.' },
       { w: 'pond', s: 'There is a small pond in the corner of my yard.' },
@@ -367,7 +367,7 @@ export const WEEKLY_WORDS = [
   {
     id: 't2w17',
     label: 'T2 Week 17',
-    startDate: '2026-05-21',
+    startDate: '2026-05-28',
     words: [
       { w: 'gloves', s: 'I think I lost my gloves.' },
       { w: 'hat', s: 'Is this your pink hat?' },
@@ -394,7 +394,7 @@ export const WEEKLY_WORDS = [
   {
     id: 't2w18',
     label: 'T2 Week 18',
-    startDate: '2026-05-28',
+    startDate: '2026-06-04',
     words: [
       { w: 'sun', s: 'The sun sure is bright today.' },
       { w: 'hot', s: "It's so hot outside." },
@@ -421,7 +421,7 @@ export const WEEKLY_WORDS = [
   {
     id: 't2w19',
     label: 'T2 Week 19',
-    startDate: '2026-06-04',
+    startDate: '2026-06-11',
     words: [
       { w: 'duck', s: 'The duck waddled away.' },
       { w: 'moose', s: 'A moose stood in the hill.' },
@@ -448,7 +448,7 @@ export const WEEKLY_WORDS = [
   {
     id: 't2w20',
     label: 'T2 Week 20',
-    startDate: '2026-06-11',
+    startDate: '2026-06-18',
     words: [
       { w: 'pack', s: 'I had to pack my own suitcase.' },
       { w: 'fly', s: 'We will fly to Florida today.' },

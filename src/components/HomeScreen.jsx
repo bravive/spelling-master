@@ -21,22 +21,26 @@ export const HomeScreen = ({ getUser, wordStats, trophyData, weeklyWords, weekly
   });
 
   return (
-    <div style={{ display: 'flex', gap: 12, width: '100%', maxWidth: 560, alignItems: 'flex-start', position: 'relative' }}>
-      <div style={{ position: 'absolute', top: 0, right: 0 }}><RulesModal /></div>
-
-      {/* Main content */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span
-            style={{ color: C.muted, fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}
-            onClick={() => { setCurrentUser(null); setScreen('selectUser'); }}
-          >Exit</span>
+    <div style={{ width: '100%', maxWidth: 560 }}>
+      {/* Top bar spanning full width */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <span
+          style={{ color: C.muted, fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}
+          onClick={() => { setCurrentUser(null); setScreen('selectUser'); }}
+        >Exit</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span
             style={{ color: C.muted, fontSize: 18, cursor: 'pointer' }}
             title="Edit Profile"
             onClick={() => setGameScreen('editProfile')}
           >&#9881;</span>
+          <RulesModal />
         </div>
+      </div>
+
+    <div style={{ display: 'flex', gap: 12, width: '100%', alignItems: 'flex-start' }}>
+      {/* Main content */}
+      <div style={{ flex: 1, minWidth: 0 }}>
 
         <div style={{ textAlign: 'center', marginBottom: 20 }}>
           <img src={pkImg(user.starterSlug)} alt="" style={{ width: 90, height: 90, objectFit: 'contain', animation: 'float 3s ease-in-out infinite' }} />
@@ -123,6 +127,7 @@ export const HomeScreen = ({ getUser, wordStats, trophyData, weeklyWords, weekly
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 };

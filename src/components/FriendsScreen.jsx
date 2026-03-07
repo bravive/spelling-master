@@ -99,7 +99,7 @@ const RequestCard = ({ req: r, myId, onAccept, onDecline }) => {
   );
 };
 
-const MessageDialog = ({ friend, jwt, myId, onClose }) => {
+const MessageDialog = ({ friend, jwt, myId, myStarterSlug, onClose }) => {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
@@ -166,17 +166,23 @@ const MessageDialog = ({ friend, jwt, myId, onClose }) => {
           {messages.length === 0 && <div style={{ color: C.muted, textAlign: 'center', padding: 24 }}>No messages yet. Say hi!</div>}
           {messages.map(m => {
             const mine = m.from === myId;
+            const avatar = mine ? myStarterSlug : friend.starterSlug;
             return (
               <div key={m._id} style={{
-                alignSelf: mine ? 'flex-end' : 'flex-start',
-                background: mine ? C.blue : 'rgba(255,255,255,0.12)',
-                color: mine ? '#1a1a2e' : '#fff',
-                borderRadius: 12, padding: '8px 12px', maxWidth: '75%',
-                fontSize: 14, wordBreak: 'break-word',
+                display: 'flex', alignItems: 'flex-end', gap: 6,
+                flexDirection: mine ? 'row-reverse' : 'row',
               }}>
-                {m.text}
-                <div style={{ fontSize: 10, opacity: 0.6, marginTop: 2, textAlign: 'right' }}>
-                  {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                <img src={pkImg(avatar)} alt="" style={{ width: 24, height: 24, objectFit: 'contain', flexShrink: 0 }} />
+                <div style={{
+                  background: mine ? C.blue : 'rgba(255,255,255,0.12)',
+                  color: mine ? '#1a1a2e' : '#fff',
+                  borderRadius: 12, padding: '8px 12px', maxWidth: '70%',
+                  fontSize: 14, wordBreak: 'break-word',
+                }}>
+                  {m.text}
+                  <div style={{ fontSize: 10, opacity: 0.6, marginTop: 2, textAlign: 'right' }}>
+                    {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </div>
                 </div>
               </div>
             );
@@ -202,7 +208,7 @@ const MessageDialog = ({ friend, jwt, myId, onClose }) => {
   );
 };
 
-export const FriendsScreen = ({ jwt, currentUser, setGameScreen }) => {
+export const FriendsScreen = ({ jwt, currentUser, myStarterSlug, setGameScreen }) => {
   const [tab, setTab] = useState('friends');
   const [friends, setFriends] = useState([]);
   const [unread, setUnread] = useState({});
@@ -351,6 +357,7 @@ export const FriendsScreen = ({ jwt, currentUser, setGameScreen }) => {
           friend={messageTarget}
           jwt={jwt}
           myId={currentUser}
+          myStarterSlug={myStarterSlug}
           onClose={() => { setMessageTarget(null); loadFriends(); }}
         />
       )}

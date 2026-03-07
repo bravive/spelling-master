@@ -735,6 +735,7 @@ describe('Invalid JWT returns 401 on all protected routes', () => {
     { method: 'get',  path: '/api/weekly-stats' },
     { method: 'put',  path: '/api/weekly-stats/w2026-10' },
     { method: 'put',  path: '/api/users/me' },
+    { method: 'put',  path: '/api/users/me/profile' },
   ];
 
   for (const { method, path } of protectedRoutes) {

@@ -9,10 +9,9 @@ import {
   getTrophy, saveTrophy,
   getWordStats, saveWordStats,
   getRoundHistory, saveRoundHistory,
-  getAllWeeks, getAllWeeklyStats, saveWeeklyStats, seedWeeklyWords,
+  getAllWeeks, getAllWeeklyStats, saveWeeklyStats,
   getAdminUsers,
 } from './src/store.js';
-import { WEEKLY_WORDS } from './src/data/weekly-words.js';
 
 const ADMIN_KEY = 'admin';
 const ADMIN_ID  = 'admin';
@@ -263,7 +262,6 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   // Listen immediately so Railway's healthcheck can reach /ping while DB connects
   app.listen(PORT, () => console.log(`Spell Master API running on http://localhost:${PORT}`));
   connectDb()
-    .then(() => seedWeeklyWords(WEEKLY_WORDS))
     .catch(err => {
       console.error('[ERROR] Failed to connect to MongoDB:', err.message);
       process.exit(1);

@@ -46,7 +46,3 @@ mongo-shell:
 # Import existing JSON data into MongoDB
 migrate:
 	node --env-file=.env scripts/migrate-to-mongo.js
-
-# Seed weekly words and migrate weeklyProgress → weeklychallengestats
-seed-weekly:
-	node --env-file=.env scripts/seed-weekly-words.js

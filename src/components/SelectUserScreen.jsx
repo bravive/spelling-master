@@ -89,6 +89,7 @@ export const SelectUserScreen = ({ setCurrentUser, setScreen, setGameScreen, set
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const usernameRef = useRef(null);
 
   useEffect(() => { usernameRef.current?.focus(); }, []);
@@ -105,7 +106,7 @@ export const SelectUserScreen = ({ setCurrentUser, setScreen, setGameScreen, set
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: username.trim().toLowerCase(), pin: pinToUse }),
+        body: JSON.stringify({ userId: username.trim().toLowerCase(), pin: pinToUse, rememberMe }),
       });
       const data = await res.json();
       if (!res.ok) { setError('Wrong username or PIN.'); setPin(''); setLoading(false); return; }
@@ -214,6 +215,17 @@ export const SelectUserScreen = ({ setCurrentUser, setScreen, setGameScreen, set
             {error}
           </div>
         )}
+
+        {/* Remember me */}
+        <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 16, cursor: 'pointer', color: C.muted, fontSize: 14 }}>
+          <input
+            type="checkbox"
+            checked={rememberMe}
+            onChange={e => setRememberMe(e.target.checked)}
+            style={{ width: 18, height: 18, cursor: 'pointer', accentColor: C.purple }}
+          />
+          Keep me logged in for 30 days
+        </label>
 
         {/* Sign In */}
         <button

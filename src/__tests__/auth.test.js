@@ -73,6 +73,36 @@ describe('publicUser', () => {
   });
 });
 
+// ── rememberMe token expiry ────────────────────────────────────────────────────
+describe('rememberMe token expiry', () => {
+  const makeToken = (rememberMe) => {
+    const expiry = rememberMe ? '30d' : '8h';
+    return jwt.sign({ userId: 'alice' }, SECRET, { expiresIn: expiry });
+  };
+
+  it('issues an 8h token when rememberMe is false', () => {
+    const token = makeToken(false);
+    const payload = jwt.verify(token, SECRET);
+    const durationMs = (payload.exp - payload.iat) * 1000;
+    expect(durationMs).toBe(8 * 60 * 60 * 1000);
+  });
+
+  it('issues a 30d token when rememberMe is true', () => {
+    const token = makeToken(true);
+    const payload = jwt.verify(token, SECRET);
+    const durationMs = (payload.exp - payload.iat) * 1000;
+    expect(durationMs).toBe(30 * 24 * 60 * 60 * 1000);
+  });
+
+  it('30d token expires significantly later than 8h token', () => {
+    const shortToken = makeToken(false);
+    const longToken = makeToken(true);
+    const shortExp = jwt.decode(shortToken).exp;
+    const longExp = jwt.decode(longToken).exp;
+    expect(longExp).toBeGreaterThan(shortExp);
+  });
+});
+
 // ── key validation (server-side rules mirrored) ───────────────────────────────
 describe('user key validation', () => {
   const validKey = (k) => /^[a-z0-9_]+$/.test(k);

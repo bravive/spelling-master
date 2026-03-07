@@ -28,14 +28,14 @@ describe('PIN hashing', () => {
 // ── JWT helpers ───────────────────────────────────────────────────────────────
 describe('JWT tokens', () => {
   it('issues a verifiable token for a regular user', () => {
-    const token = jwt.sign({ userId: 'alice', isAdmin: false }, SECRET, { expiresIn: '30d' });
+    const token = jwt.sign({ userId: 'alice', isAdmin: false }, SECRET, { expiresIn: '8h' });
     const payload = jwt.verify(token, SECRET);
     expect(payload.userId).toBe('alice');
     expect(payload.isAdmin).toBe(false);
   });
 
   it('issues an admin token with isAdmin flag', () => {
-    const token = jwt.sign({ userId: 'admin', isAdmin: true }, SECRET, { expiresIn: '30d' });
+    const token = jwt.sign({ userId: 'admin', isAdmin: true }, SECRET, { expiresIn: '8h' });
     const payload = jwt.verify(token, SECRET);
     expect(payload.isAdmin).toBe(true);
   });

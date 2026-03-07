@@ -34,7 +34,7 @@ export default function App() {
   const [gameScreen, setGameScreen] = useState('home');
   const [users, setUsers] = useState({});
   const [currentUser, setCurrentUser] = useState(null);
-  const [jwt, setJwt] = useState(() => sessionStorage.getItem('jwt') || null);
+  const [jwt, setJwt] = useState(() => localStorage.getItem('jwt') || null);
   const hasRestored = useRef(false);
 
   // Weekly challenge data
@@ -73,15 +73,15 @@ export default function App() {
   // Persist session whenever screen/user changes
   useEffect(() => {
     if (currentUser) {
-      sessionStorage.setItem('currentUser', currentUser);
-      sessionStorage.setItem('screen', screen);
-      sessionStorage.setItem('gameScreen', gameScreen);
-      if (jwt) sessionStorage.setItem('jwt', jwt);
+      localStorage.setItem('currentUser', currentUser);
+      localStorage.setItem('screen', screen);
+      localStorage.setItem('gameScreen', gameScreen);
+      if (jwt) localStorage.setItem('jwt', jwt);
     } else if (hasRestored.current) {
-      sessionStorage.removeItem('currentUser');
-      sessionStorage.removeItem('screen');
-      sessionStorage.removeItem('gameScreen');
-      sessionStorage.removeItem('jwt');
+      localStorage.removeItem('currentUser');
+      localStorage.removeItem('screen');
+      localStorage.removeItem('gameScreen');
+      localStorage.removeItem('jwt');
       setJwt(null);
     }
   }, [currentUser, screen, gameScreen, jwt]);
@@ -145,9 +145,9 @@ export default function App() {
       if (isAdminRoute) return;
 
       // Restore session if one exists
-      const savedUser = sessionStorage.getItem('currentUser');
-      const savedScreen = sessionStorage.getItem('screen');
-      const savedGameScreen = sessionStorage.getItem('gameScreen');
+      const savedUser = localStorage.getItem('currentUser');
+      const savedScreen = localStorage.getItem('screen');
+      const savedGameScreen = localStorage.getItem('gameScreen');
       if (savedUser && data[savedUser]) {
         setCurrentUser(savedUser);
         if (savedScreen === 'parentMenu') {

@@ -4,11 +4,6 @@
 
 Follow these steps for every change, no matter how small:
 
-### 0. Plan before significant changes
-- For any non-trivial feature, refactor, or migration, create a plan file under `claude-plan/` (e.g. `claude-plan/my-feature.md`) before writing code
-- The plan should cover: goal, approach, affected files, schema/API changes, and test strategy
-- Keep the plan file updated as decisions evolve; it serves as a reference for the feature branch
-
 ### 1. Commit each edit separately
 - Make one focused commit per logical change (bug fix, feature, refactor, docs)
 - Keep commit messages brief and descriptive (what + why)

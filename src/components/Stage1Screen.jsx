@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { speak, C, s } from '../shared';
+import { speak, speakTimes, C, s } from '../shared';
 
 export const Stage1Screen = ({ words, retryCount, setGameScreen, nextScreen = 'stage2', discardScreen = 'home', quitLabel = 'Discard', readyLabel = "✅ I'm Ready!" }) => {
   const [elapsed, setElapsed] = useState(0);
@@ -36,8 +36,9 @@ export const Stage1Screen = ({ words, retryCount, setGameScreen, nextScreen = 's
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
         {words.map((entry, i) => (
-          <div key={i} style={{ ...s.card, padding: '14px 16px' }}>
-            <div style={{ fontSize: 22, fontWeight: 800, color: C.yellow }}>{entry.w}</div>
+          <div key={i} style={{ ...s.card, padding: '14px 16px', cursor: 'pointer' }}
+            onClick={() => speakTimes(`${entry.w}. ${entry.s}`, 1)}>
+            <div style={{ fontSize: 22, fontWeight: 800, color: C.yellow }}>🔊 {entry.w}</div>
             <div style={{ fontSize: 13, color: C.muted, fontStyle: 'italic', marginTop: 4 }}>{entry.s}</div>
           </div>
         ))}

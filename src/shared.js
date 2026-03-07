@@ -46,7 +46,7 @@ export const C = {
 };
 
 export const s = {
-  page: { minHeight: '100vh', background: C.bg, color: '#fff', fontFamily: 'system-ui,sans-serif', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px 16px' },
+  page: { minHeight: '100dvh', background: C.bg, color: '#fff', fontFamily: 'system-ui,sans-serif', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px 16px' },
   card: { background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 20 },
   btn: (color = C.yellow, size = 'md') => ({
     background: color, border: 'none', borderRadius: 12, cursor: 'pointer', fontWeight: 700,
@@ -80,6 +80,9 @@ export const injectCSS = () => {
     .wk-hint-wrap:hover .wk-hint { display: block !important; }
     * { box-sizing: border-box; }
     body { margin: 0; }
+    @media (orientation: landscape) and (max-height: 500px) {
+      body { font-size: 14px; }
+    }
   `;
   document.head.appendChild(el);
 };

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { todayStr, C, s } from '../shared';
+import { todayStr, speakTimes, C, s } from '../shared';
 
 // Exported for tests
 export const resolveInitialWeek = (all, available, initialSelectedId) => {
@@ -204,10 +204,11 @@ const WeekDetail = ({ week, progress, isLocked, today, onStart }) => {
             <div key={i} style={{
               background: C.card, borderRadius: 10, padding: '8px 12px',
               border: correct ? `1px solid ${C.green}` : `1px solid ${C.border}`,
-            }}>
+              cursor: 'pointer',
+            }} onClick={() => speakTimes(`${entry.w}. ${entry.s}`, 1)}>
               <div style={{ fontSize: 15, fontWeight: 700, color: correct ? C.green : '#fff' }}>
                 {correct && <span style={{ marginRight: 4 }}>✓</span>}
-                {entry.w}
+                🔊 {entry.w}
               </div>
               <div style={{ fontSize: 11, color: C.muted, marginTop: 2, lineHeight: 1.3 }}>{entry.s}</div>
             </div>

@@ -1,6 +1,16 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { speakTimes, speak, C, s } from '../shared';
 
+const useIsLandscape = () => {
+  const [landscape, setLandscape] = useState(() => window.innerHeight < 500 && window.innerWidth > window.innerHeight);
+  useEffect(() => {
+    const check = () => setLandscape(window.innerHeight < 500 && window.innerWidth > window.innerHeight);
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+  return landscape;
+};
+
 export const Stage2Screen = ({ words, processRound, setRoundResults, setGameScreen, resultsScreen = 'results', discardScreen = 'home', onQuit, unlimitedRetries = false, allowSkip = false }) => {
   const [idx, setIdx] = useState(0);
   const [attempt, setAttempt] = useState(0);
@@ -142,82 +152,89 @@ export const Stage2Screen = ({ words, processRound, setRoundResults, setGameScre
     'zxcvbnm'.split(''),
   ];
 
+  const landscape = useIsLandscape();
+
   return (
-    <div style={{ width: '100%', maxWidth: 520 }}>
+    <div style={{ width: '100%', maxWidth: landscape ? 700 : 520, display: landscape ? 'flex' : 'block', gap: landscape ? 16 : 0, alignItems: landscape ? 'flex-start' : undefined }}>
       <input ref={inputRef} style={{ opacity: 0, position: 'fixed', top: -100, width: 1, height: 1 }} readOnly onFocus={() => {}} />
 
-      <div style={{ textAlign: 'right', marginBottom: 8 }}>
-        <span
-          style={{ color: C.muted, fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}
-          onClick={() => {
-            window.speechSynthesis.cancel();
-            if (onQuit) {
-              onQuit(results);
-            } else {
-              setGameScreen(discardScreen);
-            }
-          }}
-        >{onQuit ? 'Quit' : 'Discard'}</span>
-      </div>
-
-      <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
-        {order.map((w, i) => {
-          const isCurrent = i === idx;
-          const isDone = i < idx;
-          const doneRes = isDone ? results[i] : null;
-          return (
-            <div key={i} style={{
-              width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 13, fontWeight: 700,
-              background: isCurrent ? C.blue : doneRes ? (doneRes.correct ? C.green : C.red) : 'rgba(255,255,255,0.1)',
-              color: '#fff',
-            }}>
-              {isCurrent ? '?' : doneRes ? (doneRes.correct ? '✓' : '✗') : i + 1}
-            </div>
-          );
-        })}
-      </div>
-
-      <div style={{ ...s.card, textAlign: 'center', marginBottom: 16 }}>
-        <div style={{ fontSize: 36, marginBottom: 8 }}>{speaking ? '🎵' : '🔊'}</div>
-        <div style={{ color: C.muted, fontSize: 14, marginBottom: 12 }}>{speaking ? 'Listening…' : 'Ready to spell!'}</div>
-        <button style={{ ...s.btn(C.blue, 'sm') }} onClick={() => speakWord(currentWord)}>🔁 Replay</button>
-      </div>
-
-      {!unlimitedRetries && (
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 12 }}>
-          {[0,1,2].map(i => <div key={i} style={{ fontSize: 24 }}>{i >= attempt ? '❤️' : '🖤'}</div>)}
+      {/* Left panel in landscape: status + feedback */}
+      <div style={landscape ? { flex: '0 0 200px', display: 'flex', flexDirection: 'column', gap: 8 } : {}}>
+        <div style={{ textAlign: 'right', marginBottom: landscape ? 4 : 8 }}>
+          <span
+            style={{ color: C.muted, fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}
+            onClick={() => {
+              window.speechSynthesis.cancel();
+              if (onQuit) {
+                onQuit(results);
+              } else {
+                setGameScreen(discardScreen);
+              }
+            }}
+          >{onQuit ? 'Quit' : 'Discard'}</span>
         </div>
-      )}
 
-      {feedback === 'correct' && (
-        <div style={{ textAlign: 'center', color: C.green, fontSize: 28, animation: 'pop 0.4s ease', marginBottom: 8 }}>✅ Correct!</div>
-      )}
-      {feedback === 'wrong' && (
-        <div style={{ textAlign: 'center', color: C.red, fontSize: 22, animation: 'shake 0.3s ease', marginBottom: 8 }}>❌ Not quite, try again!</div>
-      )}
-      {feedback === 'reveal' && (
-        <div style={{ textAlign: 'center', marginBottom: 8 }}>
-          <div style={{ color: C.red, fontSize: 20 }}>❌ The word was:</div>
-          <div style={{ color: C.yellow, fontSize: 32, fontWeight: 900 }}>{currentWord?.w}</div>
+        <div style={{ display: 'flex', gap: landscape ? 4 : 6, justifyContent: 'center', marginBottom: landscape ? 8 : 16, flexWrap: 'wrap' }}>
+          {order.map((w, i) => {
+            const isCurrent = i === idx;
+            const isDone = i < idx;
+            const doneRes = isDone ? results[i] : null;
+            return (
+              <div key={i} style={{
+                width: landscape ? 24 : 32, height: landscape ? 24 : 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: landscape ? 11 : 13, fontWeight: 700,
+                background: isCurrent ? C.blue : doneRes ? (doneRes.correct ? C.green : C.red) : 'rgba(255,255,255,0.1)',
+                color: '#fff',
+              }}>
+                {isCurrent ? '?' : doneRes ? (doneRes.correct ? '✓' : '✗') : i + 1}
+              </div>
+            );
+          })}
         </div>
-      )}
 
-      <div style={{ textAlign: 'center', fontSize: 36, fontWeight: 800, letterSpacing: 6, marginBottom: 12, minHeight: 48, color: C.yellow }}>
-        {(() => {
-          const total = currentWord ? currentWord.w.length : 3;
-          const remaining = Math.max(0, total - typed.length);
-          const underlines = remaining > 0 ? ' ' + Array(remaining).fill('_').join(' ') : '';
-          return <>{typed ? <span>{typed}</span> : null}<span style={{ color: 'rgba(255,255,255,0.2)' }}>{underlines}</span></>;
-        })()}
+        <div style={{ ...s.card, textAlign: 'center', marginBottom: landscape ? 8 : 16, padding: landscape ? '8px 12px' : 20 }}>
+          <div style={{ fontSize: landscape ? 24 : 36, marginBottom: landscape ? 4 : 8 }}>{speaking ? '🎵' : '🔊'}</div>
+          <div style={{ color: C.muted, fontSize: landscape ? 12 : 14, marginBottom: landscape ? 6 : 12 }}>{speaking ? 'Listening…' : 'Ready to spell!'}</div>
+          <button style={{ ...s.btn(C.blue, 'sm') }} onClick={() => speakWord(currentWord)}>🔁 Replay</button>
+        </div>
+
+        {!unlimitedRetries && (
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: landscape ? 4 : 12 }}>
+            {[0,1,2].map(i => <div key={i} style={{ fontSize: landscape ? 18 : 24 }}>{i >= attempt ? '❤️' : '🖤'}</div>)}
+          </div>
+        )}
+
+        {feedback === 'correct' && (
+          <div style={{ textAlign: 'center', color: C.green, fontSize: landscape ? 22 : 28, animation: 'pop 0.4s ease', marginBottom: 8 }}>✅ Correct!</div>
+        )}
+        {feedback === 'wrong' && (
+          <div style={{ textAlign: 'center', color: C.red, fontSize: landscape ? 18 : 22, animation: 'shake 0.3s ease', marginBottom: 8 }}>❌ Try again!</div>
+        )}
+        {feedback === 'reveal' && (
+          <div style={{ textAlign: 'center', marginBottom: 8 }}>
+            <div style={{ color: C.red, fontSize: landscape ? 16 : 20 }}>❌ The word was:</div>
+            <div style={{ color: C.yellow, fontSize: landscape ? 26 : 32, fontWeight: 900 }}>{currentWord?.w}</div>
+          </div>
+        )}
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center', marginBottom: 12 }}>
+      {/* Right panel in landscape: input + keyboard */}
+      <div style={landscape ? { flex: 1, minWidth: 0 } : {}}>
+        <div style={{ textAlign: 'center', fontSize: landscape ? 28 : 36, fontWeight: 800, letterSpacing: 6, marginBottom: landscape ? 8 : 12, minHeight: landscape ? 36 : 48, color: C.yellow }}>
+          {(() => {
+            const total = currentWord ? currentWord.w.length : 3;
+            const remaining = Math.max(0, total - typed.length);
+            const underlines = remaining > 0 ? ' ' + Array(remaining).fill('_').join(' ') : '';
+            return <>{typed ? <span>{typed}</span> : null}<span style={{ color: 'rgba(255,255,255,0.2)' }}>{underlines}</span></>;
+          })()}
+        </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center', marginBottom: 12, width: '100%' }}>
         {KEYBOARD_ROWS.map((row, ri) => (
-          <div key={ri} style={{ display: 'flex', gap: 6 }}>
+          <div key={ri} style={{ display: 'flex', gap: 4, width: '100%', justifyContent: 'center' }}>
             {row.map(l => (
               <button key={l}
-                style={{ background: 'rgba(255,255,255,0.12)', border: 'none', borderRadius: 8, color: '#fff', minWidth: 36, padding: '8px 10px', fontSize: 16, cursor: 'pointer', fontWeight: 600 }}
+                style={{ background: 'rgba(255,255,255,0.12)', border: 'none', borderRadius: 8, color: '#fff', flex: '1 1 0', maxWidth: 48, padding: '12px 4px', fontSize: 18, cursor: 'pointer', fontWeight: 600, minHeight: 44 }}
                 onClick={() => !lockRef.current && setTyped(t => t + l)}>
                 {l}
               </button>
@@ -226,16 +243,15 @@ export const Stage2Screen = ({ words, processRound, setRoundResults, setGameScre
         ))}
       </div>
 
-      <div style={{ color: C.muted, fontSize: 12, textAlign: 'center', marginBottom: 10 }}>💡 Type on keyboard or tap below</div>
-
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button style={{ ...s.btn(C.red, 'lg'), flex: 1 }}
+      <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+        <button style={{ ...s.btn(C.red, 'lg'), flex: 1, minHeight: 48 }}
           onClick={() => !lockRef.current && setTyped(t => t.slice(0, -1))}>⌫ Delete</button>
         {allowSkip && (
-          <button style={{ ...s.btn('rgba(255,255,255,0.15)', 'lg'), flex: 1, color: C.muted }}
+          <button style={{ ...s.btn('rgba(255,255,255,0.15)', 'lg'), flex: 1, color: C.muted, minHeight: 48 }}
             onClick={doSkip}>⏭ Skip</button>
         )}
-        <button style={{ ...s.btn(C.green, 'lg'), flex: 1 }} onClick={doSubmit}>✅ Submit</button>
+        <button style={{ ...s.btn(C.green, 'lg'), flex: 1, minHeight: 48 }} onClick={doSubmit}>✅ Submit</button>
+      </div>
       </div>
     </div>
   );

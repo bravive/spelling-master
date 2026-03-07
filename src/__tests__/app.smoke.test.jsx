@@ -19,4 +19,12 @@ describe('App smoke test', () => {
     expect(container.textContent).toContain('Sign in to start playing');
     expect(container.textContent).toContain('Create an account');
   });
+
+  it('shows the "Keep me logged in for 30 days" checkbox on the sign-in screen', () => {
+    const { container } = render(<App />);
+    expect(container.textContent).toContain('Keep me logged in for 30 days');
+    const checkbox = container.querySelector('input[type="checkbox"]');
+    expect(checkbox).not.toBeNull();
+    expect(checkbox.checked).toBe(false);
+  });
 });

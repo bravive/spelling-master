@@ -93,8 +93,9 @@ export const SelectUserScreen = ({ setCurrentUser, setScreen, setGameScreen, set
 
   useEffect(() => { usernameRef.current?.focus(); }, []);
 
-  const handleLogin = async () => {
-    if (!username.trim() || pin.length < 4) {
+  const handleLogin = async (pinOverride) => {
+    const pinToUse = pinOverride || pin;
+    if (!username.trim() || pinToUse.length < 4) {
       setError('Enter your username and 4-digit PIN.');
       return;
     }
@@ -104,7 +105,7 @@ export const SelectUserScreen = ({ setCurrentUser, setScreen, setGameScreen, set
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: username.trim().toLowerCase(), pin }),
+        body: JSON.stringify({ userId: username.trim().toLowerCase(), pin: pinToUse }),
       });
       const data = await res.json();
       if (!res.ok) { setError('Wrong username or PIN.'); setPin(''); setLoading(false); return; }
@@ -199,7 +200,7 @@ export const SelectUserScreen = ({ setCurrentUser, setScreen, setGameScreen, set
           <label style={{ display: 'block', color: C.muted, fontSize: 12, fontWeight: 600, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1.5 }}>
             PIN
           </label>
-          <PinBoxes value={pin} onChange={setPin} onComplete={() => handleLogin()} />
+          <PinBoxes value={pin} onChange={setPin} onComplete={(completedPin) => handleLogin(completedPin)} />
         </div>
 
         {/* Error */}

@@ -114,7 +114,7 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
 
   if (userId === ADMIN_KEY) {
     if (pin !== ADMIN_PIN) return res.status(401).json({ error: 'Wrong PIN' });
-    const token = jwt.sign({ id: ADMIN_ID, isAdmin: true }, JWT_SECRET, { expiresIn: '8h' });
+    const token = jwt.sign({ id: ADMIN_ID, isAdmin: true }, JWT_SECRET, { expiresIn: '30d' });
     return res.json({ token, user: { name: 'Admin', isAdmin: true } });
   }
 
@@ -124,7 +124,7 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
   const match = await checkPin(user, pin);
   if (!match) return res.status(401).json({ error: 'Wrong PIN' });
 
-  const token = jwt.sign({ id: user._id, isAdmin: false }, JWT_SECRET, { expiresIn: '8h' });
+  const token = jwt.sign({ id: user._id, isAdmin: false }, JWT_SECRET, { expiresIn: '30d' });
   res.json({ token, user: publicUser(user) });
 });
 

@@ -9,7 +9,7 @@ A daily spelling practice web app for elementary school kids (K–5). Kids memor
 ### User Profiles & Authentication
 - Multiple user profiles with avatars, names, and 4-digit PINs
 - PINs are **bcrypt-hashed** on the server — never stored in plaintext
-- Login is validated server-side; a signed **JWT** (8-hour expiry) is issued on success
+- Login is validated server-side; a signed **JWT** (30-day expiry) is issued on success
 - All game-data saves require a valid JWT (`Authorization: Bearer <token>`)
 - Rate limiting: max 10 login attempts per IP per 15 minutes
 - Admin account (`test` / PIN set via `ADMIN_PIN` env var, default `0000`) can delete non-admin profiles

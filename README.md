@@ -174,7 +174,7 @@ src/
 1. **Connect your repo** — create a new Railway project and link the GitHub repo.
 
 2. **Add a MongoDB database** — Railway dashboard → your project → "New" → "Database" → "MongoDB".
-   Railway automatically injects `MONGOHOST`, `MONGOPORT`, `MONGOUSER`, and `MONGOPASSWORD` into your web service.
+   Railway provisions the database and makes its connection variables available for reference.
 
 3. **Set these variables** in the Railway web service → Variables:
 

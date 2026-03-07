@@ -128,6 +128,18 @@ export const saveRoundHistory = (id, data) => upsert(roundhistoryCol(), id, data
 
 // ── Weekly challenge words ────────────────────────────────────────────────────
 
+export const seedWeeklyWords = async (weeks) => {
+  const col = weeklyChallengeWordsCol();
+  const existing = new Set((await col.find({}, { projection: { weekId: 1 } }).toArray()).map(d => d.weekId));
+  const toInsert = weeks.filter(w => !existing.has(w.id));
+  if (toInsert.length === 0) {
+    console.log('[seed] Weekly words already up to date');
+    return;
+  }
+  await col.insertMany(toInsert.map(w => ({ _id: w.id, weekId: w.id, ...w })));
+  console.log(`[seed] Inserted ${toInsert.length} weekly word set(s): ${toInsert.map(w => w.id).join(', ')}`);
+};
+
 export const getAllWeeks = () => {
   log('find', 'weeklychallengewords');
   return weeklyChallengeWordsCol().find({}).sort({ startDate: 1 }).toArray();

@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import { todayStr, C, s } from '../shared';
 
+// Exported for tests
+export const resolveInitialWeek = (all, available, initialSelectedId) => {
+  if (initialSelectedId && all.find(w => w.id === initialSelectedId)) return initialSelectedId;
+  return available.length > 0 ? available[available.length - 1].id : null;
+};
+
 // Compute what credits are available today for a week
 const weekCreditHint = (wp, totalWords, today) => {
   const wordsCorrect = (wp?.wordsCorrect || []).length;
@@ -33,7 +39,7 @@ const weekLabel = (startDate) => {
   return `Week ${weekNum} - ${year}`;
 };
 
-export const WeeklyChallengeScreen = ({ weeklyWords, weeklyStats, setWords, setRetryCount, setGameScreen, setActiveWeekId }) => {
+export const WeeklyChallengeScreen = ({ weeklyWords, weeklyStats, setWords, setRetryCount, setGameScreen, setActiveWeekId, initialSelectedId = null }) => {
   const today = todayStr();
 
   const available = weeklyWords.filter(w => w.startDate <= today);
@@ -41,8 +47,8 @@ export const WeeklyChallengeScreen = ({ weeklyWords, weeklyStats, setWords, setR
 
   const all = [...available, ...locked];
 
-  // Default to the latest available week
-  const [selectedId, setSelectedId] = useState(() => available.length > 0 ? available[available.length - 1].id : null);
+  // If returning from a challenge, land on that week; otherwise default to latest available
+  const [selectedId, setSelectedId] = useState(() => resolveInitialWeek(all, available, initialSelectedId));
   const selected = all.find(w => w.id === selectedId);
   const isLocked = selected ? selected.startDate > today : true;
 

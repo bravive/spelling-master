@@ -8,21 +8,73 @@ const SALT_ROUNDS = 10;
 
 // ── bcrypt helpers ────────────────────────────────────────────────────────────
 describe('PIN hashing', () => {
-  it('hashes a PIN and verifies it correctly', async () => {
-    const hash = await bcrypt.hash('1234', SALT_ROUNDS);
-    expect(hash).not.toBe('1234');
+  it('hashes a 6-digit PIN and verifies it correctly', async () => {
+    const hash = await bcrypt.hash('123456', SALT_ROUNDS);
+    expect(hash).not.toBe('123456');
     expect(hash.startsWith('$2')).toBe(true);
-    await expect(bcrypt.compare('1234', hash)).resolves.toBe(true);
+    await expect(bcrypt.compare('123456', hash)).resolves.toBe(true);
   });
 
   it('rejects a wrong PIN', async () => {
-    const hash = await bcrypt.hash('1234', SALT_ROUNDS);
-    await expect(bcrypt.compare('9999', hash)).resolves.toBe(false);
+    const hash = await bcrypt.hash('123456', SALT_ROUNDS);
+    await expect(bcrypt.compare('999999', hash)).resolves.toBe(false);
   });
 
   it('detects legacy plaintext PINs by absence of $2 prefix', () => {
     const legacyPin = '5678';
     expect(legacyPin.startsWith('$2')).toBe(false);
+  });
+});
+
+// ── checkPin '00' prefix fallback logic ───────────────────────────────────────
+// Mirrors the logic in src/store.js checkPin
+const checkPin = async (user, pin) => {
+  if (typeof user.pin === 'string' && user.pin.startsWith('$2')) {
+    if (await bcrypt.compare(pin, user.pin)) return true;
+    if (pin.startsWith('00') && pin.length === 6) {
+      return bcrypt.compare(pin.slice(2), user.pin);
+    }
+    return false;
+  }
+  return user.pin === pin || (pin.startsWith('00') && pin.length === 6 && user.pin === pin.slice(2));
+};
+
+describe('checkPin — 00 prefix fallback for old 4-digit PINs', () => {
+  it('matches a correct 6-digit bcrypt PIN directly', async () => {
+    const hash = await bcrypt.hash('123456', SALT_ROUNDS);
+    expect(await checkPin({ pin: hash }, '123456')).toBe(true);
+  });
+
+  it('rejects a wrong 6-digit bcrypt PIN with no fallback', async () => {
+    const hash = await bcrypt.hash('123456', SALT_ROUNDS);
+    expect(await checkPin({ pin: hash }, '999999')).toBe(false);
+  });
+
+  it('matches old 4-digit bcrypt PIN when entered with 00 prefix', async () => {
+    const hash = await bcrypt.hash('1234', SALT_ROUNDS);
+    expect(await checkPin({ pin: hash }, '001234')).toBe(true);
+  });
+
+  it('rejects 00-prefixed PIN when the 4-digit portion is wrong', async () => {
+    const hash = await bcrypt.hash('1234', SALT_ROUNDS);
+    expect(await checkPin({ pin: hash }, '009999')).toBe(false);
+  });
+
+  it('does not apply fallback when entered PIN does not start with 00', async () => {
+    const hash = await bcrypt.hash('1234', SALT_ROUNDS);
+    expect(await checkPin({ pin: hash }, '111234')).toBe(false);
+  });
+
+  it('matches legacy plain-text 4-digit PIN directly', async () => {
+    expect(await checkPin({ pin: '1234' }, '1234')).toBe(true);
+  });
+
+  it('matches legacy plain-text 4-digit PIN via 00 prefix', async () => {
+    expect(await checkPin({ pin: '1234' }, '001234')).toBe(true);
+  });
+
+  it('rejects legacy plain-text PIN with wrong 00-prefixed entry', async () => {
+    expect(await checkPin({ pin: '1234' }, '009999')).toBe(false);
   });
 });
 

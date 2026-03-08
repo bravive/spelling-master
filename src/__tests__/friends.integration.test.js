@@ -42,12 +42,12 @@ const makeCode = async () => {
   return body.code;
 };
 
-const createUser = async (key, name, pin = '1234') => {
+const createUser = async (key, name, pin = '123456') => {
   const inviteCode = await makeCode();
   return request(app).post('/api/users').send({ key, name, pin, starterId: 1, starterSlug: 'bulbasaur', inviteCode });
 };
 
-const login = (userId, pin = '1234') =>
+const login = (userId, pin = '123456') =>
   request(app).post('/api/auth/login').send({ userId, pin });
 
 const auth = (token) => ({ Authorization: `Bearer ${token}` });
@@ -209,7 +209,7 @@ describe('Messages', () => {
 
   it('rejects messages to non-friends', async () => {
     await createUser('carol', 'Carol');
-    const { body: { token: carolToken, user: carol } } = await login('carol', '1234');
+    const { body: { token: carolToken, user: carol } } = await login('carol', '123456');
 
     const res = await request(app).post(`/api/friends/${bobId}/messages`)
       .set(auth(carolToken)).send({ text: 'Hey!' });

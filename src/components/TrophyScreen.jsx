@@ -542,32 +542,39 @@ export const TrophyScreen = ({ trophyData, currentUser, setScreen, setGameScreen
 
   return (
     <div style={{ width: '100%', maxWidth: 600 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <button style={{ ...s.backBtn }} onClick={() => isAdmin ? setScreen('parentMenu') : setGameScreen('home')}>←</button>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontWeight: 700, fontSize: 18 }}>🏆 Trophies</div>
           <div style={{ color: C.muted, fontSize: 13 }}>{regular} / {ALL_POKEMON.length} caught · {shiny} ✨ shiny</div>
           {isAdmin && <div style={{ color: C.yellow, fontSize: 11, fontWeight: 700, marginTop: 2 }}>👑 Admin preview — all unlocked</div>}
         </div>
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          {!isAdmin && (
-            <button
-              onClick={() => setShowManage(true)}
-              style={{ ...s.btn(C.purple, 'sm'), fontSize: 12, padding: '6px 10px' }}
-            >
-              Manage
-            </button>
-          )}
-          <select
-            value={layout}
-            onChange={e => { setLayout(e.target.value); setSelectedId(null); }}
-            style={{ background: 'rgba(255,255,255,0.12)', color: '#fff', border: `1px solid ${C.border}`, borderRadius: 8, padding: '6px 10px', fontSize: 13, fontWeight: 600, cursor: 'pointer', outline: 'none' }}
-          >
-            <option value="all" style={{ background: '#1e1b3a' }}>All</option>
-            <option value="collected" style={{ background: '#1e1b3a' }}>Collected</option>
-          </select>
-        </div>
+        <select
+          value={layout}
+          onChange={e => { setLayout(e.target.value); setSelectedId(null); }}
+          style={{ background: 'rgba(255,255,255,0.12)', color: '#fff', border: `1px solid ${C.border}`, borderRadius: 8, padding: '6px 10px', fontSize: 13, fontWeight: 600, cursor: 'pointer', outline: 'none' }}
+        >
+          <option value="all" style={{ background: '#1e1b3a' }}>All</option>
+          <option value="collected" style={{ background: '#1e1b3a' }}>Collected</option>
+        </select>
       </div>
+
+      {/* Manage button — full-width workshop banner */}
+      {!isAdmin && (
+        <button
+          onClick={() => setShowManage(true)}
+          style={{
+            width: '100%', marginBottom: 12, padding: '10px 16px',
+            background: 'linear-gradient(135deg, rgba(196,181,253,0.12), rgba(251,191,36,0.08))',
+            border: `1px solid rgba(196,181,253,0.25)`, borderRadius: 12,
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            transition: 'all 0.15s',
+          }}
+        >
+          <span style={{ fontSize: 16 }}>&#9881;</span>
+          <span style={{ fontSize: 14, fontWeight: 700, color: C.purple }}>Buy · Evolve · Swap</span>
+        </button>
+      )}
 
       <DetailOverlay />
 

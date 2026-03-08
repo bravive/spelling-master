@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { generateKey } from '../shared.js';
 
 const SECRET = 'test-secret';
 const SALT_ROUNDS = 10;
@@ -116,5 +117,51 @@ describe('user key validation', () => {
     expect(validKey('Alice')).toBe(false);
     expect(validKey('alice-smith')).toBe(false);
     expect(validKey('alice smith')).toBe(false);
+  });
+});
+
+// ── generateKey ───────────────────────────────────────────────────────────────
+describe('generateKey', () => {
+  it('lowercases the name', () => {
+    expect(generateKey('Alice')).toBe('alice');
+  });
+
+  it('replaces spaces with underscores', () => {
+    expect(generateKey('Mary Jane')).toBe('mary_jane');
+    expect(generateKey('anne  marie')).toBe('anne_marie'); // multiple spaces
+  });
+
+  it('strips hyphens', () => {
+    expect(generateKey('Mary-Jane')).toBe('maryjane');
+  });
+
+  it('strips apostrophes', () => {
+    expect(generateKey("O'Brien")).toBe('obrien');
+  });
+
+  it('strips accented characters', () => {
+    // é, ü, ñ are not in [a-z0-9_], they get stripped
+    expect(generateKey('José')).toBe('jos');
+  });
+
+  it('preserves digits in the name', () => {
+    expect(generateKey('Player1')).toBe('player1');
+  });
+
+  it('produces a key that passes server validation', () => {
+    const validKey = (k) => /^[a-z0-9_]+$/.test(k);
+    const names = ['Mary-Jane', "O'Brien", 'Anne Marie', 'José', 'Player1', 'Bob'];
+    for (const name of names) {
+      const key = generateKey(name);
+      if (key) expect(validKey(key)).toBe(true);
+    }
+  });
+
+  it('returns empty string for a name with no valid characters', () => {
+    expect(generateKey('!!!---')).toBe('');
+  });
+
+  it('trims leading/trailing whitespace', () => {
+    expect(generateKey('  alice  ')).toBe('alice');
   });
 });

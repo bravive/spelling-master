@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { STARTER_POKEMON, pkImg } from '../data/pokemon';
-import { C, s } from '../shared';
+import { C, s, generateKey } from '../shared';
 import { NumPad } from './NumPad';
 
 export const EditProfileScreen = ({ user, jwt, saveUsers, users, currentUser, setGameScreen }) => {
@@ -215,7 +215,7 @@ const AvatarPinPrompt = ({ selectedStarter, user, onSave, err, setErr }) => {
 const NamePinPrompt = ({ newName, user, users, onSave, err, setErr }) => {
   const trimmed = newName.trim();
   const changed = trimmed && trimmed !== user.name;
-  const key = trimmed.toLowerCase().replace(/\s+/g, '_');
+  const key = generateKey(trimmed);
   const duplicate = Object.values(users).some(u => u.userId === key && u.name !== user.name);
 
   if (duplicate) {

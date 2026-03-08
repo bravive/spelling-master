@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { STARTER_POKEMON, pkImg } from '../data/pokemon';
-import { C, s, generateKey } from '../shared';
+import { STARTER_POKEMON, ALL_POKEMON, pkImg } from '../data/pokemon';
+import { C, s, generateKey, isPkCaught } from '../shared';
 import { NumPad } from './NumPad';
 
-export const EditProfileScreen = ({ user, jwt, saveUsers, users, currentUser, setGameScreen }) => {
+export const EditProfileScreen = ({ user, jwt, saveUsers, users, currentUser, setGameScreen, trophyData }) => {
   const [tab, setTab] = useState('avatar'); // avatar | name | pin
   const [err, setErr] = useState('');
   const [success, setSuccess] = useState('');
@@ -67,38 +67,16 @@ export const EditProfileScreen = ({ user, jwt, saveUsers, users, currentUser, se
 
       {/* Avatar tab */}
       {tab === 'avatar' && (
-        <div>
-          <div style={{ marginBottom: 16 }}>
-            <img src={pkImg(user.starterSlug)} alt="" style={{ width: 80, height: 80, objectFit: 'contain' }} />
-            <div style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>Current avatar</div>
-          </div>
-          <p style={{ color: C.muted, fontSize: 14 }}>Pick a new avatar</p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 16 }}>
-            {STARTER_POKEMON.map(pk => (
-              <button key={pk.id}
-                style={{
-                  background: C.card,
-                  border: `2px solid ${selectedStarter?.id === pk.id ? C.yellow : pk.slug === user.starterSlug ? C.green : C.border}`,
-                  borderRadius: 12, padding: 10, cursor: 'pointer',
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-                }}
-                onClick={() => setSelectedStarter(pk)}>
-                <img src={pkImg(pk.slug)} alt={pk.name} style={{ width: 60, height: 60, objectFit: 'contain' }} />
-                <div style={{ fontSize: 12, fontWeight: 600, color: selectedStarter?.id === pk.id ? C.yellow : '#fff' }}>{pk.name}</div>
-              </button>
-            ))}
-          </div>
-          <AvatarPinPrompt
-            selectedStarter={selectedStarter}
-            user={user}
-            onSave={async (pin) => {
-              const ok = await saveProfile({ currentPin: pin, starterId: selectedStarter.id, starterSlug: selectedStarter.slug });
-              if (ok) { setSuccess('Avatar updated!'); setSelectedStarter(null); }
-            }}
-            err={err}
-            setErr={setErr}
-          />
-        </div>
+        <AvatarTab
+          user={user}
+          trophyData={trophyData}
+          selectedStarter={selectedStarter}
+          setSelectedStarter={setSelectedStarter}
+          saveProfile={saveProfile}
+          setSuccess={setSuccess}
+          err={err}
+          setErr={setErr}
+        />
       )}
 
       {/* Name tab */}
@@ -177,6 +155,69 @@ export const EditProfileScreen = ({ user, jwt, saveUsers, users, currentUser, se
         onClick={() => setGameScreen('home')}>
         Back to Home
       </button>
+    </div>
+  );
+};
+
+// Build list of caught Pokémon from trophy data, excluding the 9 defaults
+export const getOwnedPokemon = (trophyData) => {
+  if (!trophyData?.collection) return [];
+  const starterSlugs = new Set(STARTER_POKEMON.map(pk => pk.slug));
+  return ALL_POKEMON.filter(pk =>
+    isPkCaught(trophyData.collection[pk.id]) && !starterSlugs.has(pk.slug)
+  );
+};
+
+const AvatarGrid = ({ pokemon, selectedStarter, user, onSelect }) => (
+  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 16 }}>
+    {pokemon.map(pk => (
+      <button key={pk.id}
+        style={{
+          background: C.card,
+          border: `2px solid ${selectedStarter?.id === pk.id ? C.yellow : pk.slug === user.starterSlug ? C.green : C.border}`,
+          borderRadius: 12, padding: 10, cursor: 'pointer',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+        }}
+        onClick={() => onSelect(pk)}>
+        <img src={pkImg(pk.slug)} alt={pk.name} style={{ width: 60, height: 60, objectFit: 'contain' }} />
+        <div style={{ fontSize: 12, fontWeight: 600, color: selectedStarter?.id === pk.id ? C.yellow : '#fff' }}>{pk.name}</div>
+      </button>
+    ))}
+  </div>
+);
+
+const AvatarTab = ({ user, trophyData, selectedStarter, setSelectedStarter, saveProfile, setSuccess, err, setErr }) => {
+  const ownedPokemon = getOwnedPokemon(trophyData);
+
+  return (
+    <div>
+      <div style={{ marginBottom: 16 }}>
+        <img src={pkImg(user.starterSlug)} alt="" style={{ width: 80, height: 80, objectFit: 'contain' }} />
+        <div style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>Current avatar</div>
+      </div>
+
+      {/* Default section */}
+      <div style={{ color: C.muted, fontSize: 13, fontWeight: 600, textAlign: 'left', marginBottom: 6 }}>Default</div>
+      <AvatarGrid pokemon={STARTER_POKEMON} selectedStarter={selectedStarter} user={user} onSelect={setSelectedStarter} />
+
+      {/* Owned section */}
+      {ownedPokemon.length > 0 && (
+        <>
+          <div style={{ color: C.muted, fontSize: 13, fontWeight: 600, textAlign: 'left', marginBottom: 6 }}>Owned</div>
+          <AvatarGrid pokemon={ownedPokemon} selectedStarter={selectedStarter} user={user} onSelect={setSelectedStarter} />
+        </>
+      )}
+
+      <AvatarPinPrompt
+        selectedStarter={selectedStarter}
+        user={user}
+        onSave={async (pin) => {
+          const ok = await saveProfile({ currentPin: pin, starterId: selectedStarter.id, starterSlug: selectedStarter.slug });
+          if (ok) { setSuccess('Avatar updated!'); setSelectedStarter(null); }
+        }}
+        err={err}
+        setErr={setErr}
+      />
     </div>
   );
 };

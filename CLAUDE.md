@@ -201,8 +201,9 @@ npm run build
 
 ---
 
-## User State Shape (stored in MongoDB)
+## Data Shape (stored in MongoDB)
 
+### `users` collection — per-user profile
 ```js
 {
   name, pin, starterId, starterSlug,
@@ -212,14 +213,33 @@ npm run build
   streak: 0,
   lastPlayed: null,     // date string YYYY-MM-DD
   streakDates: [],      // last 90 days played
-  collection: {},       // { [pokemonId]: { count: N, shiny: bool } } — use pkCount()/isPkCaught() helpers from shared.js; backward compat with old { regular: true } format
-  shinyEligible: false,
-  consecutiveRegular: 0,
-  wordStats: {},        // { [word]: { attempts, correct, weight } }
-  roundHistory: [],     // last 200 rounds { date, score, earned, pass }
-  bestScores: {},
+  caught: 0,
+  roundCount: 0,
   createdAt: ISO string
 }
+```
+
+### `trophies` collection — Pokémon collection per user
+```js
+{ collection: {}, shinyEligible: false, consecutiveRegular: 0, nextPokemonId: null }
+// collection: { [pokemonId]: { count: N, shiny: bool } } — use pkCount()/isPkCaught() from shared.js
+```
+
+### `wordstats` collection — adaptive difficulty per user
+```js
+{ stats: {} }  // { [word]: { attempts, correct, weight } }
+```
+
+### `roundhistory` collection — round history per user
+```js
+{ roundHistory: [], bestScores: {} }
+// roundHistory: last 200 rounds { date, score, earned, pass }
+```
+
+### `credithistory` collection — credit events per user
+```js
+{ creditHistory: [] }
+// { date, amount, source: 'round'|'weekly'|'streak', description }
 ```
 
 ---

@@ -20,22 +20,27 @@ const Tab = ({ active, label, badge, onClick }) => (
   </button>
 );
 
-const FriendCard = ({ friend, unreadCount, onMessage, onSelect }) => (
+const FriendCard = ({ friend, unreadCount, onMessage, onGift, onSelect }) => (
   <div onClick={onSelect} style={{ ...s.card, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, padding: 14, cursor: 'pointer' }}>
     <img src={pkImg(friend.starterSlug)} alt="" style={{ width: 48, height: 48, objectFit: 'contain' }} />
     <div style={{ flex: 1, minWidth: 0 }}>
       <div style={{ fontWeight: 700, fontSize: 15 }}>{friend.name}</div>
       <div style={{ color: C.muted, fontSize: 12 }}>Level {friend.level} | {friend.caught} caught | {friend.shinyCount} shiny | {friend.streak} streak</div>
     </div>
-    <button onClick={e => { e.stopPropagation(); onMessage(); }} style={{ ...s.btn(C.blue, 'sm'), position: 'relative', padding: '6px 12px', fontSize: 13, flexShrink: 0 }}>
-      Message
-      {unreadCount > 0 && <span style={{
-        position: 'absolute', top: -6, right: -6,
-        background: C.red, color: '#fff', fontSize: 10, fontWeight: 700,
-        borderRadius: '50%', width: 18, height: 18,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>{unreadCount}</span>}
-    </button>
+    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+      <button onClick={e => { e.stopPropagation(); onGift(); }} style={{ ...s.btn(C.pink, 'sm'), padding: '6px 10px', fontSize: 13 }}>
+        Gift
+      </button>
+      <button onClick={e => { e.stopPropagation(); onMessage(); }} style={{ ...s.btn(C.blue, 'sm'), position: 'relative', padding: '6px 10px', fontSize: 13 }}>
+        Message
+        {unreadCount > 0 && <span style={{
+          position: 'absolute', top: -6, right: -6,
+          background: C.red, color: '#fff', fontSize: 10, fontWeight: 700,
+          borderRadius: '50%', width: 18, height: 18,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>{unreadCount}</span>}
+      </button>
+    </div>
   </div>
 );
 
@@ -492,7 +497,7 @@ export const FriendsScreen = ({ jwt, currentUser, myStarterSlug, setGameScreen }
           </div>}
           {accepted.map(f => (
             <FriendCard key={f.friendshipId} friend={f} unreadCount={unread[f.friendId] || 0}
-              onMessage={() => setMessageTarget(f)} onSelect={() => setSelectedFriend(f)} />
+              onMessage={() => setMessageTarget(f)} onGift={() => setGiftTarget(f)} onSelect={() => setSelectedFriend(f)} />
           ))}
         </>
       )}

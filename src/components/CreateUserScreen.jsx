@@ -59,7 +59,6 @@ export const CreateUserScreen = ({ users, saveUsers, createStep, setCreateStep, 
               if (!trimmed) { setErr('Please enter a name.'); return; }
               if (trimmed.toLowerCase() === 'test') { setErr('That name is reserved.'); return; }
               const key = generateKey(trimmed);
-              if (!key) { setErr('Name must contain at least one letter or number.'); return; }
               if (Object.values(users).some(u => u.userId === key)) { setErr('Name already taken.'); return; }
               setNewName(trimmed); setCreateStep(2);
             }}>Next →</button>

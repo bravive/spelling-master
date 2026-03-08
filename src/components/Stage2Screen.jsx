@@ -185,10 +185,10 @@ export const Stage2Screen = ({ words, processRound, setRoundResults, setGameScre
       {showQuitConfirm && (
         <div data-testid="quit-confirm" style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center',
           zIndex: 1000, animation: 'popIn 0.2s ease-out',
         }}>
-          <div style={{ ...s.card, padding: '28px 32px', textAlign: 'center', maxWidth: 320, border: `2px solid ${C.red}` }}>
+          <div style={{ background: '#1a1a2e', borderRadius: 16, padding: '28px 32px', textAlign: 'center', maxWidth: 320, border: `2px solid ${C.red}` }}>
             <div style={{ fontSize: 32, marginBottom: 12 }}>Are you sure?</div>
             <div style={{ color: C.muted, fontSize: 14, marginBottom: 20 }}>
               You've completed {results.length} of {order.length} words. Remaining words will be marked as skipped.

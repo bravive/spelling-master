@@ -4,7 +4,7 @@ import { speak, speakTimes, C, s } from '../shared';
 export const Stage1Screen = ({ words, retryCount, setGameScreen, nextScreen = 'stage2', discardScreen = 'home', quitLabel = 'Discard', readyLabel = "✅ I'm Ready!", requireClickAll = true }) => {
   const [elapsed, setElapsed] = useState(0);
   const [readWords, setReadWords] = useState(new Set());
-  const [floatingCard, setFloatingCard] = useState(null); // { index, entry }
+  const [floatingCard, setFloatingCard] = useState(null); // { index, entry, isFirstRead, counting }
   const [floatingTimer, setFloatingTimer] = useState(null);
   const MAX = 180;
 
@@ -30,18 +30,42 @@ export const Stage1Screen = ({ words, retryCount, setGameScreen, nextScreen = 's
     // Clear any existing floating card timer
     if (floatingTimer) clearTimeout(floatingTimer);
 
-    setFloatingCard({ index, entry });
+    const alreadyRead = readWords.has(index);
 
-    const timer = setTimeout(() => {
-      setFloatingCard(null);
-      setReadWords(prev => {
-        const next = new Set(prev);
-        next.add(index);
-        return next;
-      });
-    }, 3000);
-    setFloatingTimer(timer);
-  }, [floatingTimer]);
+    if (alreadyRead) {
+      // Already read: show card without countdown, dismissable anytime
+      setFloatingCard({ index, entry, isFirstRead: false, counting: false });
+      setFloatingTimer(null);
+    } else {
+      // First read: show card with 3s countdown, not dismissable until done
+      setFloatingCard({ index, entry, isFirstRead: true, counting: true });
+
+      const timer = setTimeout(() => {
+        setFloatingCard(null);
+        setReadWords(prev => {
+          const next = new Set(prev);
+          next.add(index);
+          return next;
+        });
+        setFloatingTimer(null);
+      }, 3000);
+      setFloatingTimer(timer);
+    }
+  }, [floatingTimer, readWords]);
+
+  const handleOverlayClick = useCallback(() => {
+    if (!floatingCard) return;
+
+    if (floatingCard.counting) {
+      // During countdown for unread words — do nothing, can't dismiss
+      return;
+    }
+
+    // Dismiss without marking as read (already read, or countdown finished)
+    if (floatingTimer) clearTimeout(floatingTimer);
+    setFloatingCard(null);
+    setFloatingTimer(null);
+  }, [floatingCard, floatingTimer]);
 
   const pct = elapsed / MAX;
   const barColor = elapsed < 60 ? C.green : elapsed < 120 ? C.yellow : C.red;
@@ -92,28 +116,26 @@ export const Stage1Screen = ({ words, retryCount, setGameScreen, nextScreen = 's
 
       {/* Floating card overlay */}
       {floatingCard && (
-        <div style={{
+        <div data-testid="floating-overlay" style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center',
           zIndex: 1000, animation: 'popIn 0.3s ease-out',
-        }} onClick={() => {
-          if (floatingTimer) clearTimeout(floatingTimer);
-          setFloatingCard(null);
-          setReadWords(prev => {
-            const next = new Set(prev);
-            next.add(floatingCard.index);
-            return next;
-          });
-        }}>
+          cursor: floatingCard.counting ? 'not-allowed' : 'pointer',
+        }} onClick={handleOverlayClick}>
           <div style={{
-            ...s.card, padding: '32px 40px', textAlign: 'center', maxWidth: 340,
-            animation: 'popIn 0.3s ease-out', border: `2px solid ${C.yellow}`,
+            background: '#1a1a2e', padding: '32px 40px', textAlign: 'center', maxWidth: 340,
+            borderRadius: 16, animation: 'popIn 0.3s ease-out', border: `2px solid ${C.yellow}`,
           }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 36, fontWeight: 800, color: C.yellow, marginBottom: 12 }}>{floatingCard.entry.w}</div>
             <div style={{ fontSize: 16, color: '#fff', fontStyle: 'italic', lineHeight: 1.5 }}>{floatingCard.entry.s}</div>
-            <div style={{ marginTop: 16, width: '100%', background: 'rgba(255,255,255,0.1)', borderRadius: 4, height: 4 }}>
-              <div style={{ width: '100%', height: '100%', background: C.yellow, borderRadius: 4, animation: 'shrink 3s linear forwards' }} />
-            </div>
+            {floatingCard.isFirstRead && floatingCard.counting && (
+              <div style={{ marginTop: 16, width: '100%', background: 'rgba(255,255,255,0.15)', borderRadius: 4, height: 6 }}>
+                <div style={{ width: '100%', height: '100%', background: C.yellow, borderRadius: 4, animation: 'shrink 3s linear forwards' }} />
+              </div>
+            )}
+            {!floatingCard.counting && (
+              <div style={{ marginTop: 16, color: C.muted, fontSize: 12 }}>Tap outside to close</div>
+            )}
           </div>
         </div>
       )}

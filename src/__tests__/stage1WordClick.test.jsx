@@ -62,21 +62,66 @@ describe('Stage1Screen word-click validation', () => {
     expect(screen.getByTestId('ready-button').textContent).toContain('1/3');
   });
 
-  it('marks word as read when floating card overlay is clicked to dismiss', () => {
+  it('blocks overlay dismiss during countdown for unread words', () => {
     const setGameScreen = vi.fn();
-    const { container } = render(<Stage1Screen words={mockWords} retryCount={0} setGameScreen={setGameScreen} />);
+    render(<Stage1Screen words={mockWords} retryCount={0} setGameScreen={setGameScreen} />);
 
-    // Click the first word
+    // Click the first word (unread)
     const wordCards = screen.getAllByText('cat');
     fireEvent.click(wordCards[0].closest('.word-card'));
 
-    // Click the overlay to dismiss
-    const overlay = container.querySelector('[style*="position: fixed"]');
-    expect(overlay).not.toBeNull();
+    // Click the overlay — should NOT dismiss during countdown
+    const overlay = screen.getByTestId('floating-overlay');
     fireEvent.click(overlay);
 
-    // Word should now be marked as read
+    // Floating card should still be visible
+    expect(screen.getByTestId('floating-overlay')).toBeTruthy();
+
+    // Word should NOT be marked as read yet
+    expect(screen.getByTestId('ready-button').textContent).toContain('0/3');
+  });
+
+  it('clicking outside does NOT mark word as read (dismisses without selecting)', () => {
+    const setGameScreen = vi.fn();
+    render(<Stage1Screen words={mockWords} retryCount={0} setGameScreen={setGameScreen} />);
+
+    // First: read the word via countdown
+    const wordCards = screen.getAllByText('cat');
+    fireEvent.click(wordCards[0].closest('.word-card'));
+    act(() => { vi.advanceTimersByTime(3000); });
+
+    // Now click the same word again (already read — no countdown)
+    const wordCards2 = screen.getAllByText('cat');
+    fireEvent.click(wordCards2[0].closest('.word-card'));
+
+    // Floating card should be visible
+    expect(screen.getByTestId('floating-overlay')).toBeTruthy();
+
+    // Click overlay to dismiss
+    fireEvent.click(screen.getByTestId('floating-overlay'));
+
+    // Floating card should be gone
+    expect(screen.queryByTestId('floating-overlay')).toBeNull();
+
+    // Word should still be marked as read (was already read)
     expect(screen.getByTestId('ready-button').textContent).toContain('1/3');
+  });
+
+  it('already-read words show card without countdown', () => {
+    const setGameScreen = vi.fn();
+    render(<Stage1Screen words={mockWords} retryCount={0} setGameScreen={setGameScreen} />);
+
+    // Read the word via countdown
+    const wordCards = screen.getAllByText('cat');
+    fireEvent.click(wordCards[0].closest('.word-card'));
+    act(() => { vi.advanceTimersByTime(3000); });
+
+    // Click the same word again
+    const wordCards2 = screen.getAllByText('cat');
+    fireEvent.click(wordCards2[0].closest('.word-card'));
+
+    // Floating card should show "Tap outside to close" hint (no countdown bar)
+    expect(screen.getByText('Tap outside to close')).toBeTruthy();
   });
 
   it('enables the ready button after all words are clicked and read', () => {

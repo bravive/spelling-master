@@ -40,6 +40,7 @@ export const weeklyStatsCol          = () => getDb().collection('weeklychallenge
 export const friendshipsCol          = () => getDb().collection('friendships');
 export const messagesCol             = () => getDb().collection('messages');
 export const trophyhistoryCol        = () => getDb().collection('trophyhistory');
+export const giftsCol                = () => getDb().collection('gifts');
 
 // ── Indexes ───────────────────────────────────────────────────────────────────
 const ensureIndexes = async () => {
@@ -59,5 +60,7 @@ const ensureIndexes = async () => {
     messagesCol().createIndex({ from: 1, to: 1, created_at: 1 }),
     messagesCol().createIndex({ to: 1, read: 1 }),
     trophyhistoryCol().createIndex({ userId: 1, created_at: -1 }),
+    giftsCol().createIndex({ toUserId: 1, status: 1 }),
+    giftsCol().createIndex({ fromUserId: 1, status: 1 }),
   ]);
 };

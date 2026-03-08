@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import bcrypt from 'bcryptjs';
-import { usersCol, trophiesCol, wordstatsCol, roundhistoryCol, credithistoryCol, weeklyChallengeWordsCol, weeklyStatsCol, friendshipsCol, messagesCol, trophyhistoryCol } from './db.js';
+import { usersCol, trophiesCol, wordstatsCol, roundhistoryCol, credithistoryCol, weeklyChallengeWordsCol, weeklyStatsCol, friendshipsCol, messagesCol, trophyhistoryCol, giftsCol } from './db.js';
 
 const now = () => new Date();
 
@@ -53,7 +53,7 @@ export const createUser = async ({ key, name, pin, starterId, starterSlug }) => 
   const colBase = { created_at: t, updated_at: t };
   log('insertOne', 'trophies+wordstats+roundhistory+credithistory', { userId: user._id });
   await Promise.all([
-    trophiesCol().insertOne({ _id: randomUUID(), userId: user._id, collection: {}, shinyEligible: false, consecutiveRegular: 0, ...colBase }),
+    trophiesCol().insertOne({ _id: randomUUID(), userId: user._id, collection: {}, shinyEligible: false, consecutiveRegular: 0, nextPokemonId: null, ...colBase }),
     wordstatsCol().insertOne({ _id: randomUUID(), userId: user._id, stats: {}, ...colBase }),
     roundhistoryCol().insertOne({ _id: randomUUID(), userId: user._id, roundHistory: [], bestScores: {}, ...colBase }),
     credithistoryCol().insertOne({ _id: randomUUID(), userId: user._id, creditHistory: [], ...colBase }),
@@ -96,7 +96,7 @@ export const deleteUser = async (id) => {
   log('deleteOne', 'users', { _id: id });
   const result = await usersCol().deleteOne({ _id: id });
   if (result.deletedCount === 0) return false;
-  log('deleteOne', 'trophies+wordstats+roundhistory+credithistory+trophyhistory+weeklystats', { userId: id });
+  log('deleteOne', 'trophies+wordstats+roundhistory+credithistory+trophyhistory+weeklystats+gifts', { userId: id });
   await Promise.all([
     trophiesCol().deleteOne({ userId: id }),
     wordstatsCol().deleteOne({ userId: id }),
@@ -104,6 +104,7 @@ export const deleteUser = async (id) => {
     credithistoryCol().deleteOne({ userId: id }),
     trophyhistoryCol().deleteMany({ userId: id }),
     weeklyStatsCol().deleteMany({ userId: id }),
+    giftsCol().deleteMany({ $or: [{ fromUserId: id }, { toUserId: id }] }),
   ]);
   return true;
 };
@@ -269,6 +270,72 @@ export const getUnreadCounts = async (userId) => {
     { $group: { _id: '$from', count: { $sum: 1 } } },
   ]).toArray();
   return Object.fromEntries(results.map(r => [r._id, r.count]));
+};
+
+// ── Gifts (Pokemon gifting between friends) ─────────────────────────────────
+
+export const createGift = async (fromUserId, toUserId, pokemonId, pokemonSlug) => {
+  const t = now();
+  const doc = {
+    _id: randomUUID(), fromUserId, toUserId, pokemonId, pokemonSlug,
+    status: 'pending', created_at: t, updated_at: t,
+  };
+  log('insertOne', 'gifts', { fromUserId, toUserId, pokemonId });
+  await giftsCol().insertOne(doc);
+  return doc;
+};
+
+export const findPendingGift = (fromUserId, toUserId, pokemonId) => {
+  log('findOne', 'gifts', { fromUserId, toUserId, pokemonId, status: 'pending' });
+  return giftsCol().findOne({ fromUserId, toUserId, pokemonId, status: 'pending' });
+};
+
+export const findGiftById = (id) => {
+  log('findOne', 'gifts', { _id: id });
+  return giftsCol().findOne({ _id: id });
+};
+
+export const getUserGifts = (userId) => {
+  log('find', 'gifts', { userId, status: 'pending' });
+  return giftsCol().find({
+    status: 'pending',
+    $or: [{ fromUserId: userId }, { toUserId: userId }],
+  }).sort({ created_at: -1 }).toArray();
+};
+
+export const countPendingOutgoingGifts = (fromUserId, pokemonId) => {
+  log('count', 'gifts', { fromUserId, pokemonId, status: 'pending' });
+  return giftsCol().countDocuments({ fromUserId, pokemonId, status: 'pending' });
+};
+
+export const acceptGift = (id) => {
+  log('updateOne', 'gifts', { _id: id, op: 'accept' });
+  return giftsCol().updateOne(
+    { _id: id },
+    { $set: { status: 'accepted', updated_at: now() } }
+  );
+};
+
+export const declineGift = (id) => {
+  log('updateOne', 'gifts', { _id: id, op: 'decline' });
+  return giftsCol().updateOne(
+    { _id: id },
+    { $set: { status: 'declined', updated_at: now() } }
+  );
+};
+
+export const cancelPendingGiftsBetween = (userId1, userId2) => {
+  log('updateMany', 'gifts', { between: [userId1, userId2], op: 'cancelAll' });
+  return giftsCol().updateMany(
+    {
+      status: 'pending',
+      $or: [
+        { fromUserId: userId1, toUserId: userId2 },
+        { fromUserId: userId2, toUserId: userId1 },
+      ],
+    },
+    { $set: { status: 'cancelled', updated_at: now() } }
+  );
 };
 
 // ── Admin dashboard queries ──────────────────────────────────────────────────

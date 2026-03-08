@@ -3,6 +3,7 @@ import { ALL_POKEMON, pkImg, pkShiny } from '../data/pokemon';
 import POKEMON_STATS from '../data/pokemon-stats.json';
 import POKEMON_EVOLUTIONS from '../data/pokemon-evolutions.json';
 import { isPkCaught, pkCount, C, s } from '../shared';
+import { pickNextPokemon } from '../pickNextPokemon';
 
 const STAT_META = [
   { key: 'hp',  label: 'HP',              title: 'Hit Points — how much damage this Pokémon can take before fainting',        color: '#ef4444' },
@@ -58,8 +59,14 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
     setSaving(true);
     try {
       const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` };
+      // Recompute nextPokemonId if the current one is now caught
+      let newNextPokemonId = trophyData?.nextPokemonId;
+      if (newNextPokemonId && isPkCaught(newCol[newNextPokemonId])) {
+        const next = pickNextPokemon(newCol);
+        newNextPokemonId = next?.id || null;
+      }
       // Save trophy data
-      const newTrophy = { ...trophyData, collection: newCol };
+      const newTrophy = { ...trophyData, collection: newCol, nextPokemonId: newNextPokemonId };
       await apiFetch('/api/trophy', { method: 'PUT', headers, body: JSON.stringify(newTrophy) });
       setTrophyData(newTrophy);
       // Save user data if credits changed
@@ -628,7 +635,7 @@ export const TrophyScreen = ({ trophyData, currentUser, setScreen, setGameScreen
               {trophyHistory.map(entry => (
                 <div key={entry._id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 4px', borderBottom: `1px solid ${C.border}` }}>
                   <span style={{ fontSize: 14, width: 24, textAlign: 'center' }}>
-                    {entry.action === 'buy' ? '💰' : entry.action === 'evolve' ? '⬆️' : '🔄'}
+                    {entry.action === 'buy' ? '💰' : entry.action === 'evolve' ? '⬆️' : entry.action === 'gift_sent' || entry.action === 'gift_received' ? '🎁' : '🔄'}
                   </span>
                   <div style={{ flex: 1, fontSize: 12 }}>
                     {entry.action === 'buy' && (
@@ -639,6 +646,12 @@ export const TrophyScreen = ({ trophyData, currentUser, setScreen, setGameScreen
                     )}
                     {entry.action === 'swap' && (
                       <span>Swapped {entry.given.map(slugToName).join(', ')} → <b style={{ color: C.blue }}>{slugToName(entry.received)}</b></span>
+                    )}
+                    {entry.action === 'gift_sent' && (
+                      <span>Gifted <b style={{ color: C.pink }}>{slugToName(entry.pokemon)}</b> to {entry.toUser}</span>
+                    )}
+                    {entry.action === 'gift_received' && (
+                      <span>Received <b style={{ color: C.pink }}>{slugToName(entry.pokemon)}</b> from {entry.fromUser}</span>
                     )}
                   </div>
                   <span style={{ fontSize: 10, color: C.muted, flexShrink: 0 }}>

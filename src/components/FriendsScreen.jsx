@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { pkImg } from '../data/pokemon';
-import { C, s } from '../shared';
+import { ALL_POKEMON, pkImg } from '../data/pokemon';
+import { isPkCaught, pkCount, C, s } from '../shared';
 
 const Tab = ({ active, label, badge, onClick }) => (
   <button onClick={onClick} style={{
@@ -39,7 +39,7 @@ const FriendCard = ({ friend, unreadCount, onMessage, onSelect }) => (
   </div>
 );
 
-const FriendDetailModal = ({ friend, onClose, onMessage, onRemove }) => {
+const FriendDetailModal = ({ friend, onClose, onMessage, onRemove, onGift }) => {
   const [confirming, setConfirming] = useState(false);
   return (
     <div onClick={onClose} style={{
@@ -59,6 +59,7 @@ const FriendDetailModal = ({ friend, onClose, onMessage, onRemove }) => {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <button onClick={() => { onClose(); onMessage(); }} style={{ ...s.btn(C.blue), width: '100%' }}>Message</button>
+          <button onClick={() => { onClose(); onGift(); }} style={{ ...s.btn(C.pink), width: '100%' }}>Gift Pokemon</button>
 
           {!confirming
             ? <button onClick={() => setConfirming(true)} style={{ ...s.btn('rgba(255,255,255,0.1)'), width: '100%', color: C.red }}>
@@ -215,6 +216,177 @@ const MessageDialog = ({ friend, jwt, myId, myStarterSlug, onClose }) => {
   );
 };
 
+const GiftPendingCard = ({ gift, myId, onAccept, onDecline }) => {
+  const isSent = gift.fromUserId === myId;
+  const displayName = isSent ? gift.toName : gift.fromName;
+  const displaySlug = isSent ? gift.toStarterSlug : gift.fromStarterSlug;
+  return (
+    <div style={{ ...s.card, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, padding: 14 }}>
+      <img src={pkImg(gift.pokemonSlug)} alt="" style={{ width: 44, height: 44, objectFit: 'contain' }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 700, fontSize: 14 }}>
+          {isSent
+            ? <span>You sent <b style={{ color: C.pink }}>{gift.pokemonSlug.charAt(0).toUpperCase() + gift.pokemonSlug.slice(1)}</b> to {displayName}</span>
+            : <span><b>{displayName}</b> sent you <b style={{ color: C.pink }}>{gift.pokemonSlug.charAt(0).toUpperCase() + gift.pokemonSlug.slice(1)}</b></span>
+          }
+        </div>
+        <div style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>
+          {new Date(gift.created_at).toLocaleDateString()}
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+        {!isSent && <button onClick={onAccept} style={{ ...s.btn(C.green, 'sm'), padding: '6px 12px', fontSize: 13 }}>Accept</button>}
+        <button onClick={onDecline} style={{ ...s.btn('rgba(255,255,255,0.1)', 'sm'), color: C.red, padding: '6px 12px', fontSize: 13 }}>
+          {isSent ? 'Cancel' : 'Decline'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const GiftModal = ({ friend, jwt, onClose, onSent }) => {
+  const [trophyData, setTrophyData] = useState(null);
+  const [pendingCounts, setPendingCounts] = useState({});
+  const [confirm, setConfirm] = useState(null);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
+  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` };
+
+  useEffect(() => {
+    fetch('/api/trophy', { headers }).then(r => r.json()).then(setTrophyData).catch(() => {});
+    fetch('/api/gifts', { headers }).then(r => r.json()).then(gifts => {
+      // Count pending outgoing gifts per pokemon
+      const counts = {};
+      gifts.forEach(g => {
+        if (g.status === 'pending' && g.fromUserId !== friend.friendId) {
+          // This is an outgoing gift from current user
+          counts[g.pokemonId] = (counts[g.pokemonId] || 0) + 1;
+        }
+      });
+      // Actually we need to filter to only outgoing gifts from the current user
+      // The gifts endpoint returns both incoming and outgoing
+      // fromUserId is the sender - if it's NOT the friend, it's from us
+      // But we don't have our own ID here. Let's count differently:
+      // Gifts where toUserId === friend.friendId OR toUserId !== friend.friendId but fromUserId is not friend
+      // Simpler: count all outgoing from the API
+      const outgoing = {};
+      gifts.forEach(g => {
+        if (g.fromUserId !== friend.friendId) {
+          outgoing[g.pokemonId] = (outgoing[g.pokemonId] || 0) + 1;
+        }
+      });
+      setPendingCounts(outgoing);
+    }).catch(() => {});
+  }, []);
+
+  const col = trophyData?.collection || {};
+  const giftablePokemon = ALL_POKEMON.filter(pk => {
+    const count = pkCount(col[pk.id]);
+    const pending = pendingCounts[pk.id] || 0;
+    return count - pending >= 1;
+  });
+
+  const sendGift = async (pk) => {
+    setSending(true);
+    setError('');
+    try {
+      const res = await fetch('/api/gifts/send', {
+        method: 'POST', headers,
+        body: JSON.stringify({ toUserId: friend.friendId, pokemonId: pk.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Failed to send gift');
+        setSending(false);
+        return;
+      }
+      onSent?.();
+      onClose();
+    } catch {
+      setError('Failed to send gift');
+    }
+    setSending(false);
+  };
+
+  if (!trophyData) return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+      <div style={{ color: C.muted }}>Loading...</div>
+    </div>
+  );
+
+  return (
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      zIndex: 1000, padding: 16,
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: '#1e1b3a', borderRadius: 20, padding: 20, width: '100%', maxWidth: 400,
+        maxHeight: 'calc(100dvh - 48px)', display: 'flex', flexDirection: 'column',
+        animation: 'popIn 0.25s ease', border: `1px solid ${C.border}`,
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexShrink: 0 }}>
+          <div style={{ fontWeight: 800, fontSize: 17 }}>Gift to {friend.name}</div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: C.muted, fontSize: 20, cursor: 'pointer', padding: 4 }}>✕</button>
+        </div>
+
+        <div style={{
+          background: `${C.pink}18`, borderRadius: 8, padding: '6px 12px', marginBottom: 10,
+          borderLeft: `3px solid ${C.pink}`, fontSize: 12, fontWeight: 600, color: C.pink, flexShrink: 0,
+        }}>
+          Pick a Pokemon to gift (free!)
+        </div>
+
+        {error && <div style={{ color: C.red, fontSize: 13, marginBottom: 8, flexShrink: 0 }}>{error}</div>}
+
+        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+          {confirm ? (
+            <div style={{ textAlign: 'center', padding: 20 }}>
+              <img src={pkImg(confirm.slug)} alt={confirm.name} style={{ width: 80, height: 80, objectFit: 'contain' }} />
+              <div style={{ fontWeight: 700, fontSize: 16, marginTop: 8 }}>Send {confirm.name} to {friend.name}?</div>
+              <div style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>
+                You have x{pkCount(col[confirm.id])} · {pkCount(col[confirm.id]) - (pendingCounts[confirm.id] || 0) - 1} will remain
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'center' }}>
+                <button disabled={sending} onClick={() => sendGift(confirm)} style={{ ...s.btn(C.pink, 'sm') }}>
+                  {sending ? 'Sending...' : 'Send Gift'}
+                </button>
+                <button onClick={() => setConfirm(null)} style={{ ...s.btn('rgba(255,255,255,0.12)', 'sm'), color: C.muted }}>Cancel</button>
+              </div>
+            </div>
+          ) : giftablePokemon.length === 0 ? (
+            <div style={{ color: C.muted, textAlign: 'center', padding: '32px 0' }}>
+              No Pokemon available to gift.
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+              {giftablePokemon.map(pk => {
+                const count = pkCount(col[pk.id]);
+                return (
+                  <div
+                    key={pk.id}
+                    onClick={() => setConfirm(pk)}
+                    style={{
+                      background: C.card, borderRadius: 10, padding: 8, textAlign: 'center',
+                      cursor: 'pointer', border: `1px solid ${C.border}`, position: 'relative',
+                    }}
+                  >
+                    {count > 1 && (
+                      <div style={{ position: 'absolute', top: 2, right: 4, fontSize: 10, fontWeight: 800, color: C.yellow }}>x{count}</div>
+                    )}
+                    <img src={pkImg(pk.slug)} alt={pk.name} style={{ width: 40, height: 40, objectFit: 'contain' }} />
+                    <div style={{ fontSize: 10, color: '#fff', marginTop: 2 }}>{pk.name}</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const FriendsScreen = ({ jwt, currentUser, myStarterSlug, setGameScreen }) => {
   const [tab, setTab] = useState('friends');
   const [friends, setFriends] = useState([]);
@@ -224,8 +396,14 @@ export const FriendsScreen = ({ jwt, currentUser, myStarterSlug, setGameScreen }
   const [searching, setSearching] = useState(false);
   const [messageTarget, setMessageTarget] = useState(null);
   const [selectedFriend, setSelectedFriend] = useState(null);
+  const [giftTarget, setGiftTarget] = useState(null);
+  const [gifts, setGifts] = useState([]);
   const [loading, setLoading] = useState(true);
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` };
+
+  const loadGifts = () => {
+    fetch('/api/gifts', { headers }).then(r => r.json()).then(setGifts).catch(() => {});
+  };
 
   const loadFriends = () => {
     Promise.all([
@@ -236,6 +414,7 @@ export const FriendsScreen = ({ jwt, currentUser, myStarterSlug, setGameScreen }
       setUnread(u);
       setLoading(false);
     }).catch(() => setLoading(false));
+    loadGifts();
   };
 
   useEffect(() => { loadFriends(); }, []);
@@ -244,6 +423,21 @@ export const FriendsScreen = ({ jwt, currentUser, myStarterSlug, setGameScreen }
   const pending = friends.filter(f => f.status === 'pending');
   const pendingReceived = pending.filter(f => f.initiator !== currentUser);
   const totalUnread = Object.values(unread).reduce((sum, n) => sum + n, 0);
+  const incomingGifts = gifts.filter(g => g.toUserId === currentUser);
+
+  const acceptGiftHandler = async (giftId) => {
+    try {
+      await fetch(`/api/gifts/${giftId}/accept`, { method: 'PUT', headers });
+      loadGifts();
+    } catch { /* ignore */ }
+  };
+
+  const declineGiftHandler = async (giftId) => {
+    try {
+      await fetch(`/api/gifts/${giftId}/decline`, { method: 'PUT', headers });
+      loadGifts();
+    } catch { /* ignore */ }
+  };
 
   const doSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -285,6 +479,7 @@ export const FriendsScreen = ({ jwt, currentUser, myStarterSlug, setGameScreen }
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         <Tab active={tab === 'friends'} label="Friends" badge={totalUnread} onClick={() => setTab('friends')} />
         <Tab active={tab === 'requests'} label="Requests" badge={pendingReceived.length} onClick={() => setTab('requests')} />
+        <Tab active={tab === 'gifts'} label="Gifts" badge={incomingGifts.length} onClick={() => setTab('gifts')} />
         <Tab active={tab === 'search'} label="Search" onClick={() => setTab('search')} />
       </div>
 
@@ -310,6 +505,18 @@ export const FriendsScreen = ({ jwt, currentUser, myStarterSlug, setGameScreen }
           {pending.map(r => (
             <RequestCard key={r.friendshipId} req={r} myId={currentUser}
               onAccept={() => accept(r.friendshipId)} onDecline={() => remove(r.friendshipId)} />
+          ))}
+        </>
+      )}
+
+      {!loading && tab === 'gifts' && (
+        <>
+          {gifts.length === 0 && <div style={{ ...s.card, textAlign: 'center', color: C.muted, padding: 32 }}>
+            No pending gifts. Tap a friend to send one!
+          </div>}
+          {gifts.map(g => (
+            <GiftPendingCard key={g._id} gift={g} myId={currentUser}
+              onAccept={() => acceptGiftHandler(g._id)} onDecline={() => declineGiftHandler(g._id)} />
           ))}
         </>
       )}
@@ -354,6 +561,7 @@ export const FriendsScreen = ({ jwt, currentUser, myStarterSlug, setGameScreen }
           friend={selectedFriend}
           onClose={() => setSelectedFriend(null)}
           onMessage={() => { setSelectedFriend(null); setMessageTarget(selectedFriend); }}
+          onGift={() => { setSelectedFriend(null); setGiftTarget(selectedFriend); }}
           onRemove={() => { remove(selectedFriend.friendshipId); setSelectedFriend(null); }}
         />
       )}
@@ -365,6 +573,15 @@ export const FriendsScreen = ({ jwt, currentUser, myStarterSlug, setGameScreen }
           myId={currentUser}
           myStarterSlug={myStarterSlug}
           onClose={() => { setMessageTarget(null); loadFriends(); }}
+        />
+      )}
+
+      {giftTarget && (
+        <GiftModal
+          friend={giftTarget}
+          jwt={jwt}
+          onClose={() => setGiftTarget(null)}
+          onSent={() => { loadGifts(); }}
         />
       )}
     </div>

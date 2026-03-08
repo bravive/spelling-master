@@ -664,7 +664,7 @@ export const FriendsScreen = ({ jwt, currentUser, myStarterSlug, setGameScreen, 
                 onChange={e => setSearchQuery(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && doSearch()}
                 placeholder="Search by username..."
-                style={{ ...s.input, flex: 1, fontSize: 14 }}
+                style={{ ...s.input, flex: 1, fontSize: 16 }}
               />
               <button onClick={doSearch} disabled={searching} style={{ ...s.btn(C.yellow, 'sm') }}>
                 {searching ? '...' : '🔍'}

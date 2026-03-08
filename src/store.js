@@ -64,15 +64,15 @@ export const createUser = async ({ key, name, pin, starterId, starterSlug }) => 
 
 export const checkPin = async (user, pin) => {
   if (typeof user.pin === 'string' && user.pin.startsWith('$2')) {
-    // bcrypt hash: try the entered PIN, then fallback to old 4-digit without '00' prefix
+    // bcrypt hash: try the entered PIN, then fallback to old 4-digit without '88' prefix
     if (await bcrypt.compare(pin, user.pin)) return true;
-    if (pin.startsWith('00') && pin.length === 6) {
+    if (pin.startsWith('88') && pin.length === 6) {
       return bcrypt.compare(pin.slice(2), user.pin);
     }
     return false;
   }
-  // Plain-text legacy PIN: try direct match then '00' prefix fallback
-  const match = user.pin === pin || (pin.startsWith('00') && pin.length === 6 && user.pin === pin.slice(2));
+  // Plain-text legacy PIN: try direct match then '88' prefix fallback
+  const match = user.pin === pin || (pin.startsWith('88') && pin.length === 6 && user.pin === pin.slice(2));
   if (match) {
     const hashed = await bcrypt.hash(user.pin, 10);
     log('updateOne', 'users', { _id: user._id, op: 'upgradePin' });

@@ -957,7 +957,7 @@ describe('Gifts API', () => {
     expect(bobTrophy.body.collection['1'].shiny).toBe(true); // shiny preserved
   });
 
-  it('preserves recipient regular count when accepting a shiny gift', async () => {
+  it('increments count and sets shiny when accepting a shiny gift', async () => {
     await makeFriends();
     await giveAliceShiny(1);
     // Bob has a regular copy
@@ -973,7 +973,7 @@ describe('Gifts API', () => {
 
     const bobTrophy = await request(app).get('/api/trophy')
       .set('Authorization', `Bearer ${bobToken}`);
-    expect(bobTrophy.body.collection['1'].count).toBe(1);    // regular count untouched
+    expect(bobTrophy.body.collection['1'].count).toBe(2);    // count incremented
     expect(bobTrophy.body.collection['1'].shiny).toBe(true); // shiny inherited
   });
 

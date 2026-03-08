@@ -106,8 +106,8 @@ export default function App() {
     apiFetch('/api/wordstats', { headers }).then(r => r.json()).then(setWordStats).catch(() => {});
     apiFetch('/api/roundhistory', { headers }).then(r => r.json()).then(d => {
       setRoundHistory(d.roundHistory || []);
-      setCreditHistory(d.creditHistory || []);
     }).catch(() => {});
+    apiFetch('/api/credithistory', { headers }).then(r => r.json()).then(setCreditHistory).catch(() => {});
     apiFetch('/api/trophy', { headers }).then(r => r.json()).then(data => {
       if (!data.nextPokemonId) {
         const next = pickNextPokemon(data.collection || {});
@@ -175,7 +175,11 @@ export default function App() {
   const saveUserToServer = useCallback((userId, userData) => {
     if (!jwt) return;
     const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${jwt}` };
-    apiFetch('/api/users/me', { method: 'PUT', headers, body: JSON.stringify(userData) }).catch(() => {});
+    // Strip fields that belong in dedicated collections
+    const { collection: _col, creditHistory: _ch, roundHistory: _rh, wordStats: _ws,
+            shinyEligible: _se, consecutiveRegular: _cr, nextPokemonId: _np,
+            bestScores: _bs, ...userFields } = userData;
+    apiFetch('/api/users/me', { method: 'PUT', headers, body: JSON.stringify(userFields) }).catch(() => {});
     if (userData.collection !== undefined) {
       apiFetch('/api/trophy', {
         method: 'PUT', headers,
@@ -188,7 +192,13 @@ export default function App() {
     if (userData.roundHistory) {
       apiFetch('/api/roundhistory', {
         method: 'PUT', headers,
-        body: JSON.stringify({ roundHistory: userData.roundHistory, bestScores: userData.bestScores ?? {}, creditHistory: userData.creditHistory ?? [] }),
+        body: JSON.stringify({ roundHistory: userData.roundHistory, bestScores: userData.bestScores ?? {} }),
+      }).catch(() => {});
+    }
+    if (userData.creditHistory) {
+      apiFetch('/api/credithistory', {
+        method: 'PUT', headers,
+        body: JSON.stringify(userData.creditHistory),
       }).catch(() => {});
     }
   }, [jwt, apiFetch]);
@@ -215,7 +225,7 @@ export default function App() {
     const today = todayStr();
     let { streak, lastPlayed, streakDates, creditBank, consecutiveRegular, shinyEligible, totalCredits } = user;
     // Use trophyData for collection since it's the authoritative source
-    let collection = trophyData?.collection || user.collection || {};
+    let collection = trophyData?.collection || {};
     const newDates = [...(streakDates || [])];
     if (!newDates.includes(today)) newDates.push(today);
 
@@ -236,7 +246,7 @@ export default function App() {
     creditBank = (creditBank || 0) + earned;
     totalCredits = (totalCredits || 0) + earned;
 
-    const nextPokemonId = trophyData?.nextPokemonId || user.nextPokemonId;
+    const nextPokemonId = trophyData?.nextPokemonId;
     const unlock = unlockPokemon({ creditBank, consecutiveRegular, shinyEligible, collection, nextPokemonId });
     creditBank = unlock.creditBank;
     consecutiveRegular = unlock.consecutiveRegular;
@@ -252,14 +262,16 @@ export default function App() {
     const newCreditHistory = [...creditHistory, ...newCreditEvents];
 
     const caught = Object.values(col).filter(c => isPkCaught(c)).length;
-    const updated = { ...user, streak, lastPlayed: today, streakDates: newDates.slice(-90), creditBank, totalCredits, caught, collection: col, shinyEligible, consecutiveRegular, roundHistory: newRoundHistory, roundCount: newRoundCount, level: newLevel, nextPokemonId: unlock.nextPokemonId };
+    // User-level fields only (no collection/trophy/history/stats data)
+    const updated = { ...user, streak, lastPlayed: today, streakDates: newDates.slice(-90), creditBank, totalCredits, caught, roundCount: newRoundCount, level: newLevel };
 
-    const fullUpdate = { ...updated, wordStats: newWordStats, creditHistory: newCreditHistory };
+    // Full update includes all fields so saveUserToServer can route each to its dedicated endpoint
+    const fullUpdate = { ...updated, collection: col, shinyEligible, consecutiveRegular, nextPokemonId: unlock.nextPokemonId, roundHistory: newRoundHistory, bestScores: user.bestScores, wordStats: newWordStats, creditHistory: newCreditHistory };
     setWordStats(newWordStats);
     setRoundHistory(newRoundHistory);
     setCreditHistory(newCreditHistory);
     setTrophyData(prev => prev ? { ...prev, collection: col, shinyEligible, consecutiveRegular, nextPokemonId: unlock.nextPokemonId } : { collection: col, shinyEligible, consecutiveRegular, nextPokemonId: unlock.nextPokemonId });
-    setUsers(prev => ({ ...prev, [currentUser]: fullUpdate }));
+    setUsers(prev => ({ ...prev, [currentUser]: updated }));
     saveUserToServer(currentUser, fullUpdate);
     if (newUnlocks.length) setUnlockQueue(newUnlocks);
     if (score === 10) {
@@ -293,11 +305,11 @@ export default function App() {
 
     // Apply credits to bank and unlock Pokemon
     let { creditBank, consecutiveRegular, shinyEligible, totalCredits } = user;
-    let collection = trophyData?.collection || user.collection || {};
+    let collection = trophyData?.collection || {};
     creditBank = (creditBank || 0) + earned;
     totalCredits = (totalCredits || 0) + earned;
 
-    const nextPokemonId2 = trophyData?.nextPokemonId || user.nextPokemonId;
+    const nextPokemonId2 = trophyData?.nextPokemonId;
     const unlock = unlockPokemon({ creditBank, consecutiveRegular, shinyEligible, collection, nextPokemonId: nextPokemonId2 });
     creditBank = unlock.creditBank;
     consecutiveRegular = unlock.consecutiveRegular;
@@ -314,11 +326,14 @@ export default function App() {
     const newCreditHistory = [...creditHistory, ...weeklyCreditEvents];
 
     const caught = Object.values(col).filter(c => isPkCaught(c)).length;
-    const updatedUser = { ...user, creditBank, totalCredits, caught, collection: col, shinyEligible, consecutiveRegular, creditHistory: newCreditHistory, nextPokemonId: unlock.nextPokemonId };
+    // User-level fields only
+    const updatedUser = { ...user, creditBank, totalCredits, caught };
+    // Full update for routing to dedicated endpoints
+    const fullWeeklyUpdate = { ...updatedUser, collection: col, shinyEligible, consecutiveRegular, nextPokemonId: unlock.nextPokemonId, creditHistory: newCreditHistory };
     setCreditHistory(newCreditHistory);
     setTrophyData(prev2 => prev2 ? { ...prev2, collection: col, shinyEligible, consecutiveRegular, nextPokemonId: unlock.nextPokemonId } : { collection: col, shinyEligible, consecutiveRegular, nextPokemonId: unlock.nextPokemonId });
     setUsers(prev2 => ({ ...prev2, [currentUser]: updatedUser }));
-    saveUserToServer(currentUser, updatedUser);
+    saveUserToServer(currentUser, fullWeeklyUpdate);
     if (newUnlocks.length) setUnlockQueue(newUnlocks);
 
     return { earned, creditBreakdown: breakdown };

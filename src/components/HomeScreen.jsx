@@ -11,7 +11,7 @@ export const HomeScreen = ({ getUser, wordStats, trophyData, weeklyWords, weekly
   const col = trophyData?.collection || {};
   const caught = user.caught || 0;
   // Use pre-computed nextPokemonId if available, otherwise pick fresh (memoized to stay stable)
-  const nextPkId = trophyData?.nextPokemonId || user.nextPokemonId;
+  const nextPkId = trophyData?.nextPokemonId;
   const nextPk = useMemo(
     () => nextPkId ? ALL_POKEMON.find(p => p.id === nextPkId) : pickNextPokemon(col),
     [nextPkId, caught]

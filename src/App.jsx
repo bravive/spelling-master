@@ -224,7 +224,8 @@ export default function App() {
     creditBank = (creditBank || 0) + earned;
     totalCredits = (totalCredits || 0) + earned;
 
-    const unlock = unlockPokemon({ creditBank, consecutiveRegular, shinyEligible, collection });
+    const nextPokemonId = trophyData?.nextPokemonId || user.nextPokemonId;
+    const unlock = unlockPokemon({ creditBank, consecutiveRegular, shinyEligible, collection, nextPokemonId });
     creditBank = unlock.creditBank;
     consecutiveRegular = unlock.consecutiveRegular;
     shinyEligible = unlock.shinyEligible;
@@ -239,13 +240,13 @@ export default function App() {
     const newCreditHistory = [...creditHistory, ...newCreditEvents];
 
     const caught = Object.values(col).filter(c => c.regular || c.shiny).length;
-    const updated = { ...user, streak, lastPlayed: today, streakDates: newDates.slice(-90), creditBank, totalCredits, caught, collection: col, shinyEligible, consecutiveRegular, roundHistory: newRoundHistory, roundCount: newRoundCount, level: newLevel };
+    const updated = { ...user, streak, lastPlayed: today, streakDates: newDates.slice(-90), creditBank, totalCredits, caught, collection: col, shinyEligible, consecutiveRegular, roundHistory: newRoundHistory, roundCount: newRoundCount, level: newLevel, nextPokemonId: unlock.nextPokemonId };
 
     const fullUpdate = { ...updated, wordStats: newWordStats, creditHistory: newCreditHistory };
     setWordStats(newWordStats);
     setRoundHistory(newRoundHistory);
     setCreditHistory(newCreditHistory);
-    setTrophyData(prev => prev ? { ...prev, collection: col, shinyEligible, consecutiveRegular } : { collection: col, shinyEligible, consecutiveRegular });
+    setTrophyData(prev => prev ? { ...prev, collection: col, shinyEligible, consecutiveRegular, nextPokemonId: unlock.nextPokemonId } : { collection: col, shinyEligible, consecutiveRegular, nextPokemonId: unlock.nextPokemonId });
     setUsers(prev => ({ ...prev, [currentUser]: fullUpdate }));
     saveUserToServer(currentUser, fullUpdate);
     if (newUnlocks.length) setUnlockQueue(newUnlocks);
@@ -284,7 +285,8 @@ export default function App() {
     creditBank = (creditBank || 0) + earned;
     totalCredits = (totalCredits || 0) + earned;
 
-    const unlock = unlockPokemon({ creditBank, consecutiveRegular, shinyEligible, collection });
+    const nextPokemonId2 = trophyData?.nextPokemonId || user.nextPokemonId;
+    const unlock = unlockPokemon({ creditBank, consecutiveRegular, shinyEligible, collection, nextPokemonId: nextPokemonId2 });
     creditBank = unlock.creditBank;
     consecutiveRegular = unlock.consecutiveRegular;
     shinyEligible = unlock.shinyEligible;
@@ -300,9 +302,9 @@ export default function App() {
     const newCreditHistory = [...creditHistory, ...weeklyCreditEvents];
 
     const caught = Object.values(col).filter(c => c.regular || c.shiny).length;
-    const updatedUser = { ...user, creditBank, totalCredits, caught, collection: col, shinyEligible, consecutiveRegular, creditHistory: newCreditHistory };
+    const updatedUser = { ...user, creditBank, totalCredits, caught, collection: col, shinyEligible, consecutiveRegular, creditHistory: newCreditHistory, nextPokemonId: unlock.nextPokemonId };
     setCreditHistory(newCreditHistory);
-    setTrophyData(prev2 => prev2 ? { ...prev2, collection: col, shinyEligible, consecutiveRegular } : { collection: col, shinyEligible, consecutiveRegular });
+    setTrophyData(prev2 => prev2 ? { ...prev2, collection: col, shinyEligible, consecutiveRegular, nextPokemonId: unlock.nextPokemonId } : { collection: col, shinyEligible, consecutiveRegular, nextPokemonId: unlock.nextPokemonId });
     setUsers(prev2 => ({ ...prev2, [currentUser]: updatedUser }));
     saveUserToServer(currentUser, updatedUser);
     if (newUnlocks.length) setUnlockQueue(newUnlocks);

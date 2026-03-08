@@ -545,8 +545,8 @@ app.put('/api/gifts/:giftId/accept', requireAuth, async (req, res) => {
     } else {
       newSenderCol[gift.pokemonId] = updatedSender;
     }
-    // Add shiny to recipient (keep their regular copies intact)
-    newRecipientCol[gift.pokemonId] = { ...recipientOwned, shiny: true };
+    // Add shiny to recipient and also increment their regular count
+    newRecipientCol[gift.pokemonId] = { ...recipientOwned, shiny: true, count: pkCount(recipientOwned) + 1 };
   } else {
     const senderCount = pkCount(senderOwned);
     const otherPending = await countPendingOutgoingGifts(gift.fromUserId, gift.pokemonId, false);

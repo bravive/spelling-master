@@ -32,9 +32,11 @@ export default function App() {
   const isAdminRoute = window.location.pathname.startsWith('/admin');
   const urlInviteCode = new URLSearchParams(window.location.search).get('code')?.toUpperCase() || '';
 
+  const hasSavedSession = !isAdminRoute && !urlInviteCode && !!localStorage.getItem('currentUser');
   const [screen, setScreen] = useState(() => {
     if (isAdminRoute) return 'adminLogin';
     if (urlInviteCode) return 'createUser';
+    if (hasSavedSession) return 'loading';
     return 'selectUser';
   });
   const [gameScreen, setGameScreen] = useState('home');
@@ -182,8 +184,10 @@ export default function App() {
           const transientScreens = ['stage1', 'stage2', 'results'];
           setGameScreen(savedGameScreen && !transientScreens.includes(savedGameScreen) ? savedGameScreen : 'home');
         }
+      } else {
+        setScreen('selectUser');
       }
-    }).catch(() => {});
+    }).catch(() => { setScreen('selectUser'); });
   }, []);
 
   const saveUserToServer = useCallback((userId, userData) => {
@@ -402,6 +406,14 @@ export default function App() {
           unlock={unlockQueue[0]}
           onDismiss={() => setUnlockQueue(q => q.slice(1))}
         />
+      )}
+
+      {screen === 'loading' && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 36, animation: 'bounce 1s ease infinite' }}>✨</div>
+          </div>
+        </div>
       )}
 
       {screen === 'selectUser' && <SelectUserScreen setCurrentUser={setCurrentUser} setScreen={setScreen} setGameScreen={setGameScreen} setJwt={setJwt} setCreateStep={setCreateStep} setNewName={setNewName} setNewStarter={setNewStarter} setNewPin={setNewPin} setConfirmPin={setConfirmPin} />}

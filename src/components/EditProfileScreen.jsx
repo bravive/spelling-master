@@ -48,7 +48,10 @@ export const EditProfileScreen = ({ user, jwt, saveUsers, users, currentUser, se
 
   return (
     <div style={{ width: '100%', maxWidth: 420, textAlign: 'center' }}>
-      <h2 style={{ color: C.yellow, marginBottom: 4 }}>Edit Profile</h2>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
+        <button style={{ ...s.backBtn }} onClick={() => setGameScreen('home')}>←</button>
+        <h2 style={{ margin: 0, color: C.yellow }}>Edit Profile</h2>
+      </div>
       <div style={{ color: C.muted, marginBottom: 20 }}>{user.name}</div>
 
       {/* Tab bar */}
@@ -150,11 +153,6 @@ export const EditProfileScreen = ({ user, jwt, saveUsers, users, currentUser, se
 
       {err && <div style={{ color: C.red, marginTop: 12, animation: 'shake 0.3s ease' }}>{err}</div>}
       {success && <div style={{ color: C.green, marginTop: 12 }}>{success}</div>}
-
-      <button style={{ ...s.btn('rgba(255,255,255,0.1)', 'sm'), color: C.muted, marginTop: 20 }}
-        onClick={() => setGameScreen('home')}>
-        Back to Home
-      </button>
     </div>
   );
 };

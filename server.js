@@ -213,7 +213,9 @@ app.get('/api/admin/friendships', requireAdmin, async (_req, res) => {
 
 app.get('/api/trophy', requireAuth, async (req, res) => {
   const doc = await getTrophy(req.jwtUser.id);
-  res.json(doc ?? { collection: {}, shinyEligible: false, consecutiveRegular: 0, nextPokemonId: null });
+  if (!doc) return res.json({ collection: {}, shinyEligible: false, consecutiveRegular: 0, nextPokemonId: null });
+  const { _id, userId, created_at, updated_at, ...trophy } = doc;
+  res.json({ collection: {}, shinyEligible: false, consecutiveRegular: 0, nextPokemonId: null, ...trophy });
 });
 
 app.put('/api/trophy', requireAuth, async (req, res) => {

@@ -195,8 +195,8 @@ export const TrophyScreen = ({ trophyData, currentUser, setScreen, setGameScreen
                     alt={pk.name}
                     style={{ width: imgSize, height: imgSize, objectFit: 'contain', filter: !unlocked ? 'brightness(0) opacity(0.3)' : 'none' }}
                   />
-                  <div style={{ fontSize, color: unlocked ? '#fff' : C.muted, marginTop: 4, lineHeight: 1.3, fontWeight: layout === 'all' ? 400 : 600 }}>
-                    {unlocked ? pk.name : '???'}
+                  <div style={{ fontSize, color: isShiny ? '#a78bfa' : unlocked ? '#fff' : C.muted, marginTop: 4, lineHeight: 1.3, fontWeight: isShiny ? 700 : layout === 'all' ? 400 : 600 }}>
+                    {unlocked ? (isShiny ? `✨ ${pk.name}` : pk.name) : '???'}
                   </div>
                 </div>
               );

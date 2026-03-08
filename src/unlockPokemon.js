@@ -1,8 +1,10 @@
 import { ALL_POKEMON } from './data/pokemon';
+import { pickNextPokemon } from './pickNextPokemon';
 
 /**
  * Process Pokemon unlocks from credit bank.
- * Every 10 credits unlocks the next regular Pokemon.
+ * Every 10 credits unlocks a Pokemon chosen by weighted bucket probability
+ * with evolution-chain bias toward base forms.
  * After 3 consecutive regular unlocks, shiny chance activates —
  * the next unlock also awards a bonus shiny version of a random collected Pokemon.
  */
@@ -12,8 +14,8 @@ export const unlockPokemon = ({ creditBank, consecutiveRegular, shinyEligible, c
 
   while (creditBank >= 10) {
     creditBank -= 10;
-    // Always unlock next regular Pokemon
-    const nextPk = ALL_POKEMON.find(p => !col[p.id]?.regular);
+    // Pick next Pokemon using weighted bucket + evolution bias
+    const nextPk = pickNextPokemon(col);
     if (nextPk) {
       col = { ...col, [nextPk.id]: { ...(col[nextPk.id] || {}), regular: true } };
       newUnlocks.push({ ...nextPk, shiny: false });

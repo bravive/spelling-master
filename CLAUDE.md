@@ -28,7 +28,10 @@ Follow these steps for every change, no matter how small:
 ### 5. Push after committing
 - After each commit (or a small batch of related commits), push to `origin main`
 
-### 6. "Release" shortcut
+### 6. Use "frontend-design" skill for UI changes
+- When the change is UI-related (styling, layout, visual design, component appearance), always invoke the `frontend-design` skill before implementing
+
+### 7. "Release" shortcut
 - When the user says **"release"**, run: `npm test`, then commit, then `git push origin main`
 
 ---

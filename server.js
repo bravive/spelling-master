@@ -213,7 +213,7 @@ app.get('/api/admin/friendships', requireAdmin, async (_req, res) => {
 
 app.get('/api/trophy', requireAuth, async (req, res) => {
   const doc = await getTrophy(req.jwtUser.id);
-  res.json(doc ?? { collection: {}, shinyEligible: false, consecutiveRegular: 0 });
+  res.json(doc ?? { collection: {}, shinyEligible: false, consecutiveRegular: 0, nextPokemonId: null });
 });
 
 app.put('/api/trophy', requireAuth, async (req, res) => {

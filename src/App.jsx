@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { makeAuthFetch } from './authFetch';
 import { ALL_POKEMON } from './data/pokemon';
-import { pickNextPokemon } from './pickNextPokemon';
 import { unlockPokemon } from './unlockPokemon';
+import { pickNextPokemon } from './pickNextPokemon';
 import { selectWords, updateWordStats, checkLevelUp } from './wordSelection';
 import { computeWeeklyScore } from './weeklyScoring';
 import { todayStr, localDateStr, injectCSS, isPkCaught, C, s } from './shared';
@@ -109,10 +109,12 @@ export default function App() {
     }).catch(() => {});
     apiFetch('/api/credithistory', { headers }).then(r => r.json()).then(setCreditHistory).catch(() => {});
     apiFetch('/api/trophy', { headers }).then(r => r.json()).then(data => {
-      if (!data.nextPokemonId) {
-        const next = pickNextPokemon(data.collection || {});
+      const col = data.collection || {};
+      // Recompute nextPokemonId if missing or already caught
+      if (!data.nextPokemonId || isPkCaught(col[data.nextPokemonId])) {
+        const next = pickNextPokemon(col);
         data.nextPokemonId = next?.id || null;
-        // Persist the newly generated nextPokemonId
+        // Persist the computed nextPokemonId
         apiFetch('/api/trophy', {
           method: 'PUT', headers: { ...headers, 'Content-Type': 'application/json' },
           body: JSON.stringify(data),
@@ -246,7 +248,12 @@ export default function App() {
     creditBank = (creditBank || 0) + earned;
     totalCredits = (totalCredits || 0) + earned;
 
-    const nextPokemonId = trophyData?.nextPokemonId;
+    let nextPokemonId = trophyData?.nextPokemonId;
+    // Ensure nextPokemonId is valid (not null, not already caught)
+    if (!nextPokemonId || isPkCaught(collection[nextPokemonId])) {
+      const next = pickNextPokemon(collection);
+      nextPokemonId = next?.id || null;
+    }
     const unlock = unlockPokemon({ creditBank, consecutiveRegular, shinyEligible, collection, nextPokemonId });
     creditBank = unlock.creditBank;
     consecutiveRegular = unlock.consecutiveRegular;
@@ -273,7 +280,16 @@ export default function App() {
     setTrophyData(prev => prev ? { ...prev, collection: col, shinyEligible, consecutiveRegular, nextPokemonId: unlock.nextPokemonId } : { collection: col, shinyEligible, consecutiveRegular, nextPokemonId: unlock.nextPokemonId });
     setUsers(prev => ({ ...prev, [currentUser]: updated }));
     saveUserToServer(currentUser, fullUpdate);
-    if (newUnlocks.length) setUnlockQueue(newUnlocks);
+    if (newUnlocks.length) {
+      setUnlockQueue(newUnlocks);
+      const h = { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` };
+      for (const u of newUnlocks) {
+        const entry = u.shiny
+          ? { action: 'shiny', pokemon: u.slug }
+          : { action: 'catch', pokemon: u.slug };
+        apiFetch('/api/trophyhistory', { method: 'POST', headers: h, body: JSON.stringify(entry) }).catch(() => {});
+      }
+    }
     if (score === 10) {
       setShowConfetti(true);
       if (confettiTimer.current) clearTimeout(confettiTimer.current);
@@ -309,7 +325,12 @@ export default function App() {
     creditBank = (creditBank || 0) + earned;
     totalCredits = (totalCredits || 0) + earned;
 
-    const nextPokemonId2 = trophyData?.nextPokemonId;
+    let nextPokemonId2 = trophyData?.nextPokemonId;
+    // Ensure nextPokemonId is valid (not null, not already caught)
+    if (!nextPokemonId2 || isPkCaught(collection[nextPokemonId2])) {
+      const next = pickNextPokemon(collection);
+      nextPokemonId2 = next?.id || null;
+    }
     const unlock = unlockPokemon({ creditBank, consecutiveRegular, shinyEligible, collection, nextPokemonId: nextPokemonId2 });
     creditBank = unlock.creditBank;
     consecutiveRegular = unlock.consecutiveRegular;
@@ -334,7 +355,16 @@ export default function App() {
     setTrophyData(prev2 => prev2 ? { ...prev2, collection: col, shinyEligible, consecutiveRegular, nextPokemonId: unlock.nextPokemonId } : { collection: col, shinyEligible, consecutiveRegular, nextPokemonId: unlock.nextPokemonId });
     setUsers(prev2 => ({ ...prev2, [currentUser]: updatedUser }));
     saveUserToServer(currentUser, fullWeeklyUpdate);
-    if (newUnlocks.length) setUnlockQueue(newUnlocks);
+    if (newUnlocks.length) {
+      setUnlockQueue(newUnlocks);
+      const h = { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` };
+      for (const u of newUnlocks) {
+        const entry = u.shiny
+          ? { action: 'shiny', pokemon: u.slug }
+          : { action: 'catch', pokemon: u.slug };
+        apiFetch('/api/trophyhistory', { method: 'POST', headers: h, body: JSON.stringify(entry) }).catch(() => {});
+      }
+    }
 
     return { earned, creditBreakdown: breakdown };
   }, [users, currentUser, activeWeekId, weeklyStats, weeklyWords, jwt, trophyData, creditHistory, saveUserToServer, apiFetch]);
@@ -371,7 +401,7 @@ export default function App() {
       {screen === 'game' && gameScreen === 'stage2' && <Stage2Screen words={words} processRound={processRound} setRoundResults={setRoundResults} setGameScreen={setGameScreen} />}
       {screen === 'game' && gameScreen === 'results' && <ResultsScreen roundResults={roundResults} getUser={getUser} wordStats={wordStats} setWords={setWords} setRetryCount={setRetryCount} setGameScreen={setGameScreen} />}
       {screen === 'game' && gameScreen === 'trophy' && <TrophyScreen trophyData={trophyData} currentUser={currentUser} setScreen={setScreen} setGameScreen={setGameScreen} jwt={jwt} getUser={getUser} updateUser={updateUser} apiFetch={apiFetch} setTrophyData={setTrophyData} />}
-      {screen === 'game' && gameScreen === 'stats' && <StatsScreen getUser={getUser} wordStats={wordStats} roundHistory={roundHistory} creditHistory={creditHistory} weeklyStats={weeklyStats} setGameScreen={setGameScreen} />}
+      {screen === 'game' && gameScreen === 'stats' && <StatsScreen getUser={getUser} wordStats={wordStats} roundHistory={roundHistory} creditHistory={creditHistory} weeklyStats={weeklyStats} setGameScreen={setGameScreen} jwt={jwt} apiFetch={apiFetch} />}
       {screen === 'game' && gameScreen === 'weekly' && <WeeklyChallengeScreen weeklyWords={weeklyWords} weeklyStats={weeklyStats} setWords={setWords} setRetryCount={setRetryCount} setGameScreen={setGameScreen} setActiveWeekId={setActiveWeekId} initialSelectedId={activeWeekId} />}
       {screen === 'game' && gameScreen === 'weeklyStage1' && (() => {
         const wp = weeklyStats[activeWeekId];

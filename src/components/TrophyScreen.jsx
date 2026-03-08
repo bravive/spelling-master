@@ -770,11 +770,7 @@ export const TrophyScreen = ({ trophyData, currentUser, setScreen, setGameScreen
           updateUser={updateUser}
           setTrophyData={setTrophyData}
           trophyData={trophyData}
-          onClose={() => {
-            setShowManage(false);
-            const headers = { Authorization: `Bearer ${jwt}` };
-            apiFetch('/api/trophyhistory', { headers }).then(r => r.json()).then(setTrophyHistory).catch(() => {});
-          }}
+          onClose={() => setShowManage(false)}
         />
       )}
 

@@ -1,9 +1,11 @@
+import { useState, useEffect } from 'react';
 import { todayStr, localDateStr, C, s } from '../shared';
 
 const SOURCE_LABEL = { round: 'Round', weekly: 'Weekly', streak: 'Streak' };
 const SOURCE_COLOR = { round: C.blue, weekly: C.purple, streak: C.yellow };
+const slugToName = slug => slug.charAt(0).toUpperCase() + slug.slice(1).replace(/-/g, ' ');
 
-export const StatsScreen = ({ getUser, wordStats, roundHistory, creditHistory, weeklyStats, setGameScreen }) => {
+export const StatsScreen = ({ getUser, wordStats, roundHistory, creditHistory, weeklyStats, setGameScreen, jwt, apiFetch }) => {
   const user = getUser();
   if (!user) return null;
   const caught = user.caught || 0;
@@ -18,6 +20,15 @@ export const StatsScreen = ({ getUser, wordStats, roundHistory, creditHistory, w
   });
 
   const recentRounds = [...(roundHistory || [])].reverse();
+
+  // Trophy manage history
+  const [trophyHistory, setTrophyHistory] = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
+  useEffect(() => {
+    if (!jwt || !apiFetch) return;
+    const headers = { Authorization: `Bearer ${jwt}` };
+    apiFetch('/api/trophyhistory', { headers }).then(r => r.json()).then(setTrophyHistory).catch(() => {});
+  }, [jwt, apiFetch]);
 
   // Credit history newest-first with running balance
   const allCredits = [...(creditHistory || [])];
@@ -165,6 +176,59 @@ export const StatsScreen = ({ getUser, wordStats, roundHistory, creditHistory, w
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Trophy history */}
+      {trophyHistory.length > 0 && (
+        <div style={{ ...s.card, marginBottom: 16 }}>
+          <button
+            onClick={() => setShowHistory(!showHistory)}
+            style={{
+              width: '100%', background: 'transparent', border: 'none', padding: 0, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            }}
+          >
+            <span style={{ fontWeight: 700, color: '#fff' }}>Trophy History ({trophyHistory.length})</span>
+            <span style={{ fontSize: 12, color: C.muted }}>{showHistory ? '▲' : '▼'}</span>
+          </button>
+          {showHistory && (
+            <div style={{ marginTop: 8, maxHeight: 220, overflowY: 'auto' }}>
+              {trophyHistory.map(entry => (
+                <div key={entry._id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: `1px solid rgba(255,255,255,0.05)` }}>
+                  <span style={{ fontSize: 14, width: 24, textAlign: 'center' }}>
+                    {entry.action === 'catch' ? '🎊' : entry.action === 'shiny' ? '✨' : entry.action === 'buy' ? '💰' : entry.action === 'evolve' ? '⬆️' : entry.action === 'gift_sent' || entry.action === 'gift_received' ? '🎁' : '🔄'}
+                  </span>
+                  <div style={{ flex: 1, fontSize: 12 }}>
+                    {entry.action === 'catch' && (
+                      <span>Caught <b style={{ color: C.yellow }}>{slugToName(entry.pokemon)}</b></span>
+                    )}
+                    {entry.action === 'shiny' && (
+                      <span>Got shiny <b style={{ color: C.purple }}>{slugToName(entry.pokemon)}</b></span>
+                    )}
+                    {entry.action === 'buy' && (
+                      <span>Bought <b style={{ color: C.yellow }}>{slugToName(entry.pokemon)}</b> for {entry.cost} credits</span>
+                    )}
+                    {entry.action === 'evolve' && (
+                      <span>Evolved <b style={{ color: C.green }}>{slugToName(entry.from)}</b> → <b style={{ color: C.green }}>{slugToName(entry.to)}</b></span>
+                    )}
+                    {entry.action === 'swap' && (
+                      <span>Swapped {entry.given.map(slugToName).join(', ')} → <b style={{ color: C.blue }}>{slugToName(entry.received)}</b></span>
+                    )}
+                    {entry.action === 'gift_sent' && (
+                      <span>Gifted <b style={{ color: C.pink }}>{slugToName(entry.pokemon)}</b> to {entry.toUser}</span>
+                    )}
+                    {entry.action === 'gift_received' && (
+                      <span>Received <b style={{ color: C.pink }}>{slugToName(entry.pokemon)}</b> from {entry.fromUser}</span>
+                    )}
+                  </div>
+                  <span style={{ fontSize: 10, color: C.muted, flexShrink: 0 }}>
+                    {new Date(entry.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

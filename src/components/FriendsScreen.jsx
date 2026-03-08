@@ -597,7 +597,7 @@ export const FriendsScreen = ({ jwt, currentUser, myStarterSlug, setGameScreen, 
         <Tab active={tab === 'friends'} label="Friends" badge={totalUnread} onClick={() => setTab('friends')} />
         <Tab active={tab === 'requests'} label="Requests" badge={pendingReceived.length} onClick={() => setTab('requests')} />
         <Tab active={tab === 'gifts'} label="Gifts" badge={incomingGifts.length} onClick={() => setTab('gifts')} />
-        <Tab active={tab === 'codes'} label="Codes" onClick={() => setTab('codes')} />
+        <Tab active={tab === 'codes'} label="Invites" onClick={() => setTab('codes')} />
       </div>
 
       {loading && <div style={{ color: C.muted, textAlign: 'center', padding: 32 }}>Loading...</div>}

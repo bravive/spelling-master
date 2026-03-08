@@ -418,7 +418,7 @@ export default function App() {
         const wp = weeklyStats[activeWeekId];
         const completed = wp?.completed;
         const label = completed ? '🔁 Replay!' : "✅ I'm Ready!";
-        return <Stage1Screen words={words} retryCount={retryCount} setGameScreen={setGameScreen} nextScreen="weeklyStage2" discardScreen="weekly" quitLabel="Quit" readyLabel={label} />;
+        return <Stage1Screen words={words} retryCount={retryCount} setGameScreen={setGameScreen} nextScreen="weeklyStage2" discardScreen="weekly" quitLabel="Quit" readyLabel={label} requireClickAll={false} />;
       })()}
       {screen === 'game' && gameScreen === 'weeklyStage2' && <Stage2Screen words={words} processRound={processWeeklyRound} setRoundResults={setRoundResults} setGameScreen={setGameScreen} resultsScreen="weeklyResults" discardScreen="weekly" onQuit={handleWeeklyQuit} unlimitedRetries allowSkip />}
       {screen === 'game' && gameScreen === 'weeklyResults' && <WeeklyResultsScreen roundResults={roundResults} setGameScreen={setGameScreen} />}

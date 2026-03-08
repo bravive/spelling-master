@@ -82,6 +82,7 @@ export const injectCSS = () => {
     @keyframes shimmer { 0%{filter:drop-shadow(0 0 6px #a78bfa)} 50%{filter:drop-shadow(0 0 16px #60a5fa)} 100%{filter:drop-shadow(0 0 6px #a78bfa)} }
     @keyframes sparkle { 0%,100%{opacity:0;transform:scale(0)} 50%{opacity:1;transform:scale(1)} }
     @keyframes fall    { 0%{transform:translateY(-10px) rotate(0deg);opacity:1} 100%{transform:translateY(100vh) rotate(720deg);opacity:0} }
+    @keyframes shrink  { 0%{width:100%} 100%{width:0%} }
     .pk-card-inner { transition: transform 0.45s; transform-style: preserve-3d; }
     .pk-card-inner.flipped { transform: rotateY(180deg); }
     .pk-face { backface-visibility: hidden; -webkit-backface-visibility: hidden; }

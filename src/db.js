@@ -41,6 +41,7 @@ export const friendshipsCol          = () => getDb().collection('friendships');
 export const messagesCol             = () => getDb().collection('messages');
 export const trophyhistoryCol        = () => getDb().collection('trophyhistory');
 export const giftsCol                = () => getDb().collection('gifts');
+export const inviteCodesCol          = () => getDb().collection('invitecodes');
 
 // ── Indexes ───────────────────────────────────────────────────────────────────
 const ensureIndexes = async () => {
@@ -62,5 +63,7 @@ const ensureIndexes = async () => {
     trophyhistoryCol().createIndex({ userId: 1, created_at: -1 }),
     giftsCol().createIndex({ toUserId: 1, status: 1 }),
     giftsCol().createIndex({ fromUserId: 1, status: 1 }),
+    inviteCodesCol().createIndex({ code: 1 }, { unique: true }),
+    inviteCodesCol().createIndex({ createdBy: 1 }),
   ]);
 };

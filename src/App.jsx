@@ -60,6 +60,7 @@ export default function App() {
 
   // Create user flow
   const [createStep, setCreateStep] = useState(0);
+  const [inviteCode, setInviteCode] = useState('');
   const [newName, setNewName] = useState('');
   const [newStarter, setNewStarter] = useState(null);
   const [newPin, setNewPin] = useState('');
@@ -395,7 +396,7 @@ export default function App() {
       {screen === 'selectUser' && <SelectUserScreen setCurrentUser={setCurrentUser} setScreen={setScreen} setGameScreen={setGameScreen} setJwt={setJwt} setCreateStep={setCreateStep} setNewName={setNewName} setNewStarter={setNewStarter} setNewPin={setNewPin} setConfirmPin={setConfirmPin} />}
       {screen === 'adminLogin' && <AdminLoginScreen setCurrentUser={setCurrentUser} setScreen={setScreen} setJwt={setJwt} />}
       {screen === 'parentMenu' && <ParentMenuScreen jwt={jwt} setScreen={setScreen} setCurrentUser={setCurrentUser} />}
-      {screen === 'createUser' && <CreateUserScreen users={users} saveUsers={saveUsers} createStep={createStep} setCreateStep={setCreateStep} newName={newName} setNewName={setNewName} newStarter={newStarter} setNewStarter={setNewStarter} newPin={newPin} setNewPin={setNewPin} confirmPin={confirmPin} setConfirmPin={setConfirmPin} setScreen={setScreen} />}
+      {screen === 'createUser' && <CreateUserScreen users={users} saveUsers={saveUsers} createStep={createStep} setCreateStep={setCreateStep} inviteCode={inviteCode} setInviteCode={setInviteCode} newName={newName} setNewName={setNewName} newStarter={newStarter} setNewStarter={setNewStarter} newPin={newPin} setNewPin={setNewPin} confirmPin={confirmPin} setConfirmPin={setConfirmPin} setScreen={setScreen} />}
       {screen === 'game' && gameScreen === 'home' && <HomeScreen getUser={getUser} wordStats={wordStats} trophyData={trophyData} weeklyWords={weeklyWords} weeklyStats={weeklyStats} setWords={setWords} setRetryCount={setRetryCount} setGameScreen={setGameScreen} setCurrentUser={setCurrentUser} setScreen={setScreen} />}
       {screen === 'game' && gameScreen === 'stage1' && <Stage1Screen words={words} retryCount={retryCount} setGameScreen={setGameScreen} />}
       {screen === 'game' && gameScreen === 'stage2' && <Stage2Screen words={words} processRound={processRound} setRoundResults={setRoundResults} setGameScreen={setGameScreen} />}

@@ -402,6 +402,86 @@ const GiftModal = ({ friend, jwt, onClose, onSent }) => {
   );
 };
 
+const InviteCodesTab = ({ jwt }) => {
+  const [codes, setCodes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [err, setErr] = useState('');
+  const [copied, setCopied] = useState('');
+  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` };
+  const MAX = 5;
+
+  const load = () => {
+    fetch('/api/invite-codes', { headers }).then(r => r.json()).then(data => { setCodes(data); setLoading(false); }).catch(() => setLoading(false));
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const create = async () => {
+    setErr('');
+    setCreating(true);
+    try {
+      const res = await fetch('/api/invite-codes', { method: 'POST', headers });
+      const data = await res.json();
+      if (!res.ok) { setErr(data.error || 'Failed to create code'); }
+      else load();
+    } catch { setErr('Network error'); }
+    setCreating(false);
+  };
+
+  const copy = (code) => {
+    navigator.clipboard?.writeText(code).catch(() => {});
+    setCopied(code);
+    setTimeout(() => setCopied(''), 2000);
+  };
+
+  const used = codes.filter(c => c.usedBy).length;
+  const unused = codes.filter(c => !c.usedBy).length;
+
+  return (
+    <div>
+      <div style={{ ...s.card, marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+        <div>
+          <div style={{ fontWeight: 700, color: C.yellow, marginBottom: 2 }}>Invite Codes</div>
+          <div style={{ fontSize: 12, color: C.muted }}>{codes.length}/{MAX} created · {used} used · {unused} available</div>
+        </div>
+        <button
+          onClick={create}
+          disabled={creating || codes.length >= MAX}
+          style={{ ...s.btn(codes.length >= MAX ? C.muted : C.green, 'sm'), opacity: codes.length >= MAX ? 0.5 : 1 }}
+        >
+          {creating ? '...' : codes.length >= MAX ? 'Limit reached' : '+ Generate'}
+        </button>
+      </div>
+      {err && <div style={{ color: C.red, fontSize: 13, marginBottom: 8 }}>{err}</div>}
+      {loading && <div style={{ color: C.muted, textAlign: 'center', padding: 24 }}>Loading...</div>}
+      {!loading && codes.length === 0 && (
+        <div style={{ ...s.card, textAlign: 'center', color: C.muted, padding: 32 }}>
+          No codes yet. Generate one to invite a friend!
+        </div>
+      )}
+      {codes.map(c => (
+        <div key={c._id} style={{ ...s.card, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: 'monospace', fontSize: 18, fontWeight: 700, letterSpacing: 2, color: c.usedBy ? C.muted : C.yellow }}>{c.code}</div>
+            {c.usedBy
+              ? <div style={{ fontSize: 12, color: C.muted }}>Used by <span style={{ color: '#fff' }}>{c.usedByName}</span></div>
+              : <div style={{ fontSize: 12, color: C.green }}>Available</div>
+            }
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginTop: 2 }}>{new Date(c.created_at).toLocaleDateString()}</div>
+          </div>
+          {!c.usedBy && (
+            <button onClick={() => copy(c.code)} style={{ ...s.btn(C.blue, 'sm'), minWidth: 60 }}>
+              {copied === c.code ? '✓' : 'Copy'}
+            </button>
+          )}
+          {c.usedBy && <div style={{ fontSize: 18 }}>✓</div>}
+        </div>
+      ))}
+    </div>
+  );
+};
+
 export const FriendsScreen = ({ jwt, currentUser, myStarterSlug, setGameScreen, setTrophyData }) => {
   const [tab, setTab] = useState('friends');
   const [friends, setFriends] = useState([]);
@@ -502,6 +582,7 @@ export const FriendsScreen = ({ jwt, currentUser, myStarterSlug, setGameScreen, 
         <Tab active={tab === 'requests'} label="Requests" badge={pendingReceived.length} onClick={() => setTab('requests')} />
         <Tab active={tab === 'gifts'} label="Gifts" badge={incomingGifts.length} onClick={() => setTab('gifts')} />
         <Tab active={tab === 'search'} label="Search" onClick={() => setTab('search')} />
+        <Tab active={tab === 'codes'} label="Codes" onClick={() => setTab('codes')} />
       </div>
 
       {loading && <div style={{ color: C.muted, textAlign: 'center', padding: 32 }}>Loading...</div>}
@@ -576,6 +657,8 @@ export const FriendsScreen = ({ jwt, currentUser, myStarterSlug, setGameScreen, 
           })}
         </>
       )}
+
+      {!loading && tab === 'codes' && <InviteCodesTab jwt={jwt} />}
 
       {selectedFriend && (
         <FriendDetailModal

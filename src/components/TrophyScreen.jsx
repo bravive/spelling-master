@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { ALL_POKEMON, pkImg, pkShiny } from '../data/pokemon';
 import POKEMON_STATS from '../data/pokemon-stats.json';
 import POKEMON_EVOLUTIONS from '../data/pokemon-evolutions.json';
-import { C, s } from '../shared';
+import { isPkCaught, pkCount, C, s } from '../shared';
 
 const STAT_META = [
   { key: 'hp',  label: 'HP',              title: 'Hit Points — how much damage this Pokémon can take before fainting',        color: '#ef4444' },
@@ -13,13 +13,366 @@ const STAT_META = [
   { key: 'spe', label: 'Speed',           title: 'Speed — determines who attacks first; higher = moves before the opponent',  color: '#c4b5fd' },
 ];
 
-export const TrophyScreen = ({ trophyData, currentUser, setScreen, setGameScreen }) => {
+const slugToName = slug => slug.charAt(0).toUpperCase() + slug.slice(1).replace(/-/g, ' ');
+
+// ── ManageModal ──────────────────────────────────────────────────────────────
+const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setTrophyData, trophyData, onClose }) => {
+  const [tab, setTab] = useState('duplicate');
+  const [confirm, setConfirm] = useState(null); // { type, ... }
+  const [swapSources, setSwapSources] = useState([]); // array of pokemon ids
+  const [swapTarget, setSwapTarget] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  const caughtPokemon = useMemo(() =>
+    ALL_POKEMON.filter(pk => isPkCaught(col[pk.id])),
+  [col]);
+
+  const evolveCandidates = useMemo(() =>
+    caughtPokemon.filter(pk => {
+      if (pkCount(col[pk.id]) < 3) return false;
+      const chain = POKEMON_EVOLUTIONS[pk.slug];
+      if (!chain || chain.length <= 1) return false;
+      const idx = chain.indexOf(pk.slug);
+      return idx >= 0 && idx < chain.length - 1; // has next evolution
+    }),
+  [col, caughtPokemon]);
+
+  const uncaughtPokemon = useMemo(() =>
+    ALL_POKEMON.filter(pk => !isPkCaught(col[pk.id])),
+  [col]);
+
+  const saveChanges = async (newCol, newCreditBank) => {
+    setSaving(true);
+    try {
+      const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` };
+      // Save trophy data
+      const newTrophy = { ...trophyData, collection: newCol };
+      await apiFetch('/api/trophy', { method: 'PUT', headers, body: JSON.stringify(newTrophy) });
+      setTrophyData(newTrophy);
+      // Save user data if credits changed
+      if (newCreditBank !== undefined) {
+        const caught = Object.values(newCol).filter(c => isPkCaught(c)).length;
+        updateUser(u => ({ ...u, creditBank: newCreditBank, caught, collection: newCol }));
+        await apiFetch('/api/users/me', { method: 'PUT', headers, body: JSON.stringify({ creditBank: newCreditBank, caught }) });
+      } else {
+        const caught = Object.values(newCol).filter(c => isPkCaught(c)).length;
+        updateUser(u => ({ ...u, caught, collection: newCol }));
+      }
+    } catch (e) {
+      console.error('Save failed:', e);
+    }
+    setSaving(false);
+  };
+
+  const doDuplicate = async (pk) => {
+    if (creditBank < 3) return;
+    const newCol = { ...col, [pk.id]: { ...col[pk.id], count: pkCount(col[pk.id]) + 1 } };
+    await saveChanges(newCol, creditBank - 3);
+    setConfirm(null);
+  };
+
+  const doEvolve = async (pk) => {
+    const chain = POKEMON_EVOLUTIONS[pk.slug];
+    const idx = chain.indexOf(pk.slug);
+    const nextSlug = chain[idx + 1];
+    const nextPk = ALL_POKEMON.find(p => p.slug === nextSlug);
+    if (!nextPk) return;
+    const srcCount = pkCount(col[pk.id]) - 3;
+    const tgtEntry = col[nextPk.id] || {};
+    const newCol = {
+      ...col,
+      [pk.id]: { ...col[pk.id], count: srcCount },
+      [nextPk.id]: { ...tgtEntry, count: pkCount(tgtEntry) + 1 },
+    };
+    await saveChanges(newCol);
+    setConfirm(null);
+  };
+
+  const doSwap = async () => {
+    if (swapSources.length !== 3 || !swapTarget) return;
+    const newCol = { ...col };
+    for (const srcId of swapSources) {
+      const c = pkCount(newCol[srcId]) - 1;
+      newCol[srcId] = { ...newCol[srcId], count: c };
+    }
+    const tgtEntry = newCol[swapTarget] || {};
+    newCol[swapTarget] = { ...tgtEntry, count: pkCount(tgtEntry) + 1 };
+    await saveChanges(newCol);
+    setSwapSources([]);
+    setSwapTarget(null);
+    setConfirm(null);
+  };
+
+  const tabBtn = (key, label) => (
+    <button
+      key={key}
+      onClick={() => { setTab(key); setConfirm(null); setSwapSources([]); setSwapTarget(null); }}
+      style={{
+        flex: 1, padding: '10px 0', border: 'none', borderRadius: 10, cursor: 'pointer',
+        background: tab === key ? C.purple : 'rgba(255,255,255,0.08)',
+        color: tab === key ? '#1a1a2e' : C.muted,
+        fontWeight: 700, fontSize: 13, transition: 'all 0.15s',
+      }}
+    >
+      {label}
+    </button>
+  );
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 600, padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: '#1e1b3a', borderRadius: 20, padding: 20, width: '100%', maxWidth: 400, maxHeight: '85vh', display: 'flex', flexDirection: 'column', animation: 'popIn 0.35s ease', border: `1px solid ${C.border}` }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={{ fontWeight: 800, fontSize: 18 }}>Manage Trophies</div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: C.muted, fontSize: 20, cursor: 'pointer', padding: 4 }}>✕</button>
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+          {tabBtn('duplicate', 'Duplicate')}
+          {tabBtn('evolve', 'Evolve')}
+          {tabBtn('swap', 'Swap')}
+        </div>
+
+        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+          {/* ── Duplicate tab ── */}
+          {tab === 'duplicate' && (
+            <div>
+              <div style={{ color: C.muted, fontSize: 13, marginBottom: 12 }}>
+                Spend <span style={{ color: C.yellow, fontWeight: 700 }}>3 credits</span> to get a copy of a caught Pokemon.
+                {creditBank < 3 && <span style={{ color: C.red }}> (Not enough credits: {creditBank}/3)</span>}
+              </div>
+              {confirm?.type === 'duplicate' ? (
+                <div style={{ textAlign: 'center', padding: 16 }}>
+                  <img src={pkImg(confirm.pk.slug)} alt={confirm.pk.name} style={{ width: 80, height: 80, objectFit: 'contain' }} />
+                  <div style={{ fontWeight: 700, fontSize: 16, marginTop: 8 }}>Spend 3 credits for another {confirm.pk.name}?</div>
+                  <div style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>Current count: x{pkCount(col[confirm.pk.id])}</div>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'center' }}>
+                    <button style={{ ...s.btn(C.yellow, 'sm') }} disabled={saving} onClick={() => doDuplicate(confirm.pk)}>
+                      {saving ? 'Saving...' : 'Confirm (-3 credits)'}
+                    </button>
+                    <button style={{ ...s.btn('rgba(255,255,255,0.12)', 'sm'), color: C.muted }} onClick={() => setConfirm(null)}>Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                  {caughtPokemon.map(pk => {
+                    const count = pkCount(col[pk.id]);
+                    return (
+                      <div
+                        key={pk.id}
+                        onClick={() => creditBank >= 3 && setConfirm({ type: 'duplicate', pk })}
+                        style={{
+                          background: C.card, borderRadius: 10, padding: 8, textAlign: 'center',
+                          cursor: creditBank >= 3 ? 'pointer' : 'not-allowed',
+                          opacity: creditBank >= 3 ? 1 : 0.5,
+                          border: `1px solid ${C.border}`, position: 'relative',
+                        }}
+                      >
+                        {count > 1 && (
+                          <div style={{ position: 'absolute', top: 2, right: 4, fontSize: 10, fontWeight: 800, color: C.yellow }}>x{count}</div>
+                        )}
+                        <img src={pkImg(pk.slug)} alt={pk.name} style={{ width: 40, height: 40, objectFit: 'contain' }} />
+                        <div style={{ fontSize: 10, color: '#fff', marginTop: 2 }}>{pk.name}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Evolve tab ── */}
+          {tab === 'evolve' && (
+            <div>
+              <div style={{ color: C.muted, fontSize: 13, marginBottom: 12 }}>
+                Trade <span style={{ color: C.yellow, fontWeight: 700 }}>3 of the same</span> Pokemon for its next evolution.
+              </div>
+              {confirm?.type === 'evolve' ? (() => {
+                const chain = POKEMON_EVOLUTIONS[confirm.pk.slug];
+                const idx = chain.indexOf(confirm.pk.slug);
+                const nextSlug = chain[idx + 1];
+                const nextPk = ALL_POKEMON.find(p => p.slug === nextSlug);
+                return (
+                  <div style={{ textAlign: 'center', padding: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+                      <div>
+                        <img src={pkImg(confirm.pk.slug)} alt="" style={{ width: 64, height: 64, objectFit: 'contain' }} />
+                        <div style={{ fontSize: 12, fontWeight: 700 }}>3x {confirm.pk.name}</div>
+                      </div>
+                      <span style={{ fontSize: 24, color: C.muted }}>→</span>
+                      <div>
+                        <img src={pkImg(nextSlug)} alt="" style={{ width: 64, height: 64, objectFit: 'contain' }} />
+                        <div style={{ fontSize: 12, fontWeight: 700 }}>1x {nextPk?.name || slugToName(nextSlug)}</div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'center' }}>
+                      <button style={{ ...s.btn(C.green, 'sm') }} disabled={saving} onClick={() => doEvolve(confirm.pk)}>
+                        {saving ? 'Saving...' : 'Evolve!'}
+                      </button>
+                      <button style={{ ...s.btn('rgba(255,255,255,0.12)', 'sm'), color: C.muted }} onClick={() => setConfirm(null)}>Cancel</button>
+                    </div>
+                  </div>
+                );
+              })() : evolveCandidates.length === 0 ? (
+                <div style={{ color: C.muted, textAlign: 'center', padding: '24px 0' }}>
+                  No Pokemon with 3+ copies that can evolve.
+                  <br />Duplicate first to get enough copies!
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                  {evolveCandidates.map(pk => {
+                    const count = pkCount(col[pk.id]);
+                    const chain = POKEMON_EVOLUTIONS[pk.slug];
+                    const idx = chain.indexOf(pk.slug);
+                    const nextSlug = chain[idx + 1];
+                    return (
+                      <div
+                        key={pk.id}
+                        onClick={() => setConfirm({ type: 'evolve', pk })}
+                        style={{
+                          background: C.card, borderRadius: 10, padding: 8, textAlign: 'center',
+                          cursor: 'pointer', border: `1px solid ${C.green}`, position: 'relative',
+                        }}
+                      >
+                        <div style={{ position: 'absolute', top: 2, right: 4, fontSize: 10, fontWeight: 800, color: C.yellow }}>x{count}</div>
+                        <img src={pkImg(pk.slug)} alt={pk.name} style={{ width: 40, height: 40, objectFit: 'contain' }} />
+                        <div style={{ fontSize: 10, color: '#fff', marginTop: 2 }}>{pk.name}</div>
+                        <div style={{ fontSize: 9, color: C.green, marginTop: 1 }}>→ {slugToName(nextSlug)}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Swap tab ── */}
+          {tab === 'swap' && (
+            <div>
+              <div style={{ color: C.muted, fontSize: 13, marginBottom: 12 }}>
+                Give away <span style={{ color: C.yellow, fontWeight: 700 }}>3 different</span> caught Pokemon to pick any 1 uncaught Pokemon.
+              </div>
+              {confirm?.type === 'swap' ? (
+                <div style={{ textAlign: 'center', padding: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12 }}>
+                    {swapSources.map(id => {
+                      const pk = ALL_POKEMON.find(p => p.id === id);
+                      return (
+                        <div key={id}>
+                          <img src={pkImg(pk.slug)} alt="" style={{ width: 48, height: 48, objectFit: 'contain' }} />
+                          <div style={{ fontSize: 10 }}>{pk.name}</div>
+                        </div>
+                      );
+                    })}
+                    <span style={{ fontSize: 24, color: C.muted }}>→</span>
+                    {(() => {
+                      const pk = ALL_POKEMON.find(p => p.id === swapTarget);
+                      return (
+                        <div>
+                          <img src={pkImg(pk.slug)} alt="" style={{ width: 48, height: 48, objectFit: 'contain' }} />
+                          <div style={{ fontSize: 10 }}>{pk.name}</div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                    <button style={{ ...s.btn(C.blue, 'sm') }} disabled={saving} onClick={doSwap}>
+                      {saving ? 'Saving...' : 'Swap!'}
+                    </button>
+                    <button style={{ ...s.btn('rgba(255,255,255,0.12)', 'sm'), color: C.muted }} onClick={() => { setConfirm(null); setSwapSources([]); setSwapTarget(null); }}>Cancel</button>
+                  </div>
+                </div>
+              ) : swapTarget !== null ? (
+                // Step 2: already have 3 sources, now picking target — should not reach here but just in case
+                null
+              ) : (
+                <>
+                  {/* Step 1 or 2 */}
+                  {swapSources.length < 3 ? (
+                    <>
+                      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8, color: C.yellow }}>
+                        Step 1: Select 3 Pokemon to give away ({swapSources.length}/3)
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                        {caughtPokemon.map(pk => {
+                          const selected = swapSources.includes(pk.id);
+                          return (
+                            <div
+                              key={pk.id}
+                              onClick={() => {
+                                if (selected) setSwapSources(swapSources.filter(id => id !== pk.id));
+                                else if (swapSources.length < 3) setSwapSources([...swapSources, pk.id]);
+                              }}
+                              style={{
+                                background: selected ? 'rgba(251,191,36,0.15)' : C.card,
+                                borderRadius: 10, padding: 8, textAlign: 'center', cursor: 'pointer',
+                                border: selected ? `2px solid ${C.yellow}` : `1px solid ${C.border}`,
+                                position: 'relative',
+                              }}
+                            >
+                              {pkCount(col[pk.id]) > 1 && (
+                                <div style={{ position: 'absolute', top: 2, right: 4, fontSize: 10, fontWeight: 800, color: C.yellow }}>x{pkCount(col[pk.id])}</div>
+                              )}
+                              <img src={pkImg(pk.slug)} alt={pk.name} style={{ width: 40, height: 40, objectFit: 'contain' }} />
+                              <div style={{ fontSize: 10, color: '#fff', marginTop: 2 }}>{pk.name}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8, color: C.blue }}>
+                        Step 2: Pick 1 Pokemon to receive
+                      </div>
+                      <div style={{ display: 'flex', gap: 4, marginBottom: 8, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 12, color: C.muted }}>Giving:</span>
+                        {swapSources.map(id => {
+                          const pk = ALL_POKEMON.find(p => p.id === id);
+                          return <span key={id} style={{ fontSize: 12, color: C.yellow }}>{pk.name}</span>;
+                        })}
+                        <button onClick={() => setSwapSources([])} style={{ fontSize: 11, color: C.red, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Reset</button>
+                      </div>
+                      {uncaughtPokemon.length === 0 ? (
+                        <div style={{ color: C.muted, textAlign: 'center', padding: '24px 0' }}>All Pokemon caught!</div>
+                      ) : (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                          {uncaughtPokemon.map(pk => (
+                            <div
+                              key={pk.id}
+                              onClick={() => { setSwapTarget(pk.id); setConfirm({ type: 'swap' }); }}
+                              style={{
+                                background: C.card, borderRadius: 10, padding: 8, textAlign: 'center',
+                                cursor: 'pointer', border: `1px solid ${C.border}`,
+                              }}
+                            >
+                              <img src={pkImg(pk.slug)} alt={pk.name} style={{ width: 40, height: 40, objectFit: 'contain' }} />
+                              <div style={{ fontSize: 10, color: '#fff', marginTop: 2 }}>{pk.name}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── TrophyScreen ─────────────────────────────────────────────────────────────
+export const TrophyScreen = ({ trophyData, currentUser, setScreen, setGameScreen, jwt, getUser, updateUser, apiFetch, setTrophyData }) => {
   const isAdmin = currentUser === 'admin';
   const [selectedId, setSelectedId] = useState(null);
   const [layout, setLayout] = useState('all'); // 'all' | 'collected'
+  const [showManage, setShowManage] = useState(false);
 
   const col = isAdmin ? {} : (trophyData?.collection || {});
-  const regular = isAdmin ? ALL_POKEMON.length : Object.values(col).filter(c => c.regular).length;
+  const regular = isAdmin ? ALL_POKEMON.length : Object.values(col).filter(c => isPkCaught(c)).length;
   const shiny   = isAdmin ? ALL_POKEMON.length : Object.values(col).filter(c => c.shiny).length;
 
   const selectedPk = selectedId != null ? ALL_POKEMON.find(p => p.id === selectedId) : null;
@@ -31,12 +384,11 @@ export const TrophyScreen = ({ trophyData, currentUser, setScreen, setGameScreen
     if (!selectedPk) return null;
     const owned = col[selectedPk.id] || {};
     const isShiny   = isAdmin || owned.shiny;
-    const isRegular = isAdmin || owned.regular;
+    const isRegular = isAdmin || isPkCaught(owned);
     const unlocked  = isRegular || isShiny;
     const stats     = POKEMON_STATS[selectedPk.slug];
     const border    = isShiny ? '2px solid #a78bfa' : isRegular ? '2px solid #b45309' : `1px solid ${C.border}`;
     const chain     = POKEMON_EVOLUTIONS[selectedPk.slug] || [selectedPk.slug];
-    const slugToName = slug => slug.charAt(0).toUpperCase() + slug.slice(1).replace(/-/g, ' ');
 
     return (
       <div
@@ -58,6 +410,9 @@ export const TrophyScreen = ({ trophyData, currentUser, setScreen, setGameScreen
               {unlocked ? selectedPk.name : '???'}
             </div>
             {isShiny && <div style={{ color: '#a78bfa', fontWeight: 700, fontSize: 14, marginTop: 2 }}>✨ Shiny</div>}
+            {unlocked && pkCount(owned) > 1 && (
+              <div style={{ color: C.yellow, fontSize: 13, marginTop: 2 }}>x{pkCount(owned)}</div>
+            )}
           </div>
 
           {/* Evolution chain */}
@@ -68,7 +423,7 @@ export const TrophyScreen = ({ trophyData, currentUser, setScreen, setGameScreen
                 {chain.map((slug, i) => {
                   const evoPk = ALL_POKEMON.find(p => p.slug === slug);
                   const evoOwned = evoPk ? (col[evoPk.id] || {}) : {};
-                  const evoCaught = isAdmin || evoOwned.regular || evoOwned.shiny;
+                  const evoCaught = isAdmin || isPkCaught(evoOwned);
                   return (
                     <div key={slug} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       {i > 0 && <span style={{ fontSize: 14, color: C.muted }}>→</span>}
@@ -139,27 +494,48 @@ export const TrophyScreen = ({ trophyData, currentUser, setScreen, setGameScreen
           <div style={{ color: C.muted, fontSize: 13 }}>{regular} / {ALL_POKEMON.length} caught · {shiny} ✨ shiny</div>
           {isAdmin && <div style={{ color: C.yellow, fontSize: 11, fontWeight: 700, marginTop: 2 }}>👑 Admin preview — all unlocked</div>}
         </div>
-        <select
-          value={layout}
-          onChange={e => { setLayout(e.target.value); setSelectedId(null); }}
-          style={{ background: 'rgba(255,255,255,0.12)', color: '#fff', border: `1px solid ${C.border}`, borderRadius: 8, padding: '6px 10px', fontSize: 13, fontWeight: 600, cursor: 'pointer', outline: 'none' }}
-        >
-          <option value="all" style={{ background: '#1e1b3a' }}>All</option>
-          <option value="collected" style={{ background: '#1e1b3a' }}>Collected</option>
-        </select>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          {!isAdmin && (
+            <button
+              onClick={() => setShowManage(true)}
+              style={{ ...s.btn(C.purple, 'sm'), fontSize: 12, padding: '6px 10px' }}
+            >
+              Manage
+            </button>
+          )}
+          <select
+            value={layout}
+            onChange={e => { setLayout(e.target.value); setSelectedId(null); }}
+            style={{ background: 'rgba(255,255,255,0.12)', color: '#fff', border: `1px solid ${C.border}`, borderRadius: 8, padding: '6px 10px', fontSize: 13, fontWeight: 600, cursor: 'pointer', outline: 'none' }}
+          >
+            <option value="all" style={{ background: '#1e1b3a' }}>All</option>
+            <option value="collected" style={{ background: '#1e1b3a' }}>Collected</option>
+          </select>
+        </div>
       </div>
-      {trophyData?.shinyEligible && (
-        <div style={{ color: '#a78bfa', textAlign: 'center', animation: 'pulse 1.5s ease infinite', marginBottom: 12, fontWeight: 700 }}>✨ Shiny chance active!</div>
-      )}
 
       <DetailOverlay />
+
+      {showManage && !isAdmin && (
+        <ManageModal
+          col={col}
+          creditBank={getUser()?.creditBank || 0}
+          jwt={jwt}
+          apiFetch={apiFetch}
+          getUser={getUser}
+          updateUser={updateUser}
+          setTrophyData={setTrophyData}
+          trophyData={trophyData}
+          onClose={() => setShowManage(false)}
+        />
+      )}
 
       {(() => {
         const cols     = layout === 'all' ? 5 : 3;
         const imgSize  = layout === 'all' ? 48 : 72;
         const fontSize = layout === 'all' ? 10 : 13;
         const visiblePokemon = layout === 'collected'
-          ? ALL_POKEMON.filter(pk => { const o = col[pk.id] || {}; return isAdmin || o.regular || o.shiny; })
+          ? ALL_POKEMON.filter(pk => { const o = col[pk.id] || {}; return isAdmin || isPkCaught(o); })
           : ALL_POKEMON;
 
         if (layout === 'collected' && visiblePokemon.length === 0) {
@@ -171,10 +547,11 @@ export const TrophyScreen = ({ trophyData, currentUser, setScreen, setGameScreen
             {visiblePokemon.map(pk => {
               const owned = col[pk.id] || {};
               const isShiny    = isAdmin || owned.shiny;
-              const isRegular  = isAdmin || owned.regular;
+              const isRegular  = isAdmin || isPkCaught(owned);
               const unlocked   = isRegular || isShiny;
               const isSelected = selectedId === pk.id;
               const border     = isShiny ? '2px solid #a78bfa' : isRegular ? '2px solid #b45309' : `1px solid ${C.border}`;
+              const count      = pkCount(owned);
 
               return (
                 <div
@@ -191,6 +568,9 @@ export const TrophyScreen = ({ trophyData, currentUser, setScreen, setGameScreen
                   }}
                 >
                   {isShiny && <div style={{ position: 'absolute', top: 4, right: 6, fontSize: layout === 'all' ? 11 : 14 }}>✨</div>}
+                  {count > 1 && !isAdmin && (
+                    <div style={{ position: 'absolute', top: 4, left: 6, fontSize: layout === 'all' ? 9 : 11, fontWeight: 800, color: C.yellow }}>x{count}</div>
+                  )}
                   <img
                     src={isShiny ? pkShiny(pk.slug) : pkImg(pk.slug)}
                     alt={pk.name}

@@ -1,5 +1,6 @@
 import { ALL_POKEMON } from './data/pokemon';
 import evolutions from './data/pokemon-evolutions.json';
+import { isPkCaught } from './shared';
 
 const BUCKET_WEIGHTS = [0.50, 0.30, 0.10, 0.09, 0.01];
 
@@ -56,7 +57,7 @@ const pickFromChain = (chain, uncaughtSlugs, rand = Math.random) => {
  */
 export const pickNextPokemon = (collection, rand = Math.random) => {
   const col = collection || {};
-  const available = ALL_POKEMON.filter(p => !col[p.id]?.regular);
+  const available = ALL_POKEMON.filter(p => !isPkCaught(col[p.id]));
   if (available.length === 0) return null;
 
   const uncaughtSlugs = new Set(available.map(p => p.slug));

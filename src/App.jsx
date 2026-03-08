@@ -5,7 +5,7 @@ import { pickNextPokemon } from './pickNextPokemon';
 import { unlockPokemon } from './unlockPokemon';
 import { selectWords, updateWordStats, checkLevelUp } from './wordSelection';
 import { computeWeeklyScore } from './weeklyScoring';
-import { todayStr, localDateStr, injectCSS, C, s } from './shared';
+import { todayStr, localDateStr, injectCSS, isPkCaught, C, s } from './shared';
 
 import { Confetti } from './components/Confetti';
 import { TrophyModal } from './components/TrophyModal';
@@ -251,7 +251,7 @@ export default function App() {
     const newRoundHistory = [...roundHistory, { date: today, score, earned, pass: score >= 6 }].slice(-200);
     const newCreditHistory = [...creditHistory, ...newCreditEvents];
 
-    const caught = Object.values(col).filter(c => c.regular || c.shiny).length;
+    const caught = Object.values(col).filter(c => isPkCaught(c)).length;
     const updated = { ...user, streak, lastPlayed: today, streakDates: newDates.slice(-90), creditBank, totalCredits, caught, collection: col, shinyEligible, consecutiveRegular, roundHistory: newRoundHistory, roundCount: newRoundCount, level: newLevel, nextPokemonId: unlock.nextPokemonId };
 
     const fullUpdate = { ...updated, wordStats: newWordStats, creditHistory: newCreditHistory };
@@ -313,7 +313,7 @@ export default function App() {
     if (breakdown.daily > 0)        weeklyCreditEvents.push({ date: today, amount: breakdown.daily,        source: 'weekly', description: `${weekLabel}: daily replay bonus` });
     const newCreditHistory = [...creditHistory, ...weeklyCreditEvents];
 
-    const caught = Object.values(col).filter(c => c.regular || c.shiny).length;
+    const caught = Object.values(col).filter(c => isPkCaught(c)).length;
     const updatedUser = { ...user, creditBank, totalCredits, caught, collection: col, shinyEligible, consecutiveRegular, creditHistory: newCreditHistory, nextPokemonId: unlock.nextPokemonId };
     setCreditHistory(newCreditHistory);
     setTrophyData(prev2 => prev2 ? { ...prev2, collection: col, shinyEligible, consecutiveRegular, nextPokemonId: unlock.nextPokemonId } : { collection: col, shinyEligible, consecutiveRegular, nextPokemonId: unlock.nextPokemonId });
@@ -355,7 +355,7 @@ export default function App() {
       {screen === 'game' && gameScreen === 'stage1' && <Stage1Screen words={words} retryCount={retryCount} setGameScreen={setGameScreen} />}
       {screen === 'game' && gameScreen === 'stage2' && <Stage2Screen words={words} processRound={processRound} setRoundResults={setRoundResults} setGameScreen={setGameScreen} />}
       {screen === 'game' && gameScreen === 'results' && <ResultsScreen roundResults={roundResults} getUser={getUser} wordStats={wordStats} setWords={setWords} setRetryCount={setRetryCount} setGameScreen={setGameScreen} />}
-      {screen === 'game' && gameScreen === 'trophy' && <TrophyScreen trophyData={trophyData} currentUser={currentUser} setScreen={setScreen} setGameScreen={setGameScreen} />}
+      {screen === 'game' && gameScreen === 'trophy' && <TrophyScreen trophyData={trophyData} currentUser={currentUser} setScreen={setScreen} setGameScreen={setGameScreen} jwt={jwt} getUser={getUser} updateUser={updateUser} apiFetch={apiFetch} setTrophyData={setTrophyData} />}
       {screen === 'game' && gameScreen === 'stats' && <StatsScreen getUser={getUser} wordStats={wordStats} roundHistory={roundHistory} creditHistory={creditHistory} weeklyStats={weeklyStats} setGameScreen={setGameScreen} />}
       {screen === 'game' && gameScreen === 'weekly' && <WeeklyChallengeScreen weeklyWords={weeklyWords} weeklyStats={weeklyStats} setWords={setWords} setRetryCount={setRetryCount} setGameScreen={setGameScreen} setActiveWeekId={setActiveWeekId} initialSelectedId={activeWeekId} />}
       {screen === 'game' && gameScreen === 'weeklyStage1' && (() => {

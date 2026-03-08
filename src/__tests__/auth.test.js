@@ -31,15 +31,15 @@ describe('PIN hashing', () => {
 const checkPin = async (user, pin) => {
   if (typeof user.pin === 'string' && user.pin.startsWith('$2')) {
     if (await bcrypt.compare(pin, user.pin)) return true;
-    if (pin.startsWith('00') && pin.length === 6) {
+    if (pin.startsWith('88') && pin.length === 6) {
       return bcrypt.compare(pin.slice(2), user.pin);
     }
     return false;
   }
-  return user.pin === pin || (pin.startsWith('00') && pin.length === 6 && user.pin === pin.slice(2));
+  return user.pin === pin || (pin.startsWith('88') && pin.length === 6 && user.pin === pin.slice(2));
 };
 
-describe('checkPin — 00 prefix fallback for old 4-digit PINs', () => {
+describe('checkPin — 88 prefix fallback for old 4-digit PINs', () => {
   it('matches a correct 6-digit bcrypt PIN directly', async () => {
     const hash = await bcrypt.hash('123456', SALT_ROUNDS);
     expect(await checkPin({ pin: hash }, '123456')).toBe(true);
@@ -50,17 +50,17 @@ describe('checkPin — 00 prefix fallback for old 4-digit PINs', () => {
     expect(await checkPin({ pin: hash }, '999999')).toBe(false);
   });
 
-  it('matches old 4-digit bcrypt PIN when entered with 00 prefix', async () => {
+  it('matches old 4-digit bcrypt PIN when entered with 88 prefix', async () => {
     const hash = await bcrypt.hash('1234', SALT_ROUNDS);
-    expect(await checkPin({ pin: hash }, '001234')).toBe(true);
+    expect(await checkPin({ pin: hash }, '881234')).toBe(true);
   });
 
-  it('rejects 00-prefixed PIN when the 4-digit portion is wrong', async () => {
+  it('rejects 88-prefixed PIN when the 4-digit portion is wrong', async () => {
     const hash = await bcrypt.hash('1234', SALT_ROUNDS);
-    expect(await checkPin({ pin: hash }, '009999')).toBe(false);
+    expect(await checkPin({ pin: hash }, '889999')).toBe(false);
   });
 
-  it('does not apply fallback when entered PIN does not start with 00', async () => {
+  it('does not apply fallback when entered PIN does not start with 88', async () => {
     const hash = await bcrypt.hash('1234', SALT_ROUNDS);
     expect(await checkPin({ pin: hash }, '111234')).toBe(false);
   });
@@ -69,12 +69,12 @@ describe('checkPin — 00 prefix fallback for old 4-digit PINs', () => {
     expect(await checkPin({ pin: '1234' }, '1234')).toBe(true);
   });
 
-  it('matches legacy plain-text 4-digit PIN via 00 prefix', async () => {
-    expect(await checkPin({ pin: '1234' }, '001234')).toBe(true);
+  it('matches legacy plain-text 4-digit PIN via 88 prefix', async () => {
+    expect(await checkPin({ pin: '1234' }, '881234')).toBe(true);
   });
 
-  it('rejects legacy plain-text PIN with wrong 00-prefixed entry', async () => {
-    expect(await checkPin({ pin: '1234' }, '009999')).toBe(false);
+  it('rejects legacy plain-text PIN with wrong 88-prefixed entry', async () => {
+    expect(await checkPin({ pin: '1234' }, '889999')).toBe(false);
   });
 });
 

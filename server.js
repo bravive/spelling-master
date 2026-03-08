@@ -345,12 +345,13 @@ app.put('/api/weekly-stats/:weekId', requireAuth, async (req, res) => {
 
 // Search users by name (excludes self)
 app.get('/api/friends/search', requireAuth, async (req, res) => {
-  const q = (req.query.q || '').trim().toLowerCase();
+  const q = (req.query.q || '').trim();
   if (!q) return res.json([]);
   const { usersCol: _uc } = await import('./src/db.js');
   const col = _uc();
+  const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const users = await col.find({
-    userId: { $regex: q, $options: 'i' },
+    name: { $regex: `^${escaped}$`, $options: 'i' },
     _id: { $ne: req.jwtUser.id },
   }).limit(10).toArray();
   res.json(users.map(u => ({ id: u._id, userId: u.userId, name: u.name, starterSlug: u.starterSlug, level: u.level })));

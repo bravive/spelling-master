@@ -140,7 +140,7 @@ export const EditProfileScreen = ({ user, jwt, saveUsers, users, currentUser, se
                 setNewPin(pin);
                 setPinStep('confirm');
                 clearMessages();
-              }} />
+              }} noAllSame />
             </div>
           )}
           {pinStep === 'confirm' && (

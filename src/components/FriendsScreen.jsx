@@ -168,7 +168,7 @@ const MessageDialog = ({ friend, jwt, myId, myStarterSlug, onClose }) => {
       boxSizing: 'border-box',
     }}>
       <div onClick={e => e.stopPropagation()} style={{
-        background: '#1e1b3a', border: `1px solid ${C.border}`, borderRadius: 16,
+        background: C.modal, border: `1px solid ${C.border}`, borderRadius: 16,
         width: '100%', maxWidth: 420,
         display: 'flex', flexDirection: 'column',
         height: 'min(75dvh, 520px)', maxHeight: '100%',
@@ -236,7 +236,7 @@ const GiftPendingCard = ({ gift, myId, onAccept, onDecline }) => {
   const displayName = isSent ? gift.toName : gift.fromName;
   const pokeName = gift.pokemonSlug.charAt(0).toUpperCase() + gift.pokemonSlug.slice(1);
   const imgSrc = gift.isShiny ? pkShiny(gift.pokemonSlug) : pkImg(gift.pokemonSlug);
-  const cardBorder = gift.isShiny ? `1px solid #c4b5fd` : `1px solid ${C.border}`;
+  const cardBorder = gift.isShiny ? `1px solid ${C.purple}` : `1px solid ${C.border}`;
   return (
     <div style={{ ...s.card, border: cardBorder, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, padding: 14 }}>
       <div style={{ position: 'relative', flexShrink: 0 }}>
@@ -248,8 +248,8 @@ const GiftPendingCard = ({ gift, myId, onAccept, onDecline }) => {
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontWeight: 700, fontSize: 14 }}>
           {isSent
-            ? <span>You sent <b style={{ color: gift.isShiny ? '#c4b5fd' : C.pink }}>{gift.isShiny ? '✨ Shiny ' : ''}{pokeName}</b> to {displayName}</span>
-            : <span><b>{displayName}</b> sent you <b style={{ color: gift.isShiny ? '#c4b5fd' : C.pink }}>{gift.isShiny ? '✨ Shiny ' : ''}{pokeName}</b></span>
+            ? <span>You sent <b style={{ color: gift.isShiny ? C.purple : C.pink }}>{gift.isShiny ? '✨ Shiny ' : ''}{pokeName}</b> to {displayName}</span>
+            : <span><b>{displayName}</b> sent you <b style={{ color: gift.isShiny ? C.purple : C.pink }}>{gift.isShiny ? '✨ Shiny ' : ''}{pokeName}</b></span>
           }
         </div>
         <div style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>
@@ -318,7 +318,7 @@ const GiftModal = ({ friend, jwt, onClose, onSent }) => {
       zIndex: 1000, padding: 16,
     }}>
       <div onClick={e => e.stopPropagation()} style={{
-        background: '#1e1b3a', borderRadius: 20, padding: 20, width: '100%', maxWidth: 400,
+        background: C.modal, borderRadius: 20, padding: 20, width: '100%', maxWidth: 400,
         maxHeight: 'calc(100dvh - 48px)', display: 'flex', flexDirection: 'column',
         animation: 'popIn 0.25s ease', border: `1px solid ${C.border}`,
       }}>
@@ -351,7 +351,7 @@ const GiftModal = ({ friend, jwt, onClose, onSent }) => {
                 {confirm.isShiny ? 'Your shiny copy' : `You have x${pkCount(col[confirm.pk.id])}`}
               </div>
               <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'center' }}>
-                <button disabled={sending} onClick={() => sendGift(confirm)} style={{ ...s.btn(confirm.isShiny ? '#c4b5fd' : C.pink, 'sm') }}>
+                <button disabled={sending} onClick={() => sendGift(confirm)} style={{ ...s.btn(confirm.isShiny ? C.purple : C.pink, 'sm') }}>
                   {sending ? 'Sending...' : 'Send!'}
                 </button>
                 <button onClick={() => setConfirm(null)} style={{ ...s.btn('rgba(255,255,255,0.12)', 'sm'), color: C.muted }}>Cancel</button>
@@ -388,12 +388,12 @@ const GiftModal = ({ friend, jwt, onClose, onSent }) => {
                   onClick={() => setConfirm({ pk, isShiny: true })}
                   style={{
                     background: 'rgba(196,181,253,0.08)', borderRadius: 10, padding: 8, textAlign: 'center',
-                    cursor: 'pointer', border: '1px solid #c4b5fd', position: 'relative',
+                    cursor: 'pointer', border: `1px solid ${C.purple}`, position: 'relative',
                   }}
                 >
                   <span style={{ position: 'absolute', top: 2, right: 4, fontSize: 11 }}>✨</span>
                   <img src={pkShiny(pk.slug)} alt={pk.name} style={{ width: 40, height: 40, objectFit: 'contain' }} />
-                  <div style={{ fontSize: 10, color: '#c4b5fd', marginTop: 2 }}>{pk.name}</div>
+                  <div style={{ fontSize: 10, color: C.purple, marginTop: 2 }}>{pk.name}</div>
                 </div>
               ))}
             </div>
@@ -652,7 +652,7 @@ export const FriendsScreen = ({ jwt, currentUser, myStarterSlug, setGameScreen, 
           boxSizing: 'border-box',
         }}>
           <div onClick={e => e.stopPropagation()} style={{
-            background: '#1e1b3a', border: `1px solid ${C.border}`, borderRadius: 16,
+            background: C.modal, border: `1px solid ${C.border}`, borderRadius: 16,
             width: '100%', maxWidth: 420, padding: 16,
             maxHeight: '100%', display: 'flex', flexDirection: 'column',
             animation: 'popIn 0.2s ease',

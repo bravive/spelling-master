@@ -48,13 +48,13 @@ export const StatsScreen = ({ getUser, wordStats, roundHistory, creditHistory, w
 
   return (
     <div style={{ width: '100%', maxWidth: 520 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
         <button style={{ ...s.backBtn }} onClick={() => setGameScreen('home')}>←</button>
-        <h2 style={{ margin: 0, color: C.yellow }}>📊 Stats</h2>
+        <h2 style={{ margin: 0, color: C.yellow, ...s.heading }}>📊 Stats</h2>
       </div>
 
       {/* Summary badges */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         {[
           ['🎮', user.roundCount || 0, 'Rounds'],
           ['📚', mastered.length, 'Mastered'],
@@ -78,7 +78,7 @@ export const StatsScreen = ({ getUser, wordStats, roundHistory, creditHistory, w
             const played = (user.streakDates || []).includes(d);
             return (
               <div key={d} title={d} style={{
-                aspectRatio: '1', borderRadius: 4,
+                aspectRatio: '1', borderRadius: 6,
                 background: played ? C.green : 'rgba(255,255,255,0.08)',
                 border: isToday ? `2px solid ${C.yellow}` : '2px solid transparent',
               }} />

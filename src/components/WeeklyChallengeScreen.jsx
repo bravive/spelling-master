@@ -104,7 +104,7 @@ export const WeeklyChallengeScreen = ({ weeklyWords, weeklyStats, setWords, setR
                 {hint.hasCredits && (
                   <div className="wk-hint" style={{
                     display: 'none', position: 'absolute', left: '100%', top: '50%', transform: 'translateY(-50%)',
-                    marginLeft: 8, background: '#1e1b3a', border: `1px solid ${C.border}`, borderRadius: 8,
+                    marginLeft: 8, background: C.modal, border: `1px solid ${C.border}`, borderRadius: 8,
                     padding: '6px 10px', fontSize: 11, color: '#fff', whiteSpace: 'nowrap', zIndex: 10,
                     boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
                   }}>

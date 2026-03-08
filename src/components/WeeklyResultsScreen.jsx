@@ -9,7 +9,7 @@ export const WeeklyResultsScreen = ({ roundResults, setGameScreen }) => {
   return (
     <div style={{ width: '100%', maxWidth: 480 }}>
       <div style={{ textAlign: 'center', marginBottom: 20 }}>
-        <div style={{ fontSize: 64, fontWeight: 900, color: allCorrect ? C.green : C.yellow }}>{score}/{total}</div>
+        <div style={{ fontSize: 56, fontWeight: 900, color: allCorrect ? C.green : C.yellow }}>{score}/{total}</div>
         {allCorrect && <div style={{ color: C.green, fontWeight: 700, fontSize: 18, marginBottom: 4 }}>All Correct!</div>}
         {earned > 0 && <div style={{ color: C.yellow, fontSize: 20, fontWeight: 700 }}>+{earned} credits</div>}
       </div>

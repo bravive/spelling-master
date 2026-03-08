@@ -59,11 +59,11 @@ export const Stage1Screen = ({ words, retryCount, setGameScreen, nextScreen = 's
   return (
     <div style={{ width: '100%', maxWidth: 600, position: 'relative' }}>
       <div style={{ textAlign: 'center', marginBottom: 16 }}>
-        <h2 style={{ color: C.yellow, margin: 0 }}>📖 Stage 1 — Remember!</h2>
-        {retryCount > 0 && <div style={{ color: C.red, fontSize: 13 }}>Retry #{retryCount}</div>}
+        <h2 style={{ color: C.yellow, margin: 0, ...s.heading }}>📖 Stage 1 — Remember!</h2>
+        {retryCount > 0 && <div style={{ color: C.red, fontSize: 13, marginTop: 2 }}>Retry #{retryCount}</div>}
         <div style={{ fontSize: 28, fontWeight: 800, marginTop: 8 }}>{mm}:{ss}</div>
-        <div style={{ background: 'rgba(255,255,255,0.1)', borderRadius: 8, height: 10, margin: '8px 0' }}>
-          <div style={{ width: `${pct * 100}%`, height: '100%', background: barColor, borderRadius: 8, transition: 'width 1s linear, background 0.5s' }} />
+        <div style={{ background: 'rgba(255,255,255,0.1)', borderRadius: 10, height: 10, margin: '8px 0' }}>
+          <div style={{ width: `${pct * 100}%`, height: '100%', background: barColor, borderRadius: 10, transition: 'width 1s linear, background 0.5s' }} />
         </div>
         <div style={{ color: barColor, fontSize: 13 }}>{barLabel}</div>
         {requireClickAll && !allRead && (
@@ -99,8 +99,8 @@ export const Stage1Screen = ({ words, retryCount, setGameScreen, nextScreen = 's
           cursor: floatingCard.counting ? 'not-allowed' : 'pointer',
         }} onClick={handleOverlayClick}>
           <div style={{
-            background: '#1a1a2e', padding: '32px 40px', textAlign: 'center', maxWidth: 340,
-            borderRadius: 16, animation: 'popIn 0.3s ease-out', border: `2px solid ${C.yellow}`,
+            background: C.modal, padding: '32px 40px', textAlign: 'center', maxWidth: 340,
+            borderRadius: 20, animation: 'popIn 0.3s ease-out', border: `2px solid ${C.yellow}`,
           }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 36, fontWeight: 800, color: C.yellow, marginBottom: 12 }}>{floatingCard.entry.w}</div>
             <div style={{ fontSize: 16, color: '#fff', fontStyle: 'italic', lineHeight: 1.5 }}>{floatingCard.entry.s}</div>

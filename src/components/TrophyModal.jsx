@@ -17,20 +17,20 @@ export const TrophyModal = ({ unlock, onDismiss }) => {
 
   const isShiny = unlock.shiny;
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+    <div style={{ ...s.overlay, background: 'rgba(0,0,0,0.85)', zIndex: 1000 }}>
       {phase >= 1 && <Confetti />}
-      <div style={{ ...s.card, textAlign: 'center', padding: 40, animation: 'popIn 0.6s ease', border: `2px solid ${isShiny ? '#a78bfa' : C.yellow}`, maxWidth: 340, width: '90%' }}>
-        <div style={{ fontSize: 28, fontWeight: 800, color: isShiny ? '#a78bfa' : C.yellow, marginBottom: 8 }}>
+      <div style={{ ...s.card, textAlign: 'center', padding: '32px 24px', animation: 'popIn 0.6s ease', border: `2px solid ${isShiny ? C.shiny : C.yellow}`, maxWidth: 340, width: '90%' }}>
+        <div style={{ fontSize: 26, fontWeight: 900, color: isShiny ? C.shiny : C.yellow, marginBottom: 8 }}>
           {isShiny ? '✨ Shiny Pokemon!' : '🎉 New Pokemon!'}
         </div>
         <img
           src={isShiny ? pkShiny(unlock.slug) : pkImg(unlock.slug)}
           alt={unlock.name}
-          style={{ width: 140, height: 140, objectFit: 'contain', animation: phase >= 1 ? 'pop 0.5s ease' : 'none', filter: isShiny ? 'drop-shadow(0 0 16px #a78bfa)' : 'none' }}
+          style={{ width: 120, height: 120, objectFit: 'contain', animation: phase >= 1 ? 'pop 0.5s ease' : 'none', filter: isShiny ? `drop-shadow(0 0 16px ${C.shiny})` : 'none' }}
         />
-        <div style={{ fontSize: 24, fontWeight: 700, margin: '12px 0 4px' }}>{unlock.name}</div>
-        {isShiny && <div style={{ color: '#a78bfa', fontSize: 14, marginBottom: 8 }}>✨ Shiny variant</div>}
-        <button style={{ ...s.btn(isShiny ? '#a78bfa' : C.yellow, 'lg'), marginTop: 16 }} onClick={onDismiss}>
+        <div style={{ fontSize: 22, fontWeight: 700, margin: '10px 0 4px' }}>{unlock.name}</div>
+        {isShiny && <div style={{ color: C.shiny, fontSize: 14, marginBottom: 6 }}>✨ Shiny variant</div>}
+        <button style={{ ...s.btn(isShiny ? C.shiny : C.yellow, 'lg'), marginTop: 12, width: '100%' }} onClick={onDismiss}>
           🎉 Awesome!
         </button>
       </div>

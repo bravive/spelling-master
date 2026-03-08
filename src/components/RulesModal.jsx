@@ -16,13 +16,13 @@ export const RulesModal = () => {
       {open && (
         <div
           onClick={() => setOpen(false)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 900, padding: 16 }}
+          style={{ ...s.overlay, zIndex: 900 }}
         >
           <div
             onClick={e => e.stopPropagation()}
-            style={{ background: '#1e1b3a', borderRadius: 20, padding: 24, width: '100%', maxWidth: 380, maxHeight: '80vh', overflowY: 'auto', border: `1px solid ${C.border}`, animation: 'popIn 0.3s ease' }}
+            style={{ ...s.modalCard, padding: 20, maxWidth: 380, maxHeight: 'calc(100dvh - 48px)', overflowY: 'auto' }}
           >
-            <h2 style={{ color: C.yellow, margin: '0 0 16px', textAlign: 'center', fontSize: 22 }}>How to Catch Pokemon</h2>
+            <h2 style={{ color: C.yellow, margin: '0 0 14px', textAlign: 'center', fontSize: 20, fontWeight: 900 }}>How to Catch Pokemon</h2>
 
             <Section title="1. Spell Words" icon="📖">
               You get 10 words each round. First, study them. Then, listen and spell each word!
@@ -49,11 +49,11 @@ export const RulesModal = () => {
             </Section>
 
             <Section title="5. Shiny Pokemon" icon="✨">
-              After catching 3 Pokemon in a row, you get a <strong style={{ color: '#a78bfa' }}>shiny chance</strong>! Your next catch will also unlock a rare shiny version of one of your Pokemon.
+              After catching 3 Pokemon in a row, you get a <strong style={{ color: C.shiny }}>shiny chance</strong>! Your next catch will also unlock a rare shiny version of one of your Pokemon.
             </Section>
 
-            <div style={{ height: 1, background: 'rgba(255,255,255,0.1)', margin: '16px 0' }} />
-            <h3 style={{ color: C.yellow, margin: '0 0 12px', textAlign: 'center', fontSize: 18 }}>Weekly Challenge</h3>
+            <div style={{ height: 1, background: 'rgba(255,255,255,0.1)', margin: '14px 0' }} />
+            <h3 style={{ color: C.yellow, margin: '0 0 10px', textAlign: 'center', fontSize: 17, fontWeight: 800 }}>Weekly Challenge</h3>
 
             <Section title="6. Weekly Words" icon="📅">
               Each week there is a special word list to practice. New lists unlock every Monday!
@@ -68,7 +68,7 @@ export const RulesModal = () => {
             </Section>
 
             <button
-              style={{ ...s.btn(C.yellow), width: '100%', marginTop: 16 }}
+              style={{ ...s.btn(C.yellow), width: '100%', marginTop: 14 }}
               onClick={() => setOpen(false)}
             >
               Got it!
@@ -81,9 +81,9 @@ export const RulesModal = () => {
 };
 
 const Section = ({ title, icon, children }) => (
-  <div style={{ marginBottom: 14 }}>
-    <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{icon} {title}</div>
-    <div style={{ color: C.muted, fontSize: 14, lineHeight: 1.5 }}>{children}</div>
+  <div style={{ marginBottom: 12 }}>
+    <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 3 }}>{icon} {title}</div>
+    <div style={{ color: C.muted, fontSize: 13, lineHeight: 1.5 }}>{children}</div>
   </div>
 );
 

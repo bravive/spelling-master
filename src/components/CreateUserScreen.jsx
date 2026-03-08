@@ -12,8 +12,8 @@ export const CreateUserScreen = ({ users, saveUsers, createStep, setCreateStep, 
         <button style={{ ...s.backBtn }}
           onClick={() => createStep > 0 ? setCreateStep(createStep - 1) : setScreen('selectUser')}>←</button>
       </div>
-      <h2 style={{ color: C.yellow }}>Create Profile</h2>
-      <div style={{ color: C.muted, marginBottom: 20 }}>Step {createStep + 1} of 5</div>
+      <h2 style={{ color: C.yellow, ...s.heading }}>Create Profile</h2>
+      <div style={{ ...s.subtext, marginBottom: 16 }}>Step {createStep + 1} of 5</div>
 
       {createStep === 0 && (
         <div>
@@ -28,7 +28,7 @@ export const CreateUserScreen = ({ users, saveUsers, createStep, setCreateStep, 
           />
           {err && <div style={{ color: C.red, fontSize: 13, marginTop: 8 }}>{err}</div>}
           <button
-            style={{ ...s.btn(C.yellow, 'lg'), marginTop: 16 }}
+            style={{ ...s.btn(C.yellow, 'lg'), marginTop: 16, width: '100%' }}
             disabled={validating}
             onClick={async () => {
               const code = inviteCode.trim();
@@ -53,7 +53,7 @@ export const CreateUserScreen = ({ users, saveUsers, createStep, setCreateStep, 
           <p style={{ color: C.muted }}>What is your name?</p>
           <input style={s.input} value={newName} onChange={e => setNewName(e.target.value)} placeholder="Enter name…" autoFocus />
           {err && <div style={{ color: C.red, fontSize: 13, marginTop: 8 }}>{err}</div>}
-          <button style={{ ...s.btn(C.yellow, 'lg'), marginTop: 16 }}
+          <button style={{ ...s.btn(C.yellow, 'lg'), marginTop: 16, width: '100%' }}
             onClick={() => {
               const trimmed = newName.trim();
               if (!trimmed) { setErr('Please enter a name.'); return; }
@@ -70,18 +70,18 @@ export const CreateUserScreen = ({ users, saveUsers, createStep, setCreateStep, 
       {createStep === 2 && (
         <div>
           <p style={{ color: C.muted }}>Pick your starter Pokemon!</p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
             {STARTER_POKEMON.map(pk => (
               <button key={pk.id}
-                style={{ background: C.card, border: `2px solid ${newStarter?.id === pk.id ? C.yellow : C.border}`, borderRadius: 12, padding: 10, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}
+                style={{ ...s.card, border: `2px solid ${newStarter?.id === pk.id ? C.yellow : C.border}`, padding: 8, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, transition: 'all 0.2s ease' }}
                 onClick={() => setNewStarter(pk)}>
-                <img src={pkImg(pk.slug)} alt={pk.name} style={{ width: 60, height: 60, objectFit: 'contain' }} />
-                <div style={{ fontSize: 12, fontWeight: 600, color: newStarter?.id === pk.id ? C.yellow : '#fff' }}>{pk.name}</div>
+                <img src={pkImg(pk.slug)} alt={pk.name} style={{ width: 56, height: 56, objectFit: 'contain' }} />
+                <div style={{ fontSize: 12, fontWeight: 700, color: newStarter?.id === pk.id ? C.yellow : '#fff' }}>{pk.name}</div>
               </button>
             ))}
           </div>
           {err && <div style={{ color: C.red, fontSize: 13, marginTop: 8 }}>{err}</div>}
-          <button style={{ ...s.btn(C.yellow, 'lg'), marginTop: 16 }}
+          <button style={{ ...s.btn(C.yellow, 'lg'), marginTop: 16, width: '100%' }}
             onClick={() => { if (!newStarter) { setErr('Pick a Pokemon!'); return; } setCreateStep(3); }}>
             Next →
           </button>

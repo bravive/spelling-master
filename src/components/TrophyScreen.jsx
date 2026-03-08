@@ -220,7 +220,7 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 600, padding: 12 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: '#1e1b3a', borderRadius: 20, padding: '16px 16px 12px', width: '100%', maxWidth: 520, maxHeight: 'calc(100dvh - 48px)', display: 'flex', flexDirection: 'column', animation: 'popIn 0.35s ease', border: `1px solid ${C.border}` }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: C.modal, borderRadius: 20, padding: '16px 16px 12px', width: '100%', maxWidth: 520, maxHeight: 'calc(100dvh - 48px)', display: 'flex', flexDirection: 'column', animation: 'popIn 0.35s ease', border: `1px solid ${C.border}` }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div style={{ fontWeight: 800, fontSize: 18 }}>Manage Trophies</div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: C.muted, fontSize: 20, cursor: 'pointer', padding: 4 }}>✕</button>
@@ -424,7 +424,7 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
                               style={{
                                 background: selected ? 'rgba(251,191,36,0.15)' : C.card,
                                 borderRadius: 8, padding: 4, textAlign: 'center', cursor: 'pointer',
-                                border: selected ? `2px solid ${C.yellow}` : hasShiny ? `1px solid #a78bfa` : `1px solid ${C.border}`,
+                                border: selected ? `2px solid ${C.yellow}` : hasShiny ? `1px solid ${C.shiny}` : `1px solid ${C.border}`,
                                 position: 'relative',
                               }}
                             >
@@ -435,7 +435,7 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
                                 <div style={{ position: 'absolute', top: 1, left: 3, fontSize: 8 }}>✨</div>
                               )}
                               <img src={pkImg(pk.slug)} alt={pk.name} style={{ width: 32, height: 32, objectFit: 'contain' }} />
-                              <div style={{ fontSize: 8, color: hasShiny ? '#a78bfa' : '#fff', marginTop: 1 }}>{pk.name}</div>
+                              <div style={{ fontSize: 8, color: hasShiny ? C.shiny : '#fff', marginTop: 1 }}>{pk.name}</div>
                             </div>
                           );
                         })}
@@ -539,7 +539,7 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
                                 style={{
                                   background: selected ? 'rgba(244,114,182,0.15)' : C.card,
                                   borderRadius: 8, padding: 4, textAlign: 'center', cursor: 'pointer',
-                                  border: selected ? `2px solid ${C.pink}` : hasShiny ? `1px solid #a78bfa` : `1px solid ${C.border}`,
+                                  border: selected ? `2px solid ${C.pink}` : hasShiny ? `1px solid ${C.shiny}` : `1px solid ${C.border}`,
                                   position: 'relative',
                                 }}
                               >
@@ -550,7 +550,7 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
                                   <div style={{ position: 'absolute', top: 1, left: 3, fontSize: 8 }}>✨</div>
                                 )}
                                 <img src={pkImg(pk.slug)} alt={pk.name} style={{ width: 32, height: 32, objectFit: 'contain' }} />
-                                <div style={{ fontSize: 8, color: hasShiny ? '#a78bfa' : '#fff', marginTop: 1 }}>{pk.name}</div>
+                                <div style={{ fontSize: 8, color: hasShiny ? C.shiny : '#fff', marginTop: 1 }}>{pk.name}</div>
                               </div>
                             );
                           })}
@@ -625,7 +625,7 @@ export const TrophyScreen = ({ trophyData, currentUser, setScreen, setGameScreen
     const isRegular = isAdmin || isPkCaught(owned);
     const unlocked  = isRegular || isShiny;
     const stats     = POKEMON_STATS[selectedPk.slug];
-    const border    = isShiny ? '2px solid #a78bfa' : isRegular ? '2px solid #b45309' : `1px solid ${C.border}`;
+    const border    = isShiny ? `2px solid ${C.shiny}` : isRegular ? '2px solid #b45309' : `1px solid ${C.border}`;
     const chain     = POKEMON_EVOLUTIONS[selectedPk.slug] || [selectedPk.slug];
 
     return (
@@ -635,7 +635,7 @@ export const TrophyScreen = ({ trophyData, currentUser, setScreen, setGameScreen
       >
         <div
           onClick={e => e.stopPropagation()}
-          style={{ background: '#1e1b3a', borderRadius: 20, padding: 24, width: '100%', maxWidth: 320, border, animation: 'popIn 0.35s ease' }}
+          style={{ background: C.modal, borderRadius: 20, padding: 24, width: '100%', maxWidth: 320, border, animation: 'popIn 0.35s ease' }}
         >
           {/* Header */}
           <div style={{ textAlign: 'center', marginBottom: 16 }}>
@@ -647,7 +647,7 @@ export const TrophyScreen = ({ trophyData, currentUser, setScreen, setGameScreen
             <div style={{ fontSize: 22, fontWeight: 800, color: '#fff', marginTop: 8 }}>
               {unlocked ? selectedPk.name : '???'}
             </div>
-            {isShiny && <div style={{ color: '#a78bfa', fontWeight: 700, fontSize: 14, marginTop: 2 }}>✨ Shiny</div>}
+            {isShiny && <div style={{ color: C.shiny, fontWeight: 700, fontSize: 14, marginTop: 2 }}>✨ Shiny</div>}
             {unlocked && pkCount(owned) > 1 && (
               <div style={{ color: C.yellow, fontSize: 13, marginTop: 2 }}>x{pkCount(owned)}</div>
             )}
@@ -737,8 +737,8 @@ export const TrophyScreen = ({ trophyData, currentUser, setScreen, setGameScreen
           onChange={e => { setLayout(e.target.value); setSelectedId(null); }}
           style={{ background: 'rgba(255,255,255,0.12)', color: '#fff', border: `1px solid ${C.border}`, borderRadius: 8, padding: '6px 10px', fontSize: 13, fontWeight: 600, cursor: 'pointer', outline: 'none' }}
         >
-          <option value="all" style={{ background: '#1e1b3a' }}>All</option>
-          <option value="collected" style={{ background: '#1e1b3a' }}>Collected</option>
+          <option value="all" style={{ background: C.modal }}>All</option>
+          <option value="collected" style={{ background: C.modal }}>Collected</option>
         </select>
       </div>
 
@@ -794,7 +794,7 @@ export const TrophyScreen = ({ trophyData, currentUser, setScreen, setGameScreen
               const isRegular  = isAdmin || isPkCaught(owned);
               const unlocked   = isRegular || isShiny;
               const isSelected = selectedId === pk.id;
-              const border     = isShiny ? '2px solid #a78bfa' : isRegular ? '2px solid #b45309' : `1px solid ${C.border}`;
+              const border     = isShiny ? `2px solid ${C.shiny}` : isRegular ? '2px solid #b45309' : `1px solid ${C.border}`;
               const count      = pkCount(owned);
 
               return (
@@ -820,7 +820,7 @@ export const TrophyScreen = ({ trophyData, currentUser, setScreen, setGameScreen
                     alt={pk.name}
                     style={{ width: imgSize, height: imgSize, objectFit: 'contain', filter: !unlocked ? 'brightness(0) opacity(0.3)' : 'none' }}
                   />
-                  <div style={{ fontSize, color: isShiny ? '#a78bfa' : unlocked ? '#fff' : C.muted, marginTop: 4, lineHeight: 1.3, fontWeight: isShiny ? 700 : layout === 'all' ? 400 : 600 }}>
+                  <div style={{ fontSize, color: isShiny ? C.shiny : unlocked ? '#fff' : C.muted, marginTop: 4, lineHeight: 1.3, fontWeight: isShiny ? 700 : layout === 'all' ? 400 : 600 }}>
                     {unlocked ? (isShiny ? `✨ ${pk.name}` : pk.name) : '???'}
                   </div>
                 </div>

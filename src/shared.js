@@ -41,30 +41,38 @@ export const newUser = (name, pin, starterId, starterSlug) => ({
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 export const C = {
-  bg: 'linear-gradient(135deg, #0f0c29, #302b63, #24243e)',
+  bg: 'linear-gradient(135deg, #1a1040, #2d1b69, #1e1450)',
   yellow: '#fbbf24',
   pink: '#f472b6',
   blue: '#60a5fa',
-  green: '#10b981',
+  green: '#34d399',
   red: '#ef4444',
   muted: '#94a3b8',
   purple: '#c4b5fd',
-  card: 'rgba(255,255,255,0.08)',
-  border: 'rgba(255,255,255,0.12)',
+  orange: '#fb923c',
+  shiny: '#a78bfa',
+  card: 'rgba(255,255,255,0.10)',
+  border: 'rgba(255,255,255,0.15)',
+  modal: '#1e1b3a',
 };
 
 export const s = {
-  page: { minHeight: '100dvh', background: C.bg, color: '#fff', fontFamily: 'system-ui,sans-serif', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px 16px' },
-  card: { background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 20 },
+  page: { minHeight: '100dvh', background: C.bg, color: '#fff', fontFamily: 'system-ui,-apple-system,"Segoe UI",sans-serif', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '16px 12px', paddingTop: 'max(16px, env(safe-area-inset-top))', paddingBottom: 'max(16px, env(safe-area-inset-bottom))', boxSizing: 'border-box', overflowX: 'hidden', width: '100%' },
+  card: { background: C.card, border: `1px solid ${C.border}`, borderRadius: 20, padding: 16 },
   btn: (color = C.yellow, size = 'md') => ({
-    background: color, border: 'none', borderRadius: 12, cursor: 'pointer', fontWeight: 700,
-    padding: size === 'sm' ? '8px 16px' : size === 'lg' ? '16px 32px' : '12px 24px',
-    fontSize: size === 'sm' ? 14 : size === 'lg' ? 20 : 16,
-    color: color === 'rgba(255,255,255,0.12)' || color === 'rgba(255,255,255,0.1)' ? '#fff' : '#1a1a2e',
-    transition: 'opacity 0.15s',
+    background: color, border: 'none', borderRadius: 16, cursor: 'pointer', fontWeight: 800,
+    padding: size === 'sm' ? '8px 16px' : size === 'lg' ? '14px 24px' : '10px 20px',
+    fontSize: size === 'sm' ? 14 : size === 'lg' ? 18 : 15,
+    color: color === 'rgba(255,255,255,0.12)' || color === 'rgba(255,255,255,0.1)' || color === 'rgba(255,255,255,0.15)' ? '#fff' : '#1a1a2e',
+    transition: 'all 0.2s ease',
   }),
-  input: { background: 'rgba(255,255,255,0.1)', border: `1px solid ${C.border}`, borderRadius: 10, color: '#fff', fontSize: 18, padding: '12px 16px', width: '100%', boxSizing: 'border-box', outline: 'none' },
-  backBtn: { background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', fontSize: 20, color: '#fff', flexShrink: 0, lineHeight: '34px', textAlign: 'center', padding: 0 },
+  input: { background: 'rgba(255,255,255,0.08)', border: `1px solid ${C.border}`, borderRadius: 14, color: '#fff', fontSize: 17, padding: '12px 16px', width: '100%', boxSizing: 'border-box', outline: 'none', transition: 'border-color 0.2s' },
+  backBtn: { background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: 40, height: 40, cursor: 'pointer', fontSize: 20, color: '#fff', flexShrink: 0, lineHeight: '38px', textAlign: 'center', padding: 0, transition: 'background 0.2s' },
+  heading: { fontSize: 22, fontWeight: 900, letterSpacing: 0.5 },
+  subtext: { fontSize: 13, color: C.muted, lineHeight: 1.4 },
+  badge: { borderRadius: 99, padding: '4px 12px', fontWeight: 700, fontSize: 13 },
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 600, padding: 16 },
+  modalCard: { background: C.modal, borderRadius: 24, border: `1px solid ${C.border}`, animation: 'popIn 0.3s ease', width: '100%', maxHeight: 'calc(100dvh - 48px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
 };
 
 // ─── CSS animations injected once ────────────────────────────────────────────
@@ -88,12 +96,17 @@ export const injectCSS = () => {
     .pk-face { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
     .pk-back  { backface-visibility: hidden; -webkit-backface-visibility: hidden; transform: rotateY(180deg); }
     .word-card:hover { background: rgba(255,255,255,0.16) !important; }
-    .trophy-card:hover { transform: scale(1.08) !important; }
+    .trophy-card:hover { transform: scale(1.05) !important; }
     .wk-hint-wrap:hover .wk-hint { display: block !important; }
-    * { box-sizing: border-box; }
-    body { margin: 0; }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; overflow-x: hidden; width: 100%; }
+    body { overscroll-behavior-y: contain; -webkit-text-size-adjust: 100%; }
+    input, button, select { font-family: inherit; }
     @media (orientation: landscape) and (max-height: 500px) {
       body { font-size: 14px; }
+    }
+    @supports (padding: env(safe-area-inset-top)) {
+      body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
     }
   `;
   document.head.appendChild(el);

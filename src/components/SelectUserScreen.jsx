@@ -52,7 +52,7 @@ const PinBoxes = ({ value, onChange, onComplete }) => {
   };
 
   return (
-    <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+    <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
       {Array.from({ length: PIN_LEN }, (_, i) => {
         const hasDig = digits[i]?.trim();
         return (
@@ -69,10 +69,10 @@ const PinBoxes = ({ value, onChange, onComplete }) => {
             onFocus={e => e.target.select()}
             className="pin-box"
             style={{
-              width: 40, height: 52, borderRadius: 12,
-              background: hasDig ? 'rgba(251,191,36,0.08)' : 'rgba(255,255,255,0.06)',
-              border: `2px solid ${hasDig ? C.yellow : 'rgba(255,255,255,0.15)'}`,
-              color: C.yellow, fontSize: 24, fontWeight: 800,
+              width: 38, height: 48, borderRadius: 14,
+              background: hasDig ? `${C.yellow}14` : C.card,
+              border: `2px solid ${hasDig ? C.yellow : C.border}`,
+              color: C.yellow, fontSize: 22, fontWeight: 800,
               textAlign: 'center', outline: 'none',
               transition: 'all 0.2s ease',
               boxShadow: hasDig ? `0 0 12px ${C.yellow}22` : 'none',
@@ -125,7 +125,7 @@ export const SelectUserScreen = ({ setCurrentUser, setScreen, setGameScreen, set
 
   return (
     <div style={{
-      width: '100%', maxWidth: 320, textAlign: 'center',
+      width: '100%', maxWidth: 340, textAlign: 'center',
       position: 'relative',
       animation: 'popIn 0.5s ease both',
     }}>
@@ -142,37 +142,36 @@ export const SelectUserScreen = ({ setCurrentUser, setScreen, setGameScreen, set
       </div>
 
       {/* Header */}
-      <div style={{ position: 'relative', zIndex: 1, marginBottom: 24 }}>
+      <div style={{ position: 'relative', zIndex: 1, marginBottom: 20 }}>
         <div style={{
-          fontSize: 52, lineHeight: 1,
+          fontSize: 48, lineHeight: 1,
           filter: 'drop-shadow(0 0 8px rgba(251,191,36,0.3))',
           animation: 'float 3s ease-in-out infinite',
         }}>
           📖
         </div>
         <h1 style={{
-          fontSize: 28, fontWeight: 900, margin: '10px 0 4px',
+          fontSize: 28, fontWeight: 900, margin: '8px 0 4px',
           color: C.yellow,
           letterSpacing: 1,
         }}>
           Spell Master
         </h1>
-        <div style={{ color: C.muted, fontSize: 13, letterSpacing: 0.5 }}>
+        <div style={{ ...s.subtext, letterSpacing: 0.5 }}>
           Sign in to start playing
         </div>
       </div>
 
       {/* Form card */}
       <div style={{
+        ...s.card,
         position: 'relative', zIndex: 1,
-        background: 'rgba(255,255,255,0.05)',
-        border: '1px solid rgba(251,191,36,0.15)',
-        borderRadius: 20, padding: '24px 20px',
+        padding: '20px 16px',
         boxShadow: '0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)',
       }}>
         {/* Username */}
-        <div style={{ marginBottom: 20 }}>
-          <label style={{ display: 'block', color: C.muted, fontSize: 12, fontWeight: 600, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1.5 }}>
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: 'block', color: C.muted, fontSize: 11, fontWeight: 700, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1.5 }}>
             Username
           </label>
           <input
@@ -184,21 +183,16 @@ export const SelectUserScreen = ({ setCurrentUser, setScreen, setGameScreen, set
             onKeyDown={handleKeyDown}
             autoComplete="username"
             style={{
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.15)',
-              borderRadius: 12, color: '#fff',
-              fontSize: 18, fontWeight: 600,
-              padding: '10px 14px',
-              width: '100%', boxSizing: 'border-box',
-              textAlign: 'center', outline: 'none',
-              transition: 'border-color 0.2s',
+              ...s.input,
+              fontWeight: 600,
+              textAlign: 'center',
             }}
           />
         </div>
 
         {/* PIN */}
-        <div style={{ marginBottom: 20 }}>
-          <label style={{ display: 'block', color: C.muted, fontSize: 12, fontWeight: 600, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1.5 }}>
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: 'block', color: C.muted, fontSize: 11, fontWeight: 700, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1.5 }}>
             PIN
           </label>
           <PinBoxes value={pin} onChange={setPin} onComplete={(completedPin) => handleLogin(completedPin)} />
@@ -207,17 +201,17 @@ export const SelectUserScreen = ({ setCurrentUser, setScreen, setGameScreen, set
         {/* Error */}
         {error && (
           <div style={{
-            color: C.red, fontSize: 13, marginBottom: 14,
+            color: C.red, fontSize: 13, marginBottom: 12,
             animation: 'shake 0.3s ease',
-            background: 'rgba(239,68,68,0.1)',
-            borderRadius: 8, padding: '8px 12px',
+            background: `${C.red}18`,
+            borderRadius: 12, padding: '8px 12px',
           }}>
             {error}
           </div>
         )}
 
         {/* Remember me */}
-        <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 16, cursor: 'pointer', color: C.muted, fontSize: 14 }}>
+        <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 14, cursor: 'pointer', color: C.muted, fontSize: 13 }}>
           <input
             type="checkbox"
             checked={rememberMe}
@@ -232,11 +226,8 @@ export const SelectUserScreen = ({ setCurrentUser, setScreen, setGameScreen, set
           style={{
             ...s.btn(C.yellow, 'lg'), width: '100%',
             opacity: loading ? 0.6 : 1,
-            borderRadius: 14,
-            fontSize: 18, fontWeight: 800,
             letterSpacing: 0.5,
             boxShadow: `0 4px 16px ${C.yellow}33`,
-            transition: 'opacity 0.15s, box-shadow 0.2s',
           }}
           onClick={handleLogin}
           disabled={loading}
@@ -246,7 +237,7 @@ export const SelectUserScreen = ({ setCurrentUser, setScreen, setGameScreen, set
       </div>
 
       {/* Sign Up */}
-      <div style={{ position: 'relative', zIndex: 1, marginTop: 20 }}>
+      <div style={{ position: 'relative', zIndex: 1, marginTop: 16 }}>
         <span style={{ color: C.muted, fontSize: 13 }}>New here? </span>
         <span
           style={{

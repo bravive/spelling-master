@@ -13,8 +13,15 @@ export const ResultsScreen = ({ roundResults, getUser, wordStats, setWords, setR
   return (
     <div style={{ width: '100%', maxWidth: 480 }}>
       <div style={{ textAlign: 'center', marginBottom: 20 }}>
-        <div style={{ fontSize: 64, fontWeight: 900, color: pass ? C.green : C.red }}>{score}/{total}</div>
-        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, display: 'inline-block', padding: '6px 20px', margin: '8px 0', color: wasQuit ? C.muted : (pass ? C.green : C.red), fontWeight: 700, fontSize: 18 }}>
+        <div style={{ fontSize: 56, fontWeight: 900, color: pass ? C.green : C.red }}>{score}/{total}</div>
+        <div style={{
+          ...s.badge,
+          background: wasQuit ? `${C.muted}22` : (pass ? `${C.green}22` : `${C.red}22`),
+          color: wasQuit ? C.muted : (pass ? C.green : C.red),
+          display: 'inline-block',
+          fontSize: 16, padding: '6px 20px',
+          margin: '8px 0',
+        }}>
           {wasQuit ? 'Round ended early' : (pass ? '✅ Passed!' : '❌ Try again')}
         </div>
         {earned > 0 && <div style={{ color: C.yellow, fontSize: 20, fontWeight: 700 }}>+{earned} credits</div>}
@@ -31,7 +38,7 @@ export const ResultsScreen = ({ roundResults, getUser, wordStats, setWords, setR
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {correctWords.map((r, i) => (
-              <span key={i} style={{ background: 'rgba(16,185,129,0.15)', border: `1px solid ${C.green}`, borderRadius: 8, padding: '4px 12px', fontSize: 14, fontWeight: 600, color: C.green }}>
+              <span key={i} style={{ background: 'rgba(52,211,153,0.15)', border: `1px solid ${C.green}`, borderRadius: 8, padding: '4px 12px', fontSize: 14, fontWeight: 600, color: C.green }}>
                 {r.word}
               </span>
             ))}
@@ -72,15 +79,15 @@ export const ResultsScreen = ({ roundResults, getUser, wordStats, setWords, setR
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 20 }}>
-        <button style={{ ...s.btn(C.yellow, 'lg') }}
+        <button style={{ ...s.btn(C.yellow, 'lg'), width: '100%' }}
           onClick={() => { setRetryCount(r => r + 1); setGameScreen('stage1'); }}>
           🔄 Retry Group
         </button>
-        <button style={{ ...s.btn(C.blue, 'lg') }}
+        <button style={{ ...s.btn(C.blue, 'lg'), width: '100%' }}
           onClick={() => { const u = getUser(); const w = selectWords(wordStats, u.level, u.roundCount || 0); setWords(w); setRetryCount(0); setGameScreen('stage1'); }}>
           🆕 New Group
         </button>
-        <button style={{ ...s.btn('rgba(255,255,255,0.12)', 'lg'), color: '#fff' }}
+        <button style={{ ...s.btn('rgba(255,255,255,0.12)', 'lg'), color: '#fff', width: '100%' }}
           onClick={() => setGameScreen('home')}>
           🏠 Home
         </button>

@@ -13,6 +13,28 @@ function validateName(rawName, existingUsers = {}) {
   return null;
 }
 
+// Mirrors the noAllSame validation in NumPad
+function validatePin(pin) {
+  if (pin.split('').every(d => d === pin[0])) return "PIN can't be all the same digit";
+  return null;
+}
+
+describe('PIN all-same-digit validation', () => {
+  it('rejects all-same PINs', () => {
+    expect(validatePin('0000')).toBeTruthy();
+    expect(validatePin('1111')).toBeTruthy();
+    expect(validatePin('5555')).toBeTruthy();
+    expect(validatePin('9999')).toBeTruthy();
+  });
+
+  it('accepts PINs with varied digits', () => {
+    expect(validatePin('1234')).toBeNull();
+    expect(validatePin('1122')).toBeNull();
+    expect(validatePin('1110')).toBeNull();
+    expect(validatePin('0001')).toBeNull();
+  });
+});
+
 describe('createUser name validation', () => {
   it('rejects empty name', () => {
     expect(validateName('')).toBe('Please enter a name.');

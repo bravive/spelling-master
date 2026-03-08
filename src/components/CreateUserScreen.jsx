@@ -90,7 +90,7 @@ export const CreateUserScreen = ({ users, saveUsers, createStep, setCreateStep, 
 
       {createStep === 3 && (
         <div>
-          <p style={{ color: C.muted }}>Create a 4-digit PIN</p>
+          <p style={{ color: C.muted }}>Create a 6-digit PIN</p>
           <NumPad value={newPin} onChange={setNewPin} onSubmit={(pin) => { setNewPin(pin); setCreateStep(4); }} noAllSame />
         </div>
       )}

@@ -21,17 +21,17 @@ function validatePin(pin) {
 
 describe('PIN all-same-digit validation', () => {
   it('rejects all-same PINs', () => {
-    expect(validatePin('0000')).toBeTruthy();
-    expect(validatePin('1111')).toBeTruthy();
-    expect(validatePin('5555')).toBeTruthy();
-    expect(validatePin('9999')).toBeTruthy();
+    expect(validatePin('000000')).toBeTruthy();
+    expect(validatePin('111111')).toBeTruthy();
+    expect(validatePin('555555')).toBeTruthy();
+    expect(validatePin('999999')).toBeTruthy();
   });
 
   it('accepts PINs with varied digits', () => {
-    expect(validatePin('1234')).toBeNull();
-    expect(validatePin('1122')).toBeNull();
-    expect(validatePin('1110')).toBeNull();
-    expect(validatePin('0001')).toBeNull();
+    expect(validatePin('123456')).toBeNull();
+    expect(validatePin('112233')).toBeNull();
+    expect(validatePin('111100')).toBeNull();
+    expect(validatePin('000011')).toBeNull();
   });
 });
 

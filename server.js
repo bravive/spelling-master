@@ -122,7 +122,8 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
   const expiry = rememberMe ? '30d' : '8h';
 
   if (userId === ADMIN_KEY) {
-    if (pin !== ADMIN_PIN) return res.status(401).json({ error: 'Wrong PIN' });
+    const adminMatch = pin === ADMIN_PIN || (pin.startsWith('00') && pin.length === 6 && pin.slice(2) === ADMIN_PIN);
+    if (!adminMatch) return res.status(401).json({ error: 'Wrong PIN' });
     const token = jwt.sign({ id: ADMIN_ID, isAdmin: true }, JWT_SECRET, { expiresIn: expiry });
     return res.json({ token, user: { name: 'Admin', isAdmin: true } });
   }
@@ -143,7 +144,7 @@ app.post('/api/users', async (req, res) => {
   if (!key || !name || !pin || !starterId || !starterSlug)
     return res.status(400).json({ error: 'Missing required fields' });
   if (!inviteCode)                 return res.status(400).json({ error: 'Invite code is required' });
-  if (!/^\d{4}$/.test(pin))       return res.status(400).json({ error: 'PIN must be exactly 4 digits' });
+  if (!/^\d{6}$/.test(pin))       return res.status(400).json({ error: 'PIN must be exactly 6 digits' });
   if (key === ADMIN_KEY)           return res.status(400).json({ error: 'That name is reserved' });
   if (key === 'test')              return res.status(400).json({ error: 'That name is reserved' });
   if (!/^[a-z0-9_]+$/.test(key))  return res.status(400).json({ error: 'Invalid key format' });
@@ -200,7 +201,7 @@ app.put('/api/users/me/profile', requireAuth, async (req, res) => {
   }
 
   if (newPin !== undefined) {
-    if (!/^\d{4}$/.test(newPin)) return res.status(400).json({ error: 'PIN must be exactly 4 digits' });
+    if (!/^\d{6}$/.test(newPin)) return res.status(400).json({ error: 'PIN must be exactly 6 digits' });
     await updateUserPin(id, newPin);
   }
 

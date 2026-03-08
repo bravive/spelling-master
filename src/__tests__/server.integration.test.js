@@ -51,12 +51,12 @@ const createUser = async (overrides = {}) => {
   const { inviteCode: overrideCode, ...rest } = overrides;
   const inviteCode = overrideCode ?? await makeCode();
   return request(app).post('/api/users').send({
-    key: 'alice', name: 'Alice', pin: '1234', starterId: 1, starterSlug: 'bulbasaur',
+    key: 'alice', name: 'Alice', pin: '123456', starterId: 1, starterSlug: 'bulbasaur',
     inviteCode, ...rest,
   });
 };
 
-const loginUser = (userId = 'alice', pin = '1234') =>
+const loginUser = (userId = 'alice', pin = '123456') =>
   request(app).post('/api/auth/login').send({ userId, pin });
 
 // ── List users ────────────────────────────────────────────────────────────────
@@ -182,7 +182,7 @@ describe('POST /api/auth/login', () => {
   });
 
   it('returns 401 for unknown user (0 matching records)', async () => {
-    const res = await loginUser('nobody', '1234');
+    const res = await loginUser('nobody', '123456');
     expect(res.status).toBe(401);
   });
 });
@@ -305,7 +305,7 @@ describe('GET/PUT /api/trophy', () => {
       .send({ collection: { '1': { regular: true, shiny: true } }, shinyEligible: true, consecutiveRegular: 3 });
 
     await createUser({ key: 'bob', name: 'Bob' });
-    const bobToken = (await loginUser('bob', '1234')).body.token;
+    const bobToken = (await loginUser('bob', '123456')).body.token;
     const res = await request(app).get('/api/trophy').set('Authorization', `Bearer ${bobToken}`);
     expect(res.body.collection).toEqual({});
     expect(res.body.shinyEligible).toBe(false);
@@ -384,7 +384,7 @@ describe('GET/PUT /api/wordstats', () => {
       .send({ cat: { attempts: 5, correct: 5, weight: 0.3 } });
 
     await createUser({ key: 'bob', name: 'Bob' });
-    const bobToken = (await loginUser('bob', '1234')).body.token;
+    const bobToken = (await loginUser('bob', '123456')).body.token;
     const res = await request(app).get('/api/wordstats').set('Authorization', `Bearer ${bobToken}`);
     expect(res.body).toEqual({});
   });
@@ -446,7 +446,7 @@ describe('GET/PUT /api/roundhistory', () => {
       .send({ roundHistory: [{ date: '2026-03-06', score: 10, earned: 5, pass: true }], bestScores: {} });
 
     await createUser({ key: 'bob', name: 'Bob' });
-    const bobToken = (await loginUser('bob', '1234')).body.token;
+    const bobToken = (await loginUser('bob', '123456')).body.token;
     const res = await request(app).get('/api/roundhistory').set('Authorization', `Bearer ${bobToken}`);
     expect(res.body.roundHistory).toEqual([]);
   });
@@ -487,7 +487,7 @@ describe('GET/PUT /api/credithistory', () => {
     await request(app).put('/api/credithistory').set('Authorization', `Bearer ${token}`)
       .send([{ date: '2026-03-05', amount: 5, source: 'round', description: 'Score 10/10' }]);
     await createUser({ key: 'bob', name: 'Bob' });
-    const bobToken = (await loginUser('bob', '1234')).body.token;
+    const bobToken = (await loginUser('bob', '123456')).body.token;
     const res = await request(app).get('/api/credithistory').set('Authorization', `Bearer ${bobToken}`);
     expect(res.body).toEqual([]);
   });
@@ -530,7 +530,7 @@ describe('GET/POST /api/trophyhistory', () => {
     await request(app).post('/api/trophyhistory').set('Authorization', `Bearer ${token}`)
       .send({ action: 'buy', cost: 3, pokemon: 'bulbasaur' });
     await createUser({ key: 'bob', name: 'Bob' });
-    const bobToken = (await loginUser('bob', '1234')).body.token;
+    const bobToken = (await loginUser('bob', '123456')).body.token;
     const res = await request(app).get('/api/trophyhistory').set('Authorization', `Bearer ${bobToken}`);
     expect(res.body).toEqual([]);
   });
@@ -554,7 +554,7 @@ describe('PUT /api/users/me/profile', () => {
     const res = await request(app)
       .put('/api/users/me/profile')
       .set('Authorization', `Bearer ${token}`)
-      .send({ currentPin: '1234', newName: 'Alice B' });
+      .send({ currentPin: '123456', newName: 'Alice B' });
     expect(res.status).toBe(200);
     expect(res.body.user.name).toBe('Alice B');
     expect(res.body.user.userId).toBe('alice_b');
@@ -580,7 +580,7 @@ describe('PUT /api/users/me/profile', () => {
     const res = await request(app)
       .put('/api/users/me/profile')
       .set('Authorization', `Bearer ${token}`)
-      .send({ currentPin: '1234', newName: 'test' });
+      .send({ currentPin: '123456', newName: 'test' });
     expect(res.status).toBe(400);
   });
 
@@ -589,7 +589,7 @@ describe('PUT /api/users/me/profile', () => {
     const res = await request(app)
       .put('/api/users/me/profile')
       .set('Authorization', `Bearer ${token}`)
-      .send({ currentPin: '1234', newName: 'Bob' });
+      .send({ currentPin: '123456', newName: 'Bob' });
     expect(res.status).toBe(409);
   });
 
@@ -597,7 +597,7 @@ describe('PUT /api/users/me/profile', () => {
     const res = await request(app)
       .put('/api/users/me/profile')
       .set('Authorization', `Bearer ${token}`)
-      .send({ currentPin: '1234', newName: 'Alice' });
+      .send({ currentPin: '123456', newName: 'Alice' });
     expect(res.status).toBe(200);
   });
 
@@ -605,22 +605,22 @@ describe('PUT /api/users/me/profile', () => {
     const res = await request(app)
       .put('/api/users/me/profile')
       .set('Authorization', `Bearer ${token}`)
-      .send({ currentPin: '1234', newPin: '5678' });
+      .send({ currentPin: '123456', newPin: '567890' });
     expect(res.status).toBe(200);
 
     // Old PIN should fail
-    const fail = await loginUser('alice', '1234');
+    const fail = await loginUser('alice', '123456');
     expect(fail.status).toBe(401);
     // New PIN should work
-    const ok = await loginUser('alice', '5678');
+    const ok = await loginUser('alice', '567890');
     expect(ok.status).toBe(200);
   });
 
-  it('rejects non-4-digit new PIN', async () => {
+  it('rejects non-6-digit new PIN', async () => {
     const res = await request(app)
       .put('/api/users/me/profile')
       .set('Authorization', `Bearer ${token}`)
-      .send({ currentPin: '1234', newPin: '12' });
+      .send({ currentPin: '123456', newPin: '12' });
     expect(res.status).toBe(400);
   });
 
@@ -628,7 +628,7 @@ describe('PUT /api/users/me/profile', () => {
     const res = await request(app)
       .put('/api/users/me/profile')
       .set('Authorization', `Bearer ${token}`)
-      .send({ currentPin: '1234', starterId: 4, starterSlug: 'charmander' });
+      .send({ currentPin: '123456', starterId: 4, starterSlug: 'charmander' });
     expect(res.status).toBe(200);
     expect(res.body.user.starterSlug).toBe('charmander');
     expect(res.body.user.starterId).toBe(4);
@@ -638,17 +638,17 @@ describe('PUT /api/users/me/profile', () => {
     const res = await request(app)
       .put('/api/users/me/profile')
       .set('Authorization', `Bearer ${token}`)
-      .send({ currentPin: '1234', newName: 'Alice C', starterId: 7, starterSlug: 'squirtle', newPin: '4321' });
+      .send({ currentPin: '123456', newName: 'Alice C', starterId: 7, starterSlug: 'squirtle', newPin: '432100' });
     expect(res.status).toBe(200);
     expect(res.body.user.name).toBe('Alice C');
     expect(res.body.user.starterSlug).toBe('squirtle');
     // Verify new PIN works
-    const ok = await loginUser('alice_c', '4321');
+    const ok = await loginUser('alice_c', '432100');
     expect(ok.status).toBe(200);
   });
 
   it('returns 401 without token', async () => {
-    const res = await request(app).put('/api/users/me/profile').send({ currentPin: '1234' });
+    const res = await request(app).put('/api/users/me/profile').send({ currentPin: '123456' });
     expect(res.status).toBe(401);
   });
 });
@@ -677,7 +677,7 @@ describe('GET /api/admin/users', () => {
 
   it('returns 403 for non-admin token', async () => {
     await createUser();
-    const userToken = (await loginUser('alice', '1234')).body.token;
+    const userToken = (await loginUser('alice', '123456')).body.token;
     const res = await request(app)
       .get('/api/admin/users')
       .set('Authorization', `Bearer ${userToken}`);
@@ -824,7 +824,7 @@ describe('GET/PUT /api/weekly-stats', () => {
 
     // bob creates account and logs in
     await createUser({ key: 'bob', name: 'Bob' });
-    const bobToken = (await loginUser('bob', '1234')).body.token;
+    const bobToken = (await loginUser('bob', '123456')).body.token;
 
     // bob sees empty stats (not alice's)
     const res = await request(app).get('/api/weekly-stats').set('Authorization', `Bearer ${bobToken}`);
@@ -844,7 +844,7 @@ describe('Gifts API', () => {
 
     const b = await createUser({ key: 'bob', name: 'Bob' });
     bobId = b.body.user.id;
-    bobToken = (await loginUser('bob', '1234')).body.token;
+    bobToken = (await loginUser('bob', '123456')).body.token;
   });
 
   const makeFriends = async () => {
@@ -1027,7 +1027,7 @@ describe('Gifts API', () => {
     // Create a third user to avoid duplicate-gift check
     const c = await createUser({ key: 'carol', name: 'Carol' });
     const carolId = c.body.user.id;
-    const carolToken = (await loginUser('carol', '1234')).body.token;
+    const carolToken = (await loginUser('carol', '123456')).body.token;
     // Befriend alice and carol
     await request(app).post('/api/friends/invite')
       .set('Authorization', `Bearer ${aliceToken}`)
@@ -1185,7 +1185,7 @@ describe('Gifts API', () => {
     await makeFriends();
     const c = await createUser({ key: 'carol', name: 'Carol' });
     const carolId = c.body.user.id;
-    const carolToken = (await loginUser('carol', '1234')).body.token;
+    const carolToken = (await loginUser('carol', '123456')).body.token;
     await request(app).post('/api/friends/invite')
       .set('Authorization', `Bearer ${aliceToken}`).send({ toUserId: carolId });
     const carolFriends = await request(app).get('/api/friends').set('Authorization', `Bearer ${carolToken}`);
@@ -1386,7 +1386,7 @@ describe('Invite code system', () => {
 
   it('POST /api/users fails without invite code', async () => {
     const res = await request(app).post('/api/users').send({
-      key: 'alice', name: 'Alice', pin: '1234', starterId: 1, starterSlug: 'bulbasaur',
+      key: 'alice', name: 'Alice', pin: '123456', starterId: 1, starterSlug: 'bulbasaur',
     });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/invite code/i);
@@ -1394,7 +1394,7 @@ describe('Invite code system', () => {
 
   it('POST /api/users fails with invalid invite code', async () => {
     const res = await request(app).post('/api/users').send({
-      key: 'alice', name: 'Alice', pin: '1234', starterId: 1, starterSlug: 'bulbasaur', inviteCode: 'INVALID1',
+      key: 'alice', name: 'Alice', pin: '123456', starterId: 1, starterSlug: 'bulbasaur', inviteCode: 'INVALID1',
     });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/invalid/i);
@@ -1403,7 +1403,7 @@ describe('Invite code system', () => {
   it('POST /api/users succeeds with valid invite code and marks it consumed', async () => {
     const code = await makeCode();
     const res = await request(app).post('/api/users').send({
-      key: 'alice', name: 'Alice', pin: '1234', starterId: 1, starterSlug: 'bulbasaur', inviteCode: code,
+      key: 'alice', name: 'Alice', pin: '123456', starterId: 1, starterSlug: 'bulbasaur', inviteCode: code,
     });
     expect(res.status).toBe(201);
 
@@ -1415,10 +1415,10 @@ describe('Invite code system', () => {
   it('POST /api/users fails when code already consumed', async () => {
     const code = await makeCode();
     await request(app).post('/api/users').send({
-      key: 'alice', name: 'Alice', pin: '1234', starterId: 1, starterSlug: 'bulbasaur', inviteCode: code,
+      key: 'alice', name: 'Alice', pin: '123456', starterId: 1, starterSlug: 'bulbasaur', inviteCode: code,
     });
     const res = await request(app).post('/api/users').send({
-      key: 'bob', name: 'Bob', pin: '1234', starterId: 1, starterSlug: 'bulbasaur', inviteCode: code,
+      key: 'bob', name: 'Bob', pin: '123456', starterId: 1, starterSlug: 'bulbasaur', inviteCode: code,
     });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/already used/i);
@@ -1427,7 +1427,7 @@ describe('Invite code system', () => {
   it('consumed code shows usedByName', async () => {
     const code = await makeCode();
     await request(app).post('/api/users').send({
-      key: 'alice', name: 'Alice', pin: '1234', starterId: 1, starterSlug: 'bulbasaur', inviteCode: code,
+      key: 'alice', name: 'Alice', pin: '123456', starterId: 1, starterSlug: 'bulbasaur', inviteCode: code,
     });
     const adminToken = await getAdminToken();
     const res = await request(app).get('/api/admin/invite-codes').set('Authorization', `Bearer ${adminToken}`);

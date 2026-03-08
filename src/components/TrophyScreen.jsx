@@ -403,9 +403,9 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
                   </div>
                 </div>
               ) : (
-                <div style={{ display: 'flex', gap: 8, flex: 1, minHeight: 0 }}>
-                  {/* Left: caught (give away) */}
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minHeight: 0 }}>
+                  {/* Top: caught (give away) */}
+                  <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: C.yellow, marginBottom: 6 }}>Give ({swapSources.length}/3)</div>
                     <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
@@ -444,10 +444,10 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
                   </div>
 
                   {/* Arrow */}
-                  <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0, fontSize: 20, color: C.muted }}>→</div>
+                  <div style={{ display: 'flex', justifyContent: 'center', flexShrink: 0, fontSize: 20, color: C.muted }}>↓</div>
 
-                  {/* Right: uncaught (receive) */}
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, opacity: swapSources.length < 3 ? 0.35 : 1, pointerEvents: swapSources.length < 3 ? 'none' : 'auto' }}>
+                  {/* Bottom: uncaught (receive) */}
+                  <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1, opacity: swapSources.length < 3 ? 0.35 : 1, pointerEvents: swapSources.length < 3 ? 'none' : 'auto' }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: C.blue, marginBottom: 6 }}>Receive</div>
                     <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
                       {uncaughtPokemon.length === 0 ? (
@@ -518,9 +518,9 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
                   </div>
                 );
               })() : (
-                <div style={{ display: 'flex', gap: 8, flex: 1, minHeight: 0 }}>
-                  {/* Left: pick a Pokemon */}
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minHeight: 0 }}>
+                  {/* Top: pick a Pokemon */}
+                  <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: C.yellow, marginBottom: 6 }}>Pokemon</div>
                     <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
                       {caughtPokemon.length === 0 ? (
@@ -560,10 +560,10 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
                   </div>
 
                   {/* Arrow */}
-                  <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0, fontSize: 20, color: C.muted }}>→</div>
+                  <div style={{ display: 'flex', justifyContent: 'center', flexShrink: 0, fontSize: 20, color: C.muted }}>↓</div>
 
-                  {/* Right: pick a friend */}
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, opacity: !sendPokemon ? 0.35 : 1, pointerEvents: !sendPokemon ? 'none' : 'auto' }}>
+                  {/* Bottom: pick a friend */}
+                  <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1, opacity: !sendPokemon ? 0.35 : 1, pointerEvents: !sendPokemon ? 'none' : 'auto' }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: C.pink, marginBottom: 6 }}>Friend</div>
                     <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
                       {!friendsLoaded ? (

@@ -56,8 +56,10 @@ export const ParentMenuScreen = ({ jwt, setScreen, setCurrentUser }) => {
     setCreatingCode(false);
   };
 
+  const inviteUrl = (code) => `${window.location.origin}/?code=${code}`;
+
   const copyCode = (code) => {
-    navigator.clipboard?.writeText(code).catch(() => {});
+    navigator.clipboard?.writeText(inviteUrl(code)).catch(() => {});
     setCodeCopied(code);
     setTimeout(() => setCodeCopied(''), 2000);
   };
@@ -344,11 +346,18 @@ export const ParentMenuScreen = ({ jwt, setScreen, setCurrentUser }) => {
               }
             </div>
             {!c.usedBy && (
-              <button onClick={() => copyCode(c.code)} style={{ ...s.btn(C.blue, 'sm'), minWidth: 60 }}>
-                {codeCopied === c.code ? '✓' : 'Copy'}
+              <button
+                onClick={() => copyCode(c.code)}
+                title={inviteUrl(c.code)}
+                style={{ background: codeCopied === c.code ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.06)', border: `1px solid ${codeCopied === c.code ? C.green : 'rgba(255,255,255,0.12)'}`, borderRadius: 8, padding: '8px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, color: codeCopied === c.code ? C.green : C.muted, fontSize: 12, whiteSpace: 'nowrap' }}
+              >
+                {codeCopied === c.code
+                  ? <><span style={{ fontSize: 14 }}>✓</span> Copied!</>
+                  : <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg> Copy link</>
+                }
               </button>
             )}
-            {c.usedBy && <div style={{ fontSize: 20 }}>✓</div>}
+            {c.usedBy && <div style={{ fontSize: 20, color: C.muted }}>✓</div>}
           </div>
         ))}
       </>}

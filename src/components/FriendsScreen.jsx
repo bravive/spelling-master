@@ -429,8 +429,10 @@ const InviteCodesTab = ({ jwt }) => {
     setCreating(false);
   };
 
+  const inviteUrl = (code) => `${window.location.origin}/?code=${code}`;
+
   const copy = (code) => {
-    navigator.clipboard?.writeText(code).catch(() => {});
+    navigator.clipboard?.writeText(inviteUrl(code)).catch(() => {});
     setCopied(code);
     setTimeout(() => setCopied(''), 2000);
   };
@@ -471,11 +473,18 @@ const InviteCodesTab = ({ jwt }) => {
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginTop: 2 }}>{new Date(c.created_at).toLocaleDateString()}</div>
           </div>
           {!c.usedBy && (
-            <button onClick={() => copy(c.code)} style={{ ...s.btn(C.blue, 'sm'), minWidth: 60 }}>
-              {copied === c.code ? '✓' : 'Copy'}
+            <button
+              onClick={() => copy(c.code)}
+              title={inviteUrl(c.code)}
+              style={{ background: copied === c.code ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.06)', border: `1px solid ${copied === c.code ? C.green : 'rgba(255,255,255,0.12)'}`, borderRadius: 8, padding: '8px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, color: copied === c.code ? C.green : C.muted, fontSize: 12, whiteSpace: 'nowrap' }}
+            >
+              {copied === c.code
+                ? <><span style={{ fontSize: 14 }}>✓</span> Copied!</>
+                : <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg> Copy link</>
+              }
             </button>
           )}
-          {c.usedBy && <div style={{ fontSize: 18 }}>✓</div>}
+          {c.usedBy && <div style={{ fontSize: 18, color: C.muted }}>✓</div>}
         </div>
       ))}
     </div>

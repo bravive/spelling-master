@@ -4,11 +4,11 @@ import { isPkCaught, pkCount, C, s } from '../shared';
 
 const Tab = ({ active, label, badge, onClick }) => (
   <button onClick={onClick} style={{
-    background: active ? 'rgba(255,255,255,0.12)' : 'transparent',
+    flex: 1, background: active ? 'rgba(255,255,255,0.12)' : 'transparent',
     border: active ? `1px solid ${C.yellow}` : '1px solid transparent',
-    borderRadius: 8, padding: '8px 16px', color: active ? C.yellow : C.muted,
-    fontWeight: active ? 700 : 400, fontSize: 14, cursor: 'pointer',
-    position: 'relative',
+    borderRadius: 8, padding: '8px 4px', color: active ? C.yellow : C.muted,
+    fontWeight: active ? 700 : 400, fontSize: 13, cursor: 'pointer',
+    position: 'relative', textAlign: 'center', whiteSpace: 'nowrap',
   }}>
     {label}
     {badge > 0 && <span style={{
@@ -38,15 +38,17 @@ const IconBtn = ({ onClick, color, children, badge }) => (
 );
 
 const FriendCard = ({ friend, unreadCount, onMessage, onGift, onSelect }) => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-    <div onClick={onSelect} style={{ ...s.card, flex: 1, display: 'flex', alignItems: 'center', gap: 12, padding: 14, cursor: 'pointer', minWidth: 0 }}>
-      <img src={pkImg(friend.starterSlug)} alt="" style={{ width: 48, height: 48, objectFit: 'contain', flexShrink: 0 }} />
+  <div style={{ ...s.card, display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, padding: 12 }}>
+    <div onClick={onSelect} style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0, cursor: 'pointer' }}>
+      <img src={pkImg(friend.starterSlug)} alt="" style={{ width: 44, height: 44, objectFit: 'contain', flexShrink: 0 }} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 700, fontSize: 15 }}>{friend.name}</div>
-        <div style={{ color: C.muted, fontSize: 12 }}>Level {friend.level} | {friend.caught} caught | {friend.shinyCount} shiny | {friend.streak} streak</div>
+        <div style={{ fontWeight: 700, fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{friend.name}</div>
+        <div style={{ color: C.muted, fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          Lv {friend.level} · {friend.caught} caught · {friend.shinyCount} ✨ · 🔥{friend.streak}
+        </div>
       </div>
     </div>
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
+    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
       <IconBtn onClick={onGift} color={C.pink}>🎁</IconBtn>
       <IconBtn onClick={onMessage} color={C.blue} badge={unreadCount}>💬</IconBtn>
     </div>
@@ -68,7 +70,7 @@ const FriendDetailModal = ({ friend, onClose, onMessage, onRemove }) => {
         <img src={pkImg(friend.starterSlug)} alt="" style={{ width: 80, height: 80, objectFit: 'contain', animation: 'float 3s ease-in-out infinite' }} />
         <h3 style={{ margin: '12px 0 4px', fontSize: 20, color: C.yellow }}>{friend.name}</h3>
         <div style={{ color: C.muted, fontSize: 13, marginBottom: 16 }}>
-          Level {friend.level} | {friend.caught} caught | {friend.shinyCount} shiny | {friend.streak} streak
+          Lv {friend.level} · {friend.caught} caught · {friend.shinyCount} ✨ · 🔥{friend.streak}
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -591,7 +593,7 @@ export const FriendsScreen = ({ jwt, currentUser, myStarterSlug, setGameScreen, 
           style={{ ...s.backBtn, fontSize: 18 }}>🔍</button>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'nowrap' }}>
         <Tab active={tab === 'friends'} label="Friends" badge={totalUnread} onClick={() => setTab('friends')} />
         <Tab active={tab === 'requests'} label="Requests" badge={pendingReceived.length} onClick={() => setTab('requests')} />
         <Tab active={tab === 'gifts'} label="Gifts" badge={incomingGifts.length} onClick={() => setTab('gifts')} />
@@ -642,12 +644,17 @@ export const FriendsScreen = ({ jwt, currentUser, myStarterSlug, setGameScreen, 
         <div onClick={() => setSearchOpen(false)} style={{
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
           display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-          zIndex: 1000, padding: '60px 16px 16px',
+          zIndex: 1000,
+          paddingTop: 'max(env(safe-area-inset-top, 0px) + 16px, 56px)',
+          paddingLeft: 'max(env(safe-area-inset-left, 0px) + 16px, 16px)',
+          paddingRight: 'max(env(safe-area-inset-right, 0px) + 16px, 16px)',
+          paddingBottom: 16,
+          boxSizing: 'border-box',
         }}>
           <div onClick={e => e.stopPropagation()} style={{
             background: '#1e1b3a', border: `1px solid ${C.border}`, borderRadius: 16,
             width: '100%', maxWidth: 420, padding: 16,
-            maxHeight: 'calc(100dvh - 80px)', display: 'flex', flexDirection: 'column',
+            maxHeight: '100%', display: 'flex', flexDirection: 'column',
             animation: 'popIn 0.2s ease',
           }}>
             <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexShrink: 0 }}>

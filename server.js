@@ -15,8 +15,12 @@ import {
   getAdminUsers,
   createFriendship, findFriendship, findFriendshipById, acceptFriendship, deleteFriendship, getUserFriendships,
   createMessage, getMessages, markMessagesRead, getUnreadCounts,
+  createGift, findPendingGift, findGiftById, getUserGifts, countPendingOutgoingGifts, acceptGift, declineGift, cancelPendingGiftsBetween,
   getAdminFriendships,
 } from './src/store.js';
+// Inline isPkCaught to avoid importing browser-dependent shared.js
+const pkCount = (owned) => owned?.count != null ? owned.count : (owned?.regular ? 1 : 0);
+const isPkCaught = (owned) => pkCount(owned) >= 1;
 
 const ADMIN_KEY = 'admin';
 const ADMIN_ID  = 'admin';
@@ -220,7 +224,15 @@ app.get('/api/trophy', requireAuth, async (req, res) => {
   const doc = await getTrophy(req.jwtUser.id);
   if (!doc) return res.json({ collection: {}, shinyEligible: false, consecutiveRegular: 0, nextPokemonId: null });
   const { _id, userId, created_at, updated_at, ...trophy } = doc;
-  res.json({ collection: {}, shinyEligible: false, consecutiveRegular: 0, nextPokemonId: null, ...trophy });
+  const result = { collection: {}, shinyEligible: false, consecutiveRegular: 0, nextPokemonId: null, ...trophy };
+
+  // Clear nextPokemonId if it points to an already-caught Pokémon
+  if (result.nextPokemonId && isPkCaught(result.collection[result.nextPokemonId])) {
+    result.nextPokemonId = null;
+    saveTrophy(req.jwtUser.id, { nextPokemonId: null }).catch(() => {});
+  }
+
+  res.json(result);
 });
 
 app.put('/api/trophy', requireAuth, async (req, res) => {
@@ -389,7 +401,12 @@ app.delete('/api/friends/:friendshipId', requireAuth, async (req, res) => {
   const myId = req.jwtUser.id;
   if (f.user1 !== myId && f.user2 !== myId) return res.status(403).json({ error: 'Not your friendship' });
 
-  await deleteFriendship(f._id);
+  // Cancel any pending gifts between these users
+  const friendId = f.user1 === myId ? f.user2 : f.user1;
+  await Promise.all([
+    deleteFriendship(f._id),
+    cancelPendingGiftsBetween(myId, friendId),
+  ]);
   res.json({ ok: true });
 });
 
@@ -424,6 +441,140 @@ app.post('/api/friends/:friendId/messages', requireAuth, async (req, res) => {
 
   const msg = await createMessage(myId, friendId, text.trim());
   res.status(201).json(msg);
+});
+
+// ── Gifts ──────────────────────────────────────────────────────────────────
+
+// Send a gift
+app.post('/api/gifts/send', requireAuth, async (req, res) => {
+  const myId = req.jwtUser.id;
+  const { toUserId, pokemonId } = req.body;
+  if (!toUserId || pokemonId == null) return res.status(400).json({ error: 'toUserId and pokemonId are required' });
+
+  // Must be accepted friends
+  const friendship = await findFriendship(myId, toUserId);
+  if (!friendship || friendship.status !== 'accepted') return res.status(403).json({ error: 'Not friends' });
+
+  // Look up sender's collection
+  const trophy = await getTrophy(myId);
+  const col = trophy?.collection || {};
+  const owned = col[pokemonId];
+  const count = pkCount(owned);
+  if (count < 1) return res.status(400).json({ error: 'You do not own this Pokemon' });
+
+  // Account for pending outgoing gifts
+  const pendingCount = await countPendingOutgoingGifts(myId, pokemonId);
+  if (count - pendingCount < 1) return res.status(400).json({ error: 'All copies are reserved for pending gifts' });
+
+  // Prevent duplicate pending gift
+  const existing = await findPendingGift(myId, toUserId, pokemonId);
+  if (existing) return res.status(409).json({ error: 'Gift already pending for this Pokemon' });
+
+  // Resolve slug
+  const { ALL_POKEMON } = await import('./src/data/pokemon.js');
+  const pk = ALL_POKEMON.find(p => p.id === pokemonId);
+  if (!pk) return res.status(400).json({ error: 'Invalid Pokemon' });
+
+  const gift = await createGift(myId, toUserId, pokemonId, pk.slug);
+  res.status(201).json({ ok: true, giftId: gift._id });
+});
+
+// List pending gifts (incoming + outgoing)
+app.get('/api/gifts', requireAuth, async (req, res) => {
+  const myId = req.jwtUser.id;
+  const gifts = await getUserGifts(myId);
+
+  // Enrich with user profiles
+  const userIds = [...new Set(gifts.flatMap(g => [g.fromUserId, g.toUserId]))];
+  const { usersCol: _uc } = await import('./src/db.js');
+  const users = userIds.length > 0 ? await _uc().find({ _id: { $in: userIds } }).toArray() : [];
+  const userMap = Object.fromEntries(users.map(u => [u._id, u]));
+
+  res.json(gifts.map(g => ({
+    ...g,
+    fromName: userMap[g.fromUserId]?.name || 'Unknown',
+    fromStarterSlug: userMap[g.fromUserId]?.starterSlug,
+    toName: userMap[g.toUserId]?.name || 'Unknown',
+    toStarterSlug: userMap[g.toUserId]?.starterSlug,
+  })));
+});
+
+// Count incoming pending gifts (for badge)
+app.get('/api/gifts/pending-count', requireAuth, async (req, res) => {
+  const { giftsCol: _gc } = await import('./src/db.js');
+  const count = await _gc().countDocuments({ toUserId: req.jwtUser.id, status: 'pending' });
+  res.json({ count });
+});
+
+// Accept a gift
+app.put('/api/gifts/:giftId/accept', requireAuth, async (req, res) => {
+  const gift = await findGiftById(req.params.giftId);
+  if (!gift) return res.status(404).json({ error: 'Gift not found' });
+  if (gift.status !== 'pending') return res.status(400).json({ error: 'Gift is no longer pending' });
+  if (gift.toUserId !== req.jwtUser.id) return res.status(403).json({ error: 'Not your gift to accept' });
+
+  // Re-validate sender still owns the pokemon
+  const senderTrophy = await getTrophy(gift.fromUserId);
+  const senderCol = senderTrophy?.collection || {};
+  const senderOwned = senderCol[gift.pokemonId];
+  const senderCount = pkCount(senderOwned);
+  const otherPending = await countPendingOutgoingGifts(gift.fromUserId, gift.pokemonId);
+  // This gift is one of the pending, so available = count - (otherPending - 1)
+  if (senderCount - (otherPending - 1) < 1) {
+    await declineGift(gift._id);
+    return res.status(400).json({ error: 'Sender no longer has this Pokemon available' });
+  }
+
+  // Transfer: decrement sender, increment recipient
+  const newSenderCount = senderCount - 1;
+  const newSenderCol = { ...senderCol };
+  if (newSenderCount <= 0) {
+    delete newSenderCol[gift.pokemonId];
+  } else {
+    newSenderCol[gift.pokemonId] = { ...senderOwned, count: newSenderCount };
+  }
+  await saveTrophy(gift.fromUserId, { collection: newSenderCol });
+
+  const recipientTrophy = await getTrophy(gift.toUserId);
+  const recipientCol = recipientTrophy?.collection || {};
+  const recipientOwned = recipientCol[gift.pokemonId] || {};
+  const newRecipientCol = {
+    ...recipientCol,
+    [gift.pokemonId]: { ...recipientOwned, count: pkCount(recipientOwned) + 1 },
+  };
+  await saveTrophy(gift.toUserId, { collection: newRecipientCol });
+
+  // Update caught counts for both users
+  const senderCaught = Object.values(newSenderCol).filter(c => isPkCaught(c)).length;
+  const recipientCaught = Object.values(newRecipientCol).filter(c => isPkCaught(c)).length;
+  await Promise.all([
+    updateUser(gift.fromUserId, { caught: senderCaught }),
+    updateUser(gift.toUserId, { caught: recipientCaught }),
+  ]);
+
+  // Log trophy history for both
+  const senderUser = await findUserById(gift.fromUserId);
+  const recipientUser = await findUserById(gift.toUserId);
+  await Promise.all([
+    addTrophyHistoryEntry(gift.fromUserId, { action: 'gift_sent', pokemon: gift.pokemonSlug, toUser: recipientUser?.name || 'Unknown' }),
+    addTrophyHistoryEntry(gift.toUserId, { action: 'gift_received', pokemon: gift.pokemonSlug, fromUser: senderUser?.name || 'Unknown' }),
+  ]);
+
+  await acceptGift(gift._id);
+  res.json({ ok: true });
+});
+
+// Decline or cancel a gift
+app.put('/api/gifts/:giftId/decline', requireAuth, async (req, res) => {
+  const gift = await findGiftById(req.params.giftId);
+  if (!gift) return res.status(404).json({ error: 'Gift not found' });
+  if (gift.status !== 'pending') return res.status(400).json({ error: 'Gift is no longer pending' });
+
+  const myId = req.jwtUser.id;
+  if (gift.fromUserId !== myId && gift.toUserId !== myId) return res.status(403).json({ error: 'Not your gift' });
+
+  await declineGift(gift._id);
+  res.json({ ok: true });
 });
 
 // ── Serve React app in production ─────────────────────────────────────────────

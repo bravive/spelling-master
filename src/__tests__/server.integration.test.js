@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import request from 'supertest';
 import { MongoMemoryServer } from 'mongodb-memory-server';
-import { connectDb, closeDb, usersCol, trophiesCol, wordstatsCol, roundhistoryCol, credithistoryCol, weeklyChallengeWordsCol, weeklyStatsCol, trophyhistoryCol } from '../db.js';
+import { connectDb, closeDb, usersCol, trophiesCol, wordstatsCol, roundhistoryCol, credithistoryCol, weeklyChallengeWordsCol, weeklyStatsCol, trophyhistoryCol, giftsCol, friendshipsCol } from '../db.js';
 import { app } from '../../server.js';
 
 let mongod;
@@ -29,6 +29,8 @@ beforeEach(async () => {
     weeklyChallengeWordsCol().deleteMany({}),
     weeklyStatsCol().deleteMany({}),
     trophyhistoryCol().deleteMany({}),
+    giftsCol().deleteMany({}),
+    friendshipsCol().deleteMany({}),
   ]);
 });
 
@@ -297,6 +299,34 @@ describe('GET/PUT /api/trophy', () => {
   it('returns 401 without token', async () => {
     const res = await request(app).get('/api/trophy');
     expect(res.status).toBe(401);
+  });
+
+  it('returns null nextPokemonId for new user on GET', async () => {
+    const res = await request(app).get('/api/trophy').set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.nextPokemonId).toBeNull();
+  });
+
+  it('clears nextPokemonId when current one is already caught', async () => {
+    // Save trophy with nextPokemonId=1 but also mark pokemon 1 as caught
+    await request(app).put('/api/trophy').set('Authorization', `Bearer ${token}`)
+      .send({ collection: { '1': { count: 1 } }, shinyEligible: false, consecutiveRegular: 0, nextPokemonId: 1 });
+
+    // GET should detect nextPokemonId=1 is caught and clear it
+    const res = await request(app).get('/api/trophy').set('Authorization', `Bearer ${token}`);
+    expect(res.body.nextPokemonId).toBeNull();
+
+    // Check it was persisted as null in DB
+    const user = await usersCol().findOne({ userId: 'alice' });
+    const doc = await trophiesCol().findOne({ userId: user._id });
+    expect(doc.nextPokemonId).toBeNull();
+  });
+
+  it('preserves nextPokemonId across PUT + GET cycle', async () => {
+    const data = { collection: {}, shinyEligible: false, consecutiveRegular: 0, nextPokemonId: 25 };
+    await request(app).put('/api/trophy').set('Authorization', `Bearer ${token}`).send(data);
+    const res = await request(app).get('/api/trophy').set('Authorization', `Bearer ${token}`);
+    expect(res.body.nextPokemonId).toBe(25);
   });
 });
 
@@ -788,6 +818,261 @@ describe('GET/PUT /api/weekly-stats', () => {
 });
 
 // ── Invalid / expired JWT → 401 on every protected route ─────────────────────
+// ── Gifts (Pokemon gifting between friends) ──────────────────────────────────
+describe('Gifts API', () => {
+  let aliceToken, bobToken, aliceId, bobId;
+
+  beforeEach(async () => {
+    const a = await createUser();
+    aliceId = a.body.user.id;
+    aliceToken = (await loginUser()).body.token;
+
+    const b = await createUser({ key: 'bob', name: 'Bob' });
+    bobId = b.body.user.id;
+    bobToken = (await loginUser('bob', '1234')).body.token;
+  });
+
+  const makeFriends = async () => {
+    await request(app).post('/api/friends/invite')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({ toUserId: bobId });
+    const friends = await request(app).get('/api/friends')
+      .set('Authorization', `Bearer ${bobToken}`);
+    const pending = friends.body.find(f => f.status === 'pending');
+    await request(app).put(`/api/friends/${pending.friendshipId}/accept`)
+      .set('Authorization', `Bearer ${bobToken}`);
+  };
+
+  const giveAlicePokemon = async (pokemonId, count = 1) => {
+    const col = {};
+    col[pokemonId] = { count, shiny: false };
+    await request(app).put('/api/trophy')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({ collection: col });
+  };
+
+  it('requires friendship to send gift', async () => {
+    await giveAlicePokemon(1, 2);
+    const res = await request(app).post('/api/gifts/send')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({ toUserId: bobId, pokemonId: 1 });
+    expect(res.status).toBe(403);
+  });
+
+  it('sends a gift between friends', async () => {
+    await makeFriends();
+    await giveAlicePokemon(1, 2);
+    const res = await request(app).post('/api/gifts/send')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({ toUserId: bobId, pokemonId: 1 });
+    expect(res.status).toBe(201);
+    expect(res.body.ok).toBe(true);
+  });
+
+  it('lists pending gifts', async () => {
+    await makeFriends();
+    await giveAlicePokemon(1, 2);
+    await request(app).post('/api/gifts/send')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({ toUserId: bobId, pokemonId: 1 });
+
+    const res = await request(app).get('/api/gifts')
+      .set('Authorization', `Bearer ${bobToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].pokemonId).toBe(1);
+    expect(res.body[0].fromName).toBe('Alice');
+  });
+
+  it('returns pending count for recipient', async () => {
+    await makeFriends();
+    await giveAlicePokemon(1, 2);
+    await request(app).post('/api/gifts/send')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({ toUserId: bobId, pokemonId: 1 });
+
+    const res = await request(app).get('/api/gifts/pending-count')
+      .set('Authorization', `Bearer ${bobToken}`);
+    expect(res.body.count).toBe(1);
+  });
+
+  it('accepts a gift and transfers pokemon', async () => {
+    await makeFriends();
+    await giveAlicePokemon(1, 2);
+    const sendRes = await request(app).post('/api/gifts/send')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({ toUserId: bobId, pokemonId: 1 });
+
+    const giftId = sendRes.body.giftId;
+    const res = await request(app).put(`/api/gifts/${giftId}/accept`)
+      .set('Authorization', `Bearer ${bobToken}`);
+    expect(res.status).toBe(200);
+
+    // Verify transfer
+    const aliceTrophy = await request(app).get('/api/trophy')
+      .set('Authorization', `Bearer ${aliceToken}`);
+    expect(aliceTrophy.body.collection['1'].count).toBe(1);
+
+    const bobTrophy = await request(app).get('/api/trophy')
+      .set('Authorization', `Bearer ${bobToken}`);
+    expect(bobTrophy.body.collection['1'].count).toBe(1);
+  });
+
+  it('declines a gift without transfer', async () => {
+    await makeFriends();
+    await giveAlicePokemon(1, 2);
+    const sendRes = await request(app).post('/api/gifts/send')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({ toUserId: bobId, pokemonId: 1 });
+
+    const giftId = sendRes.body.giftId;
+    await request(app).put(`/api/gifts/${giftId}/decline`)
+      .set('Authorization', `Bearer ${bobToken}`);
+
+    // No transfer
+    const aliceTrophy = await request(app).get('/api/trophy')
+      .set('Authorization', `Bearer ${aliceToken}`);
+    expect(aliceTrophy.body.collection['1'].count).toBe(2);
+  });
+
+  it('prevents duplicate pending gift for same pokemon to same user', async () => {
+    await makeFriends();
+    await giveAlicePokemon(1, 2);
+    await request(app).post('/api/gifts/send')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({ toUserId: bobId, pokemonId: 1 });
+
+    const res = await request(app).post('/api/gifts/send')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({ toUserId: bobId, pokemonId: 1 });
+    expect(res.status).toBe(409);
+  });
+
+  it('prevents gifting when all copies reserved for pending gifts', async () => {
+    await makeFriends();
+    // Create a third user to avoid duplicate-gift check
+    const c = await createUser({ key: 'carol', name: 'Carol' });
+    const carolId = c.body.user.id;
+    const carolToken = (await loginUser('carol', '1234')).body.token;
+    // Befriend alice and carol
+    await request(app).post('/api/friends/invite')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({ toUserId: carolId });
+    const carolFriends = await request(app).get('/api/friends')
+      .set('Authorization', `Bearer ${carolToken}`);
+    const carolPending = carolFriends.body.find(f => f.status === 'pending');
+    await request(app).put(`/api/friends/${carolPending.friendshipId}/accept`)
+      .set('Authorization', `Bearer ${carolToken}`);
+
+    await giveAlicePokemon(1, 1);
+    // Gift to bob — uses the only copy
+    await request(app).post('/api/gifts/send')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({ toUserId: bobId, pokemonId: 1 });
+
+    // Try gift to carol — all copies reserved
+    const res = await request(app).post('/api/gifts/send')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({ toUserId: carolId, pokemonId: 1 });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('reserved');
+  });
+
+  it('cancels pending gifts when unfriending', async () => {
+    await makeFriends();
+    await giveAlicePokemon(1, 2);
+    await request(app).post('/api/gifts/send')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({ toUserId: bobId, pokemonId: 1 });
+
+    // Get friendship ID
+    const friends = await request(app).get('/api/friends')
+      .set('Authorization', `Bearer ${aliceToken}`);
+    const friendship = friends.body.find(f => f.status === 'accepted');
+
+    // Unfriend
+    await request(app).delete(`/api/friends/${friendship.friendshipId}`)
+      .set('Authorization', `Bearer ${aliceToken}`);
+
+    // Gift should be cancelled
+    const gifts = await giftsCol().find({}).toArray();
+    expect(gifts[0].status).toBe('cancelled');
+  });
+
+  it('auto-declines gift on accept if sender no longer has pokemon', async () => {
+    await makeFriends();
+    await giveAlicePokemon(1, 1);
+    const sendRes = await request(app).post('/api/gifts/send')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({ toUserId: bobId, pokemonId: 1 });
+
+    // Remove the pokemon from alice (simulate swap/evolve)
+    await request(app).put('/api/trophy')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({ collection: {} });
+
+    const res = await request(app).put(`/api/gifts/${sendRes.body.giftId}/accept`)
+      .set('Authorization', `Bearer ${bobToken}`);
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('no longer has');
+  });
+
+  it('only recipient can accept a gift', async () => {
+    await makeFriends();
+    await giveAlicePokemon(1, 2);
+    const sendRes = await request(app).post('/api/gifts/send')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({ toUserId: bobId, pokemonId: 1 });
+
+    const res = await request(app).put(`/api/gifts/${sendRes.body.giftId}/accept`)
+      .set('Authorization', `Bearer ${aliceToken}`);
+    expect(res.status).toBe(403);
+  });
+
+  it('logs trophy history for both sender and recipient on accept', async () => {
+    await makeFriends();
+    await giveAlicePokemon(1, 2);
+    const sendRes = await request(app).post('/api/gifts/send')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({ toUserId: bobId, pokemonId: 1 });
+
+    await request(app).put(`/api/gifts/${sendRes.body.giftId}/accept`)
+      .set('Authorization', `Bearer ${bobToken}`);
+
+    const aliceHistory = await request(app).get('/api/trophyhistory')
+      .set('Authorization', `Bearer ${aliceToken}`);
+    expect(aliceHistory.body.some(e => e.action === 'gift_sent')).toBe(true);
+
+    const bobHistory = await request(app).get('/api/trophyhistory')
+      .set('Authorization', `Bearer ${bobToken}`);
+    expect(bobHistory.body.some(e => e.action === 'gift_received')).toBe(true);
+  });
+
+  it('can gift last copy of a pokemon', async () => {
+    await makeFriends();
+    await giveAlicePokemon(1, 1);
+    const res = await request(app).post('/api/gifts/send')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({ toUserId: bobId, pokemonId: 1 });
+    expect(res.status).toBe(201);
+  });
+
+  it('removes pokemon from sender collection when gifting last copy and accepted', async () => {
+    await makeFriends();
+    await giveAlicePokemon(1, 1);
+    const sendRes = await request(app).post('/api/gifts/send')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({ toUserId: bobId, pokemonId: 1 });
+
+    await request(app).put(`/api/gifts/${sendRes.body.giftId}/accept`)
+      .set('Authorization', `Bearer ${bobToken}`);
+
+    const aliceTrophy = await request(app).get('/api/trophy')
+      .set('Authorization', `Bearer ${aliceToken}`);
+    expect(aliceTrophy.body.collection['1']).toBeUndefined();
+  });
+});
+
 describe('Invalid JWT returns 401 on all protected routes', () => {
   const BAD_TOKEN = 'Bearer invalid.jwt.token';
   const EXPIRED_TOKEN = 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.' +
@@ -809,6 +1094,11 @@ describe('Invalid JWT returns 401 on all protected routes', () => {
     { method: 'put',  path: '/api/weekly-stats/w2026-10' },
     { method: 'put',  path: '/api/users/me' },
     { method: 'put',  path: '/api/users/me/profile' },
+    { method: 'post', path: '/api/gifts/send' },
+    { method: 'get',  path: '/api/gifts' },
+    { method: 'get',  path: '/api/gifts/pending-count' },
+    { method: 'put',  path: '/api/gifts/some-id/accept' },
+    { method: 'put',  path: '/api/gifts/some-id/decline' },
   ];
 
   for (const { method, path } of protectedRoutes) {

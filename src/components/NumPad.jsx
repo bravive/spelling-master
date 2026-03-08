@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { C, s } from '../shared';
 
 export const NumPad = ({ value, onChange, onSubmit, noAllSame }) => {
@@ -13,6 +13,22 @@ export const NumPad = ({ value, onChange, onSubmit, noAllSame }) => {
     setPinErr('');
     onSubmit(value);
   };
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key >= '0' && e.key <= '9') {
+        setPinErr('');
+        if (value.length < 6) onChange(value + e.key);
+      } else if (e.key === 'Backspace') {
+        setPinErr('');
+        onChange(value.slice(0, -1));
+      } else if (e.key === 'Enter') {
+        if (value.length === 6) handleSubmit();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [value, noAllSame]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>

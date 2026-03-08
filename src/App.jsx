@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { makeAuthFetch } from './authFetch';
 import { ALL_POKEMON } from './data/pokemon';
+import { pickNextPokemon } from './pickNextPokemon';
 import { unlockPokemon } from './unlockPokemon';
 import { selectWords, updateWordStats, checkLevelUp } from './wordSelection';
 import { computeWeeklyScore } from './weeklyScoring';
@@ -107,7 +108,18 @@ export default function App() {
       setRoundHistory(d.roundHistory || []);
       setCreditHistory(d.creditHistory || []);
     }).catch(() => {});
-    apiFetch('/api/trophy', { headers }).then(r => r.json()).then(setTrophyData).catch(() => {});
+    apiFetch('/api/trophy', { headers }).then(r => r.json()).then(data => {
+      if (!data.nextPokemonId) {
+        const next = pickNextPokemon(data.collection || {});
+        data.nextPokemonId = next?.id || null;
+        // Persist the newly generated nextPokemonId
+        apiFetch('/api/trophy', {
+          method: 'PUT', headers: { ...headers, 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        }).catch(() => {});
+      }
+      setTrophyData(data);
+    }).catch(() => {});
   }, [jwt, currentUser, apiFetch]);
 
   useEffect(() => {
@@ -167,7 +179,7 @@ export default function App() {
     if (userData.collection !== undefined) {
       apiFetch('/api/trophy', {
         method: 'PUT', headers,
-        body: JSON.stringify({ collection: userData.collection, shinyEligible: userData.shinyEligible ?? false, consecutiveRegular: userData.consecutiveRegular ?? 0 }),
+        body: JSON.stringify({ collection: userData.collection, shinyEligible: userData.shinyEligible ?? false, consecutiveRegular: userData.consecutiveRegular ?? 0, nextPokemonId: userData.nextPokemonId ?? null }),
       }).catch(() => {});
     }
     if (userData.wordStats) {

@@ -30,8 +30,13 @@ export default function App() {
   injectCSS();
 
   const isAdminRoute = window.location.pathname.startsWith('/admin');
+  const urlInviteCode = new URLSearchParams(window.location.search).get('code')?.toUpperCase() || '';
 
-  const [screen, setScreen] = useState(() => isAdminRoute ? 'adminLogin' : 'selectUser');
+  const [screen, setScreen] = useState(() => {
+    if (isAdminRoute) return 'adminLogin';
+    if (urlInviteCode) return 'createUser';
+    return 'selectUser';
+  });
   const [gameScreen, setGameScreen] = useState('home');
   const [users, setUsers] = useState({});
   const [currentUser, setCurrentUser] = useState(null);
@@ -48,6 +53,11 @@ export default function App() {
     ).catch(() => {});
   }, []);
 
+  // Clean invite code from URL after it's been read into state
+  useEffect(() => {
+    if (urlInviteCode) window.history.replaceState({}, '', '/');
+  }, []);
+
   // Per-user data fetched from their dedicated API endpoints after login
   const [wordStats, setWordStats] = useState({});
   const [roundHistory, setRoundHistory] = useState([]);
@@ -60,7 +70,7 @@ export default function App() {
 
   // Create user flow
   const [createStep, setCreateStep] = useState(0);
-  const [inviteCode, setInviteCode] = useState('');
+  const [inviteCode, setInviteCode] = useState(() => urlInviteCode);
   const [newName, setNewName] = useState('');
   const [newStarter, setNewStarter] = useState(null);
   const [newPin, setNewPin] = useState('');

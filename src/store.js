@@ -473,3 +473,37 @@ export const getAdminUsers = async () => {
     };
   });
 };
+
+export const getAdminTrends = async () => {
+  // Build last-7-days date buckets
+  const roundsByDay = {};
+  const weeklyByDay = {};
+  const dates = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+    dates.push(d);
+    roundsByDay[d] = 0;
+    weeklyByDay[d] = 0;
+  }
+  const minDate = dates[0];
+
+  // Rounds per day — from roundhistory collection
+  const rhDocs = await roundhistoryCol().find({}, { projection: { roundHistory: 1 } }).toArray();
+  for (const doc of rhDocs) {
+    for (const r of (doc.roundHistory || [])) {
+      if (r.date >= minDate && r.date in roundsByDay) roundsByDay[r.date]++;
+    }
+  }
+
+  // Weekly completions per day — credithistory where source='weekly' and 'completed' in description
+  const chDocs = await credithistoryCol().find({}, { projection: { creditHistory: 1 } }).toArray();
+  for (const doc of chDocs) {
+    for (const e of (doc.creditHistory || [])) {
+      if (e.source === 'weekly' && e.description?.includes('completed') && e.date >= minDate && e.date in weeklyByDay) {
+        weeklyByDay[e.date]++;
+      }
+    }
+  }
+
+  return { roundsByDay, weeklyByDay, dates };
+};

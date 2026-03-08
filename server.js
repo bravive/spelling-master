@@ -16,7 +16,7 @@ import {
   createFriendship, findFriendship, findFriendshipById, acceptFriendship, deleteFriendship, getUserFriendships,
   createMessage, getMessages, markMessagesRead, getUnreadCounts,
   createGift, findPendingGift, findGiftById, getUserGifts, countPendingOutgoingGifts, acceptGift, declineGift, cancelPendingGiftsBetween,
-  getAdminFriendships,
+  getAdminFriendships, getAdminTrends,
   createInviteCode, findInviteCode, consumeInviteCode, countUserInviteCodes, getUserInviteCodes, getAllInviteCodes,
 } from './src/store.js';
 // Inline isPkCaught to avoid importing browser-dependent shared.js
@@ -237,6 +237,11 @@ app.get('/api/admin/invite-codes', requireAdmin, async (_req, res) => {
 app.post('/api/admin/invite-codes', requireAdmin, async (_req, res) => {
   const code = await createInviteCode('admin', 'Admin');
   res.status(201).json(code);
+});
+
+// GET /api/admin/trends — 7-day trend data: rounds/day and weekly completions/day
+app.get('/api/admin/trends', requireAdmin, async (_req, res) => {
+  res.json(await getAdminTrends());
 });
 
 // GET /api/invite-codes/validate?code=... — public: check if code is valid & unused

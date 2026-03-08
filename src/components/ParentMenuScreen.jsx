@@ -10,6 +10,38 @@ const StatCard = ({ label, value, sub, color = C.yellow }) => (
   </div>
 );
 
+const TrendChart = ({ title, color, dates, data }) => {
+  const values = dates.map(d => data[d] || 0);
+  const maxVal = Math.max(1, ...values);
+  return (
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color, marginBottom: 8, textAlign: 'center' }}>{title}</div>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 72 }}>
+        {dates.map((d, i) => {
+          const v = values[i];
+          const barH = Math.max(3, (v / maxVal) * 60);
+          const isToday = i === dates.length - 1;
+          return (
+            <div key={d} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <div style={{ fontSize: 9, color: v > 0 ? color : 'transparent', fontWeight: 700 }}>{v || ''}</div>
+              <div style={{
+                width: '100%', height: `${barH}px`,
+                background: v > 0 ? color : 'rgba(255,255,255,0.07)',
+                borderRadius: 3, opacity: isToday ? 1 : 0.75,
+                boxShadow: isToday && v > 0 ? `0 0 6px ${color}88` : 'none',
+                transition: 'height 0.3s',
+              }} />
+              <div style={{ fontSize: 8, color: isToday ? color : 'rgba(255,255,255,0.3)', fontWeight: isToday ? 700 : 400 }}>
+                {d.slice(5).replace('-', '/')}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 const MiniBar = ({ value, max, color = C.blue }) => (
   <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 4, height: 6, width: '100%', overflow: 'hidden' }}>
     <div style={{ background: color, height: '100%', width: `${max ? Math.min(100, (value / max) * 100) : 0}%`, borderRadius: 4, transition: 'width 0.4s' }} />
@@ -33,6 +65,7 @@ export const ParentMenuScreen = ({ jwt, setScreen, setCurrentUser }) => {
   const [inviteCodes, setInviteCodes] = useState([]);
   const [creatingCode, setCreatingCode] = useState(false);
   const [codeCopied, setCodeCopied] = useState('');
+  const [trends, setTrends] = useState(null);
 
   const [refreshing, setRefreshing] = useState(false);
   const adminHeaders = { Authorization: `Bearer ${jwt}`, 'Content-Type': 'application/json' };
@@ -44,7 +77,8 @@ export const ParentMenuScreen = ({ jwt, setScreen, setCurrentUser }) => {
       fetch('/api/admin/users', { headers: adminHeaders }).then(r => r.json()),
       fetch('/api/admin/friendships', { headers: adminHeaders }).then(r => r.json()),
       fetch('/api/admin/invite-codes', { headers: adminHeaders }).then(r => r.json()),
-    ]).then(([u, f, codes]) => { setUsers(u); setFriendships(f); setInviteCodes(codes); setLoading(false); setRefreshing(false); })
+      fetch('/api/admin/trends', { headers: adminHeaders }).then(r => r.json()),
+    ]).then(([u, f, codes, t]) => { setUsers(u); setFriendships(f); setInviteCodes(codes); setTrends(t); setLoading(false); setRefreshing(false); })
       .catch(() => { setLoading(false); setRefreshing(false); });
   };
 
@@ -80,6 +114,17 @@ export const ParentMenuScreen = ({ jwt, setScreen, setCurrentUser }) => {
   const acceptedFriendships = friendships.filter(f => f.status === 'accepted').length;
   const pendingFriendships = friendships.filter(f => f.status === 'pending').length;
   const totalMessages = friendships.reduce((s, f) => s + (f.messageCount || 0), 0);
+
+  // Signups per day (last 7 days) — derived client-side from users.created_at
+  const trendDates = trends?.dates || Array.from({ length: 7 }, (_, i) =>
+    new Date(Date.now() - (6 - i) * 86400000).toISOString().slice(0, 10));
+  const signupsByDay = Object.fromEntries(trendDates.map(d => [d, 0]));
+  users.forEach(u => {
+    if (u.created_at) {
+      const d = new Date(u.created_at).toISOString().slice(0, 10);
+      if (d in signupsByDay) signupsByDay[d]++;
+    }
+  });
 
   // Rounds per day (last 14 days)
   const allRounds = users.flatMap(u => u.rounds || []);
@@ -215,6 +260,16 @@ export const ParentMenuScreen = ({ jwt, setScreen, setCurrentUser }) => {
 
       {/* ── Usage Tab ────────────────────────────────────────────── */}
       {tab === 'usage' && <>
+        {/* 7-Day Trends */}
+        <div style={{ ...s.card, marginBottom: 16 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: C.yellow, marginBottom: 16 }}>7-Day Trends</div>
+          <div style={{ display: 'flex', gap: 16 }}>
+            <TrendChart title="New Signups" color={C.blue} dates={trendDates} data={signupsByDay} />
+            <TrendChart title="Rounds Finished" color={C.green} dates={trendDates} data={trends?.roundsByDay || {}} />
+            <TrendChart title="Weekly Completions" color={C.yellow} dates={trendDates} data={trends?.weeklyByDay || {}} />
+          </div>
+        </div>
+
         {/* Rounds per day chart */}
         <div style={{ ...s.card, marginBottom: 16 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: C.yellow, marginBottom: 12 }}>Rounds / Day (Last 14 days)</div>

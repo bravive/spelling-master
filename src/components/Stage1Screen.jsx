@@ -100,13 +100,12 @@ export const Stage1Screen = ({ words, retryCount, setGameScreen, nextScreen = 's
           const isRead = readWords.has(i);
           return (
             <div key={i} className="word-card" style={{
-              ...s.card, padding: '14px 16px', cursor: 'pointer', transition: 'background 0.15s',
-              ...(requireClickAll && isRead ? { border: `1px solid ${C.green}`, background: 'rgba(16,185,129,0.12)' } : {}),
+              ...s.card, padding: '14px 16px', cursor: 'pointer', transition: 'background 0.15s, border 0.15s',
+              ...(requireClickAll && isRead ? { border: `2px solid ${C.yellow}` } : {}),
             }}
               onClick={() => handleWordClick(entry, i)}>
-              <div style={{ fontSize: 22, fontWeight: 800, color: C.yellow, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ fontSize: 22, fontWeight: 800, color: C.yellow }}>
                 {entry.w}
-                {requireClickAll && isRead && <span style={{ fontSize: 14, color: C.green }}>✓</span>}
               </div>
               <div style={{ fontSize: 13, color: C.muted, fontStyle: 'italic', marginTop: 4 }}>{entry.s}</div>
             </div>

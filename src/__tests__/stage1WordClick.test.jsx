@@ -62,6 +62,24 @@ describe('Stage1Screen word-click validation', () => {
     expect(screen.getByTestId('ready-button').textContent).toContain('1/3');
   });
 
+  it('auto-closes floating card after countdown and returns to word list', () => {
+    const setGameScreen = vi.fn();
+    render(<Stage1Screen words={mockWords} retryCount={0} setGameScreen={setGameScreen} />);
+
+    const wordCards = screen.getAllByText('cat');
+    fireEvent.click(wordCards[0].closest('.word-card'));
+
+    // Floating card visible during countdown
+    expect(screen.getByTestId('floating-overlay')).toBeTruthy();
+
+    // After 3s, card should auto-close
+    act(() => { vi.advanceTimersByTime(3000); });
+    expect(screen.queryByTestId('floating-overlay')).toBeNull();
+
+    // Word is now marked as read — need to click again to see it
+    expect(screen.getByTestId('ready-button').textContent).toContain('1/3');
+  });
+
   it('blocks overlay dismiss during countdown for unread words', () => {
     const setGameScreen = vi.fn();
     render(<Stage1Screen words={mockWords} retryCount={0} setGameScreen={setGameScreen} />);
@@ -144,17 +162,20 @@ describe('Stage1Screen word-click validation', () => {
     expect(setGameScreen).toHaveBeenCalledWith('stage2');
   });
 
-  it('shows a green checkmark on read words', () => {
+  it('marks read words with a yellow border', () => {
     const setGameScreen = vi.fn();
     render(<Stage1Screen words={mockWords} retryCount={0} setGameScreen={setGameScreen} />);
 
     // Click first word and wait for auto-close
     const els = screen.getAllByText('cat');
-    fireEvent.click(els[0].closest('.word-card'));
+    const card = els[0].closest('.word-card');
+    fireEvent.click(card);
     act(() => { vi.advanceTimersByTime(3000); });
 
-    // Check mark should appear
-    expect(screen.getByText('✓')).toBeTruthy();
+    // Card should have yellow border, no green checkmark
+    const readCard = screen.getAllByText('cat')[0].closest('.word-card');
+    expect(readCard.style.border).toContain('rgb(251, 191, 36)');
+    expect(screen.queryByText('✓')).toBeNull();
   });
 
   it('does not require clicking all words when requireClickAll is false (weekly mode)', () => {

@@ -4,8 +4,7 @@ import { speak, speakTimes, C, s } from '../shared';
 export const Stage1Screen = ({ words, retryCount, setGameScreen, nextScreen = 'stage2', discardScreen = 'home', quitLabel = 'Discard', readyLabel = "✅ I'm Ready!", requireClickAll = true }) => {
   const [elapsed, setElapsed] = useState(0);
   const [readWords, setReadWords] = useState(new Set());
-  const [floatingCard, setFloatingCard] = useState(null); // { index, entry, isFirstRead, counting }
-  const [floatingTimer, setFloatingTimer] = useState(null);
+  const [floatingCard, setFloatingCard] = useState(null); // { index, entry, counting }
   const MAX = 180;
 
   useEffect(() => {
@@ -17,55 +16,37 @@ export const Stage1Screen = ({ words, retryCount, setGameScreen, nextScreen = 's
     return () => clearInterval(t);
   }, []);
 
-  // Cleanup floating card timer on unmount
-  useEffect(() => {
-    return () => { if (floatingTimer) clearTimeout(floatingTimer); };
-  }, [floatingTimer]);
-
   const allRead = !requireClickAll || readWords.size >= words.length;
 
   const handleWordClick = useCallback((entry, index) => {
     speakTimes(`${entry.w}. ${entry.s}`, 1);
 
-    // Clear any existing floating card timer
-    if (floatingTimer) clearTimeout(floatingTimer);
-
     const alreadyRead = readWords.has(index);
 
     if (alreadyRead) {
-      // Already read: show card without countdown, dismissable anytime
-      setFloatingCard({ index, entry, isFirstRead: false, counting: false });
-      setFloatingTimer(null);
+      // Already read: show card without countdown, dismissable immediately
+      setFloatingCard({ index, entry, counting: false });
     } else {
       // First read: show card with 3s countdown, not dismissable until done
-      setFloatingCard({ index, entry, isFirstRead: true, counting: true });
+      setFloatingCard({ index, entry, counting: true });
 
-      const timer = setTimeout(() => {
-        setFloatingCard(null);
+      // After 3s: mark as read, keep card open but make it dismissable
+      setTimeout(() => {
         setReadWords(prev => {
           const next = new Set(prev);
           next.add(index);
           return next;
         });
-        setFloatingTimer(null);
+        setFloatingCard(prev => prev ? { ...prev, counting: false } : null);
       }, 3000);
-      setFloatingTimer(timer);
     }
-  }, [floatingTimer, readWords]);
+  }, [readWords]);
 
   const handleOverlayClick = useCallback(() => {
     if (!floatingCard) return;
-
-    if (floatingCard.counting) {
-      // During countdown for unread words — do nothing, can't dismiss
-      return;
-    }
-
-    // Dismiss without marking as read (already read, or countdown finished)
-    if (floatingTimer) clearTimeout(floatingTimer);
-    setFloatingCard(null);
-    setFloatingTimer(null);
-  }, [floatingCard, floatingTimer]);
+    if (floatingCard.counting) return; // blocked during countdown
+    setFloatingCard(null); // just close, never marks as read
+  }, [floatingCard]);
 
   const pct = elapsed / MAX;
   const barColor = elapsed < 60 ? C.green : elapsed < 120 ? C.yellow : C.red;
@@ -127,7 +108,7 @@ export const Stage1Screen = ({ words, retryCount, setGameScreen, nextScreen = 's
           }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 36, fontWeight: 800, color: C.yellow, marginBottom: 12 }}>{floatingCard.entry.w}</div>
             <div style={{ fontSize: 16, color: '#fff', fontStyle: 'italic', lineHeight: 1.5 }}>{floatingCard.entry.s}</div>
-            {floatingCard.isFirstRead && floatingCard.counting && (
+            {floatingCard.counting && (
               <div style={{ marginTop: 16, width: '100%', background: 'rgba(255,255,255,0.15)', borderRadius: 4, height: 6 }}>
                 <div style={{ width: '100%', height: '100%', background: C.yellow, borderRadius: 4, animation: 'shrink 3s linear forwards' }} />
               </div>

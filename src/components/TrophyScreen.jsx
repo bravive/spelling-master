@@ -116,23 +116,37 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
     setConfirm(null);
   };
 
-  const tabBtn = (key, label) => (
-    <button
-      key={key}
-      onClick={() => { setTab(key); setConfirm(null); setSwapSources([]); setSwapTarget(null); }}
-      style={{
-        width: '100%', padding: '10px 6px', border: 'none', borderRadius: 10, cursor: 'pointer',
-        background: tab === key ? C.purple : 'rgba(255,255,255,0.08)',
-        color: tab === key ? '#1a1a2e' : C.muted,
-        fontWeight: 700, fontSize: 12, transition: 'all 0.15s', textAlign: 'center',
-      }}
-    >
-      {label}
-    </button>
-  );
+  const TAB_ACCENT = { buy: C.yellow, evolve: C.green, swap: C.blue };
 
-  const infoIcon = (tip) => (
-    <span title={tip} style={{ cursor: 'help', fontSize: 14, color: C.muted, marginLeft: 4, verticalAlign: 'middle' }}>&#9432;</span>
+  const tabBtn = (key, label) => {
+    const active = tab === key;
+    return (
+      <button
+        key={key}
+        onClick={() => { setTab(key); setConfirm(null); setSwapSources([]); setSwapTarget(null); }}
+        style={{
+          width: '100%', padding: '12px 6px', border: 'none', cursor: 'pointer',
+          borderRadius: active ? '10px 0 0 10px' : 10,
+          background: active ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)',
+          color: active ? '#fff' : C.muted,
+          fontWeight: 700, fontSize: 13, transition: 'all 0.15s', textAlign: 'center',
+          borderLeft: active ? `3px solid ${TAB_ACCENT[key]}` : '3px solid transparent',
+        }}
+      >
+        {label}
+      </button>
+    );
+  };
+
+  const descBar = (text, accent, rightContent) => (
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      background: `${accent}18`, borderRadius: 8, padding: '6px 12px', marginBottom: 8,
+      borderLeft: `3px solid ${accent}`,
+    }}>
+      <span style={{ fontSize: 12, fontWeight: 600, color: accent }}>{text}</span>
+      {rightContent}
+    </div>
   );
 
   const CONTENT_HEIGHT = 360;
@@ -145,24 +159,30 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: C.muted, fontSize: 20, cursor: 'pointer', padding: 4 }}>✕</button>
         </div>
 
-        <div style={{ display: 'flex', gap: 12 }}>
+        <div style={{ display: 'flex', gap: 0 }}>
           {/* Side tabs */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0, width: 64 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0, width: 68, paddingRight: 10, borderRight: `1px solid ${C.border}` }}>
             {tabBtn('buy', 'Buy')}
             {tabBtn('evolve', 'Evolve')}
             {tabBtn('swap', 'Swap')}
           </div>
 
-          {/* Content — fixed height, scrollable */}
-          <div style={{ flex: 1, height: CONTENT_HEIGHT, overflowY: 'auto', minHeight: 0 }}>
+          {/* Content column — description bar + scrollable grid */}
+          <div style={{ flex: 1, height: CONTENT_HEIGHT, display: 'flex', flexDirection: 'column', minHeight: 0, paddingLeft: 12 }}>
           {/* ── Buy tab ── */}
           {tab === 'buy' && (
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
-                <span style={{ fontWeight: 700, fontSize: 14 }}>Pick one</span>
-                {infoIcon('Spend 3 credits to buy a copy of a caught Pokemon')}
-                {creditBank < 3 && <span style={{ color: C.red, fontSize: 11, marginLeft: 8 }}>({creditBank}/3 credits)</span>}
-              </div>
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+              {descBar('3 credits = 1 copy', C.yellow,
+                <span style={{
+                  fontSize: 11, fontWeight: 800, padding: '2px 8px', borderRadius: 10,
+                  background: creditBank >= 3 ? 'rgba(251,191,36,0.2)' : 'rgba(239,68,68,0.2)',
+                  color: creditBank >= 3 ? C.yellow : C.red,
+                }}>
+                  {creditBank}
+                </span>
+              )}
+              <div style={{ height: 1, background: C.border, marginBottom: 8 }} />
+              <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
               {confirm?.type === 'buy' ? (
                 <div style={{ textAlign: 'center', padding: 16 }}>
                   <img src={pkImg(confirm.pk.slug)} alt={confirm.pk.name} style={{ width: 80, height: 80, objectFit: 'contain' }} />
@@ -200,16 +220,16 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
                   })}
                 </div>
               )}
+              </div>
             </div>
           )}
 
           {/* ── Evolve tab ── */}
           {tab === 'evolve' && (
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
-                <span style={{ fontWeight: 700, fontSize: 14 }}>3 same → next stage</span>
-                {infoIcon('Trade 3 copies of the same Pokemon for its next evolution')}
-              </div>
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+              {descBar('3 same → next evolution', C.green)}
+              <div style={{ height: 1, background: C.border, marginBottom: 8 }} />
+              <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
               {confirm?.type === 'evolve' ? (() => {
                 const chain = POKEMON_EVOLUTIONS[confirm.pk.slug];
                 const idx = chain.indexOf(confirm.pk.slug);
@@ -266,16 +286,22 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
                   })}
                 </div>
               )}
+              </div>
             </div>
           )}
 
           {/* ── Swap tab ── */}
           {tab === 'swap' && (
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
-                <span style={{ fontWeight: 700, fontSize: 14 }}>3 different → 1 new</span>
-                {infoIcon('Give away 3 different caught Pokemon to pick any 1 uncaught Pokemon')}
-              </div>
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+              {descBar('Give 3 → Get 1', C.blue,
+                swapSources.length > 0 && (
+                  <span style={{ fontSize: 11, fontWeight: 800, color: C.blue }}>
+                    {swapSources.length}/3
+                  </span>
+                )
+              )}
+              <div style={{ height: 1, background: C.border, marginBottom: 8 }} />
+              <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
               {confirm?.type === 'swap' ? (
                 <div style={{ textAlign: 'center', padding: 16 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12 }}>
@@ -309,7 +335,7 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
                   </div>
                 </div>
               ) : (
-                <div style={{ display: 'flex', gap: 8, height: CONTENT_HEIGHT - 32 }}>
+                <div style={{ display: 'flex', gap: 8, flex: 1, minHeight: 0 }}>
                   {/* Left: caught (give away) */}
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: C.yellow, marginBottom: 6 }}>Give ({swapSources.length}/3)</div>
@@ -383,6 +409,7 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
                   </div>
                 </div>
               )}
+              </div>
             </div>
           )}
           </div>

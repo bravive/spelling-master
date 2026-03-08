@@ -168,6 +168,14 @@ export const getOwnedPokemon = (trophyData) => {
   );
 };
 
+// Check if the current avatar is still available (in defaults or owned collection)
+export const isCurrentAvatarAvailable = (starterSlug, trophyData) => {
+  if (STARTER_POKEMON.some(pk => pk.slug === starterSlug)) return true;
+  if (!trophyData?.collection) return false;
+  const pk = ALL_POKEMON.find(p => p.slug === starterSlug);
+  return pk ? isPkCaught(trophyData.collection[pk.id]) : false;
+};
+
 const AvatarGrid = ({ pokemon, selectedStarter, user, onSelect }) => (
   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 16 }}>
     {pokemon.map(pk => (
@@ -188,12 +196,18 @@ const AvatarGrid = ({ pokemon, selectedStarter, user, onSelect }) => (
 
 const AvatarTab = ({ user, trophyData, selectedStarter, setSelectedStarter, saveProfile, setSuccess, err, setErr }) => {
   const ownedPokemon = getOwnedPokemon(trophyData);
+  const avatarAvailable = isCurrentAvatarAvailable(user.starterSlug, trophyData);
 
   return (
     <div>
       <div style={{ marginBottom: 16 }}>
-        <img src={pkImg(user.starterSlug)} alt="" style={{ width: 80, height: 80, objectFit: 'contain' }} />
+        <img src={pkImg(user.starterSlug)} alt="" style={{ width: 80, height: 80, objectFit: 'contain', opacity: avatarAvailable ? 1 : 0.4 }} />
         <div style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>Current avatar</div>
+        {!avatarAvailable && (
+          <div style={{ color: C.yellow, fontSize: 13, marginTop: 6, fontWeight: 600 }}>
+            This Pokémon is no longer in your collection. Pick a new avatar!
+          </div>
+        )}
       </div>
 
       {/* Default section */}

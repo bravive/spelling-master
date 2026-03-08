@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getOwnedPokemon } from '../components/EditProfileScreen';
+import { getOwnedPokemon, isCurrentAvatarAvailable } from '../components/EditProfileScreen';
 import { STARTER_POKEMON, ALL_POKEMON } from '../data/pokemon';
 
 describe('getOwnedPokemon', () => {
@@ -67,5 +67,37 @@ describe('getOwnedPokemon', () => {
     };
     const result = getOwnedPokemon({ collection });
     expect(result).toEqual([]);
+  });
+});
+
+describe('isCurrentAvatarAvailable', () => {
+  it('returns true for a default starter slug', () => {
+    expect(isCurrentAvatarAvailable('bulbasaur', null)).toBe(true);
+    expect(isCurrentAvatarAvailable('charmander', {})).toBe(true);
+    expect(isCurrentAvatarAvailable('mudkip', { collection: {} })).toBe(true);
+  });
+
+  it('returns true for an owned non-starter Pokémon', () => {
+    const trophyData = { collection: { 10: { count: 1, shiny: false } } };
+    expect(isCurrentAvatarAvailable('caterpie', trophyData)).toBe(true);
+  });
+
+  it('returns false for a non-starter Pokémon no longer in collection', () => {
+    // Caterpie was swapped/gifted away — count is 0
+    const trophyData = { collection: { 10: { count: 0, shiny: false } } };
+    expect(isCurrentAvatarAvailable('caterpie', trophyData)).toBe(false);
+  });
+
+  it('returns false for a non-starter Pokémon not in collection at all', () => {
+    const trophyData = { collection: {} };
+    expect(isCurrentAvatarAvailable('caterpie', trophyData)).toBe(false);
+  });
+
+  it('returns false when trophyData is null and slug is not a starter', () => {
+    expect(isCurrentAvatarAvailable('caterpie', null)).toBe(false);
+  });
+
+  it('returns false for an unknown slug', () => {
+    expect(isCurrentAvatarAvailable('missingno', { collection: {} })).toBe(false);
   });
 });

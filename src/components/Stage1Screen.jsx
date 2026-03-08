@@ -58,11 +58,7 @@ export const Stage1Screen = ({ words, retryCount, setGameScreen, nextScreen = 's
 
   return (
     <div style={{ width: '100%', maxWidth: 600, position: 'relative' }}>
-      <div style={{ textAlign: 'center', marginBottom: 16, position: 'relative' }}>
-        <span
-          style={{ position: 'absolute', top: 0, right: 0, color: C.muted, fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}
-          onClick={() => setGameScreen(discardScreen)}
-        >{quitLabel}</span>
+      <div style={{ textAlign: 'center', marginBottom: 16 }}>
         <h2 style={{ color: C.yellow, margin: 0 }}>📖 Stage 1 — Remember!</h2>
         {retryCount > 0 && <div style={{ color: C.red, fontSize: 13 }}>Retry #{retryCount}</div>}
         <div style={{ fontSize: 28, fontWeight: 800, marginTop: 8 }}>{mm}:{ss}</div>
@@ -127,6 +123,13 @@ export const Stage1Screen = ({ words, retryCount, setGameScreen, nextScreen = 's
         disabled={!allRead}>
         {allRead ? readyLabel : `📖 Read all words first (${readWords.size}/${words.length})`}
       </button>
+
+      <div style={{ textAlign: 'center', marginTop: 12 }}>
+        <span
+          style={{ color: C.muted, fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}
+          onClick={() => setGameScreen(discardScreen)}
+        >{quitLabel}</span>
+      </div>
     </div>
   );
 };

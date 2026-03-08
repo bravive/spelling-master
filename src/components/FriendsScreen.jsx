@@ -402,7 +402,7 @@ const GiftModal = ({ friend, jwt, onClose, onSent }) => {
   );
 };
 
-export const FriendsScreen = ({ jwt, currentUser, myStarterSlug, setGameScreen }) => {
+export const FriendsScreen = ({ jwt, currentUser, myStarterSlug, setGameScreen, setTrophyData }) => {
   const [tab, setTab] = useState('friends');
   const [friends, setFriends] = useState([]);
   const [unread, setUnread] = useState({});
@@ -418,6 +418,11 @@ export const FriendsScreen = ({ jwt, currentUser, myStarterSlug, setGameScreen }
 
   const loadGifts = () => {
     fetch('/api/gifts', { headers }).then(r => r.json()).then(setGifts).catch(() => {});
+  };
+
+  // Re-fetch trophyData from server so collection counts reflect accepted gifts
+  const refreshTrophy = () => {
+    fetch('/api/trophy', { headers }).then(r => r.json()).then(data => setTrophyData?.(data)).catch(() => {});
   };
 
   const loadFriends = () => {
@@ -442,7 +447,8 @@ export const FriendsScreen = ({ jwt, currentUser, myStarterSlug, setGameScreen }
 
   const acceptGiftHandler = async (giftId) => {
     try {
-      await fetch(`/api/gifts/${giftId}/accept`, { method: 'PUT', headers });
+      const res = await fetch(`/api/gifts/${giftId}/accept`, { method: 'PUT', headers });
+      if (res.ok) refreshTrophy();
       loadGifts();
     } catch { /* ignore */ }
   };

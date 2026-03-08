@@ -20,26 +20,35 @@ const Tab = ({ active, label, badge, onClick }) => (
   </button>
 );
 
+const IconBtn = ({ onClick, color, children, badge }) => (
+  <button onClick={e => { e.stopPropagation(); onClick(); }} style={{
+    width: 36, height: 36, borderRadius: '50%', border: 'none', cursor: 'pointer',
+    background: `${color}22`, color, fontSize: 17, lineHeight: 1,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    position: 'relative', transition: 'background 0.15s', flexShrink: 0,
+  }}>
+    {children}
+    {badge > 0 && <span style={{
+      position: 'absolute', top: -4, right: -4,
+      background: C.red, color: '#fff', fontSize: 9, fontWeight: 800,
+      borderRadius: '50%', width: 16, height: 16,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>{badge}</span>}
+  </button>
+);
+
 const FriendCard = ({ friend, unreadCount, onMessage, onGift, onSelect }) => (
-  <div onClick={onSelect} style={{ ...s.card, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, padding: 14, cursor: 'pointer' }}>
-    <img src={pkImg(friend.starterSlug)} alt="" style={{ width: 48, height: 48, objectFit: 'contain' }} />
-    <div style={{ flex: 1, minWidth: 0 }}>
-      <div style={{ fontWeight: 700, fontSize: 15 }}>{friend.name}</div>
-      <div style={{ color: C.muted, fontSize: 12 }}>Level {friend.level} | {friend.caught} caught | {friend.shinyCount} shiny | {friend.streak} streak</div>
+  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+    <div onClick={onSelect} style={{ ...s.card, flex: 1, display: 'flex', alignItems: 'center', gap: 12, padding: 14, cursor: 'pointer', minWidth: 0 }}>
+      <img src={pkImg(friend.starterSlug)} alt="" style={{ width: 48, height: 48, objectFit: 'contain', flexShrink: 0 }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 700, fontSize: 15 }}>{friend.name}</div>
+        <div style={{ color: C.muted, fontSize: 12 }}>Level {friend.level} | {friend.caught} caught | {friend.shinyCount} shiny | {friend.streak} streak</div>
+      </div>
     </div>
-    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-      <button onClick={e => { e.stopPropagation(); onGift(); }} style={{ ...s.btn(C.pink, 'sm'), padding: '6px 10px', fontSize: 13 }}>
-        Gift
-      </button>
-      <button onClick={e => { e.stopPropagation(); onMessage(); }} style={{ ...s.btn(C.blue, 'sm'), position: 'relative', padding: '6px 10px', fontSize: 13 }}>
-        Message
-        {unreadCount > 0 && <span style={{
-          position: 'absolute', top: -6, right: -6,
-          background: C.red, color: '#fff', fontSize: 10, fontWeight: 700,
-          borderRadius: '50%', width: 18, height: 18,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>{unreadCount}</span>}
-      </button>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
+      <IconBtn onClick={onGift} color={C.pink}>🎁</IconBtn>
+      <IconBtn onClick={onMessage} color={C.blue} badge={unreadCount}>💬</IconBtn>
     </div>
   </div>
 );

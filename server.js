@@ -242,7 +242,8 @@ app.get('/api/roundhistory', requireAuth, async (req, res) => {
 });
 
 app.put('/api/roundhistory', requireAuth, async (req, res) => {
-  await saveRoundHistory(req.jwtUser.id, req.body);
+  const { creditHistory: _ch, ...data } = req.body;
+  await saveRoundHistory(req.jwtUser.id, data);
   res.json({ ok: true });
 });
 

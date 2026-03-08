@@ -18,10 +18,15 @@ export const Stage2Screen = ({ words, processRound, setRoundResults, setGameScre
   const [feedback, setFeedback] = useState(null);
   const [results, setResults] = useState([]);
   const [speaking, setSpeaking] = useState(false);
+  const [showQuitConfirm, setShowQuitConfirm] = useState(false);
   const [order] = useState(() => [...words].sort(() => Math.random() - 0.5));
   const inputRef = useRef(null);
   const lockRef = useRef(false);
   const currentWordRef = useRef(null);
+  const resultsRef = useRef(results);
+  resultsRef.current = results;
+  const idxRef = useRef(idx);
+  idxRef.current = idx;
 
   const currentWord = order[idx];
   currentWordRef.current = currentWord;
@@ -42,14 +47,32 @@ export const Stage2Screen = ({ words, processRound, setRoundResults, setGameScre
 
   useEffect(() => {
     const handler = (e) => {
-      if (lockRef.current) return;
+      if (lockRef.current || showQuitConfirm) return;
       if (e.key === 'Backspace') { e.preventDefault(); setTyped(t => t.slice(0, -1)); return; }
       if (e.key === 'Enter') { e.preventDefault(); doSubmit(); return; }
       if (/^[a-zA-Z]$/.test(e.key)) { e.preventDefault(); setTyped(t => t + e.key.toLowerCase()); }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, []);
+  }, [showQuitConfirm]);
+
+  const handleQuitConfirm = () => {
+    window.speechSynthesis.cancel();
+    // Build full results including remaining words as skipped
+    const currentResults = resultsRef.current;
+    const currentIdx = idxRef.current;
+    const remainingWords = order.slice(currentIdx).map(w => ({ word: w.w, correct: false, attemptNumber: 0, skipped: true }));
+    const allResults = [...currentResults, ...remainingWords];
+    const score = allResults.filter(r => r.correct).length;
+
+    if (onQuit) {
+      onQuit(allResults);
+    } else {
+      const outcome = processRound(score, allResults);
+      setRoundResults({ score, ...outcome, results: allResults, words: order, wasQuit: true });
+      setGameScreen(resultsScreen);
+    }
+  };
 
   const doSubmit = () => {
     if (lockRef.current || !currentWordRef.current) return;
@@ -158,22 +181,34 @@ export const Stage2Screen = ({ words, processRound, setRoundResults, setGameScre
     <div style={{ width: '100%', maxWidth: landscape ? 700 : 520, display: landscape ? 'flex' : 'block', gap: landscape ? 16 : 0, alignItems: landscape ? 'flex-start' : undefined }}>
       <input ref={inputRef} style={{ opacity: 0, position: 'fixed', top: -100, width: 1, height: 1 }} readOnly onFocus={() => {}} />
 
+      {/* Quit confirmation overlay */}
+      {showQuitConfirm && (
+        <div data-testid="quit-confirm" style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 1000, animation: 'popIn 0.2s ease-out',
+        }}>
+          <div style={{ ...s.card, padding: '28px 32px', textAlign: 'center', maxWidth: 320, border: `2px solid ${C.red}` }}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>Are you sure?</div>
+            <div style={{ color: C.muted, fontSize: 14, marginBottom: 20 }}>
+              You've completed {results.length} of {order.length} words. Remaining words will be marked as skipped.
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button style={{ ...s.btn('rgba(255,255,255,0.12)', 'md'), flex: 1, color: '#fff' }}
+                onClick={() => { setShowQuitConfirm(false); setTimeout(() => inputRef.current?.focus(), 100); }}>
+                Keep Going
+              </button>
+              <button style={{ ...s.btn(C.red, 'md'), flex: 1 }}
+                onClick={handleQuitConfirm}>
+                Quit Round
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Left panel in landscape: status + feedback */}
       <div style={landscape ? { flex: '0 0 200px', display: 'flex', flexDirection: 'column', gap: 8 } : {}}>
-        <div style={{ textAlign: 'right', marginBottom: landscape ? 4 : 8 }}>
-          <span
-            style={{ color: C.muted, fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}
-            onClick={() => {
-              window.speechSynthesis.cancel();
-              if (onQuit) {
-                onQuit(results);
-              } else {
-                setGameScreen(discardScreen);
-              }
-            }}
-          >{onQuit ? 'Quit' : 'Discard'}</span>
-        </div>
-
         <div style={{ display: 'flex', gap: landscape ? 4 : 6, justifyContent: 'center', marginBottom: landscape ? 8 : 16, flexWrap: 'wrap' }}>
           {order.map((w, i) => {
             const isCurrent = i === idx;
@@ -243,7 +278,7 @@ export const Stage2Screen = ({ words, processRound, setRoundResults, setGameScre
         ))}
       </div>
 
-      <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+      <div style={{ display: 'flex', gap: 8, width: '100%', marginBottom: 12 }}>
         <button style={{ ...s.btn(C.red, 'lg'), flex: 1, minHeight: 48 }}
           onClick={() => !lockRef.current && setTyped(t => t.slice(0, -1))}>⌫ Delete</button>
         {allowSkip && (
@@ -251,6 +286,18 @@ export const Stage2Screen = ({ words, processRound, setRoundResults, setGameScre
             onClick={doSkip}>⏭ Skip</button>
         )}
         <button style={{ ...s.btn(C.green, 'lg'), flex: 1, minHeight: 48 }} onClick={doSubmit}>✅ Submit</button>
+      </div>
+
+      {/* Quit button at bottom */}
+      <div style={{ textAlign: 'center', marginTop: 4 }}>
+        <span
+          data-testid="quit-button"
+          style={{ color: C.muted, fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}
+          onClick={() => {
+            window.speechSynthesis.cancel();
+            setShowQuitConfirm(true);
+          }}
+        >{onQuit ? 'Quit' : 'Quit Round'}</span>
       </div>
       </div>
     </div>

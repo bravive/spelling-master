@@ -17,7 +17,7 @@ const slugToName = slug => slug.charAt(0).toUpperCase() + slug.slice(1).replace(
 
 // ── ManageModal ──────────────────────────────────────────────────────────────
 const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setTrophyData, trophyData, onClose }) => {
-  const [tab, setTab] = useState('duplicate');
+  const [tab, setTab] = useState('buy');
   const [confirm, setConfirm] = useState(null); // { type, ... }
   const [swapSources, setSwapSources] = useState([]); // array of pokemon ids
   const [swapTarget, setSwapTarget] = useState(null);
@@ -121,10 +121,10 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
       key={key}
       onClick={() => { setTab(key); setConfirm(null); setSwapSources([]); setSwapTarget(null); }}
       style={{
-        flex: 1, padding: '10px 0', border: 'none', borderRadius: 10, cursor: 'pointer',
+        width: '100%', padding: '10px 6px', border: 'none', borderRadius: 10, cursor: 'pointer',
         background: tab === key ? C.purple : 'rgba(255,255,255,0.08)',
         color: tab === key ? '#1a1a2e' : C.muted,
-        fontWeight: 700, fontSize: 13, transition: 'all 0.15s',
+        fontWeight: 700, fontSize: 12, transition: 'all 0.15s', textAlign: 'center',
       }}
     >
       {label}
@@ -133,28 +133,30 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 600, padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: '#1e1b3a', borderRadius: 20, padding: 20, width: '100%', maxWidth: 400, maxHeight: '85vh', display: 'flex', flexDirection: 'column', animation: 'popIn 0.35s ease', border: `1px solid ${C.border}` }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: '#1e1b3a', borderRadius: 20, padding: 20, width: '100%', maxWidth: 480, maxHeight: '85vh', display: 'flex', flexDirection: 'column', animation: 'popIn 0.35s ease', border: `1px solid ${C.border}` }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div style={{ fontWeight: 800, fontSize: 18 }}>Manage Trophies</div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: C.muted, fontSize: 20, cursor: 'pointer', padding: 4 }}>✕</button>
         </div>
 
-        {/* Tabs */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
-          {tabBtn('duplicate', 'Duplicate')}
-          {tabBtn('evolve', 'Evolve')}
-          {tabBtn('swap', 'Swap')}
-        </div>
+        <div style={{ display: 'flex', gap: 12, flex: 1, minHeight: 0 }}>
+          {/* Side tabs */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0, width: 64 }}>
+            {tabBtn('buy', 'Buy')}
+            {tabBtn('evolve', 'Evolve')}
+            {tabBtn('swap', 'Swap')}
+          </div>
 
-        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-          {/* ── Duplicate tab ── */}
-          {tab === 'duplicate' && (
+          {/* Content */}
+          <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+          {/* ── Buy tab ── */}
+          {tab === 'buy' && (
             <div>
               <div style={{ color: C.muted, fontSize: 13, marginBottom: 12 }}>
-                Spend <span style={{ color: C.yellow, fontWeight: 700 }}>3 credits</span> to get a copy of a caught Pokemon.
+                Spend <span style={{ color: C.yellow, fontWeight: 700 }}>3 credits</span> to buy a copy of a caught Pokemon.
                 {creditBank < 3 && <span style={{ color: C.red }}> (Not enough credits: {creditBank}/3)</span>}
               </div>
-              {confirm?.type === 'duplicate' ? (
+              {confirm?.type === 'buy' ? (
                 <div style={{ textAlign: 'center', padding: 16 }}>
                   <img src={pkImg(confirm.pk.slug)} alt={confirm.pk.name} style={{ width: 80, height: 80, objectFit: 'contain' }} />
                   <div style={{ fontWeight: 700, fontSize: 16, marginTop: 8 }}>Spend 3 credits for another {confirm.pk.name}?</div>
@@ -173,7 +175,7 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
                     return (
                       <div
                         key={pk.id}
-                        onClick={() => creditBank >= 3 && setConfirm({ type: 'duplicate', pk })}
+                        onClick={() => creditBank >= 3 && setConfirm({ type: 'buy', pk })}
                         style={{
                           background: C.card, borderRadius: 10, padding: 8, textAlign: 'center',
                           cursor: creditBank >= 3 ? 'pointer' : 'not-allowed',
@@ -381,6 +383,7 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
               )}
             </div>
           )}
+          </div>
         </div>
       </div>
     </div>

@@ -5,6 +5,18 @@ import App from '../App';
 // Stub speechSynthesis (not available in jsdom)
 beforeEach(() => {
   window.speechSynthesis = { cancel: vi.fn(), speak: vi.fn() };
+  // Ensure localStorage is available as a global (App.jsx uses bare `localStorage`)
+  const store = {};
+  const ls = {
+    getItem: vi.fn((k) => store[k] ?? null),
+    setItem: vi.fn((k, v) => { store[k] = String(v); }),
+    removeItem: vi.fn((k) => { delete store[k]; }),
+    clear: vi.fn(() => { Object.keys(store).forEach(k => delete store[k]); }),
+    get length() { return Object.keys(store).length; },
+    key: (i) => Object.keys(store)[i] ?? null,
+  };
+  Object.defineProperty(window, 'localStorage', { value: ls, writable: true, configurable: true });
+  Object.defineProperty(globalThis, 'localStorage', { value: ls, writable: true, configurable: true });
   // Stub fetch to return empty users (shows select-user screen)
   global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({}) }));
 });

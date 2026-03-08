@@ -9,19 +9,21 @@ const PARTICLES = Array.from({ length: 8 }, (_, i) => ({
   color: [C.yellow, C.purple, C.blue, C.pink][i % 4],
 }));
 
+const PIN_LEN = 6;
+
 const PinBoxes = ({ value, onChange, onComplete }) => {
-  const refs = [useRef(null), useRef(null), useRef(null), useRef(null)];
-  const digits = value.padEnd(4, '').split('').slice(0, 4);
+  const refs = Array.from({ length: PIN_LEN }, () => useRef(null));
+  const digits = value.padEnd(PIN_LEN, '').split('').slice(0, PIN_LEN);
 
   const handleChange = (i, e) => {
     const v = e.target.value.replace(/\D/g, '');
     if (!v) return;
     const digit = v.slice(-1);
     const next = value.slice(0, i) + digit + value.slice(i + 1);
-    const trimmed = next.replace(/[^0-9]/g, '').slice(0, 4);
+    const trimmed = next.replace(/[^0-9]/g, '').slice(0, PIN_LEN);
     onChange(trimmed);
-    if (i < 3) refs[i + 1].current?.focus();
-    if (trimmed.length === 4) onComplete?.(trimmed);
+    if (i < PIN_LEN - 1) refs[i + 1].current?.focus();
+    if (trimmed.length === PIN_LEN) onComplete?.(trimmed);
   };
 
   const handleKeyDown = (i, e) => {
@@ -40,20 +42,18 @@ const PinBoxes = ({ value, onChange, onComplete }) => {
 
   const handlePaste = (e) => {
     e.preventDefault();
-    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 4);
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, PIN_LEN);
     if (pasted) {
       onChange(pasted);
-      const focusIdx = Math.min(pasted.length, 3);
+      const focusIdx = Math.min(pasted.length, PIN_LEN - 1);
       refs[focusIdx].current?.focus();
-      if (pasted.length === 4) onComplete?.(pasted);
+      if (pasted.length === PIN_LEN) onComplete?.(pasted);
     }
   };
 
-  const filled = digits[0]?.trim();
-
   return (
-    <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-      {[0, 1, 2, 3].map(i => {
+    <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+      {Array.from({ length: PIN_LEN }, (_, i) => {
         const hasDig = digits[i]?.trim();
         return (
           <input
@@ -69,10 +69,10 @@ const PinBoxes = ({ value, onChange, onComplete }) => {
             onFocus={e => e.target.select()}
             className="pin-box"
             style={{
-              width: 48, height: 56, borderRadius: 12,
+              width: 40, height: 52, borderRadius: 12,
               background: hasDig ? 'rgba(251,191,36,0.08)' : 'rgba(255,255,255,0.06)',
               border: `2px solid ${hasDig ? C.yellow : 'rgba(255,255,255,0.15)'}`,
-              color: C.yellow, fontSize: 26, fontWeight: 800,
+              color: C.yellow, fontSize: 24, fontWeight: 800,
               textAlign: 'center', outline: 'none',
               transition: 'all 0.2s ease',
               boxShadow: hasDig ? `0 0 12px ${C.yellow}22` : 'none',
@@ -96,8 +96,8 @@ export const SelectUserScreen = ({ setCurrentUser, setScreen, setGameScreen, set
 
   const handleLogin = async (pinOverride) => {
     const pinToUse = pinOverride || pin;
-    if (!username.trim() || pinToUse.length < 4) {
-      setError('Enter your username and 4-digit PIN.');
+    if (!username.trim() || pinToUse.length < PIN_LEN) {
+      setError('Enter your username and 6-digit PIN.');
       return;
     }
     setLoading(true);

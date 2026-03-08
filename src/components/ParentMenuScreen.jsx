@@ -30,16 +30,37 @@ export const ParentMenuScreen = ({ jwt, setScreen, setCurrentUser }) => {
   const [friendships, setFriendships] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('overview');
+  const [inviteCodes, setInviteCodes] = useState([]);
+  const [creatingCode, setCreatingCode] = useState(false);
+  const [codeCopied, setCodeCopied] = useState('');
+
+  const adminHeaders = { Authorization: `Bearer ${jwt}`, 'Content-Type': 'application/json' };
 
   useEffect(() => {
     if (!jwt) return;
-    const headers = { Authorization: `Bearer ${jwt}` };
     Promise.all([
-      fetch('/api/admin/users', { headers }).then(r => r.json()),
-      fetch('/api/admin/friendships', { headers }).then(r => r.json()),
-    ]).then(([u, f]) => { setUsers(u); setFriendships(f); setLoading(false); })
+      fetch('/api/admin/users', { headers: adminHeaders }).then(r => r.json()),
+      fetch('/api/admin/friendships', { headers: adminHeaders }).then(r => r.json()),
+      fetch('/api/admin/invite-codes', { headers: adminHeaders }).then(r => r.json()),
+    ]).then(([u, f, codes]) => { setUsers(u); setFriendships(f); setInviteCodes(codes); setLoading(false); })
       .catch(() => setLoading(false));
   }, [jwt]);
+
+  const createAdminCode = async () => {
+    setCreatingCode(true);
+    try {
+      const res = await fetch('/api/admin/invite-codes', { method: 'POST', headers: adminHeaders });
+      const code = await res.json();
+      if (res.ok) setInviteCodes(prev => [code, ...prev]);
+    } catch { /* ignore */ }
+    setCreatingCode(false);
+  };
+
+  const copyCode = (code) => {
+    navigator.clipboard?.writeText(code).catch(() => {});
+    setCodeCopied(code);
+    setTimeout(() => setCodeCopied(''), 2000);
+  };
 
   const today = new Date().toISOString().slice(0, 10);
   const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
@@ -100,6 +121,7 @@ export const ParentMenuScreen = ({ jwt, setScreen, setCurrentUser }) => {
         <Tab active={tab === 'users'} label="Users" onClick={() => setTab('users')} />
         <Tab active={tab === 'usage'} label="Usage" onClick={() => setTab('usage')} />
         <Tab active={tab === 'friendships'} label="Friendships" onClick={() => setTab('friendships')} />
+        <Tab active={tab === 'invites'} label="Invite Codes" onClick={() => setTab('invites')} />
       </div>
 
       {/* ── Overview Tab ─────────────────────────────────────────── */}
@@ -289,6 +311,44 @@ export const ParentMenuScreen = ({ jwt, setScreen, setCurrentUser }) => {
               </span>
               <span>Since {new Date(f.created_at).toLocaleDateString()}</span>
             </div>
+          </div>
+        ))}
+      </>}
+
+      {/* ── Invite Codes Tab ─────────────────────────────────────── */}
+      {tab === 'invites' && <>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 16, color: C.yellow }}>Invite Codes</div>
+            <div style={{ fontSize: 12, color: C.muted }}>
+              {inviteCodes.length} total · {inviteCodes.filter(c => !c.usedBy).length} available · {inviteCodes.filter(c => c.usedBy).length} used
+            </div>
+          </div>
+          <button onClick={createAdminCode} disabled={creatingCode} style={{ ...s.btn(C.green, 'sm') }}>
+            {creatingCode ? '...' : '+ Generate Code'}
+          </button>
+        </div>
+        {inviteCodes.length === 0 && (
+          <div style={{ ...s.card, textAlign: 'center', color: C.muted, padding: 32 }}>No codes yet.</div>
+        )}
+        {inviteCodes.map(c => (
+          <div key={c._id} style={{ ...s.card, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: 'monospace', fontSize: 18, fontWeight: 700, letterSpacing: 2, color: c.usedBy ? C.muted : C.yellow }}>{c.code}</div>
+              <div style={{ fontSize: 12, color: C.muted }}>
+                Created by <span style={{ color: '#fff' }}>{c.createdByName}</span> · {new Date(c.created_at).toLocaleDateString()}
+              </div>
+              {c.usedBy
+                ? <div style={{ fontSize: 12, color: C.green }}>Used by <span style={{ color: '#fff' }}>{c.usedByName}</span></div>
+                : <div style={{ fontSize: 12, color: C.muted }}>Available</div>
+              }
+            </div>
+            {!c.usedBy && (
+              <button onClick={() => copyCode(c.code)} style={{ ...s.btn(C.blue, 'sm'), minWidth: 60 }}>
+                {codeCopied === c.code ? '✓' : 'Copy'}
+              </button>
+            )}
+            {c.usedBy && <div style={{ fontSize: 20 }}>✓</div>}
           </div>
         ))}
       </>}

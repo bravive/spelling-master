@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import request from 'supertest';
 import { MongoMemoryServer } from 'mongodb-memory-server';
-import { connectDb, closeDb, usersCol, trophiesCol, wordstatsCol, roundhistoryCol, friendshipsCol, messagesCol } from '../db.js';
+import { connectDb, closeDb, usersCol, trophiesCol, wordstatsCol, roundhistoryCol, friendshipsCol, messagesCol, inviteCodesCol } from '../db.js';
 import { app } from '../../server.js';
 
 let mongod;
@@ -26,12 +26,26 @@ beforeEach(async () => {
     roundhistoryCol().deleteMany({}),
     friendshipsCol().deleteMany({}),
     messagesCol().deleteMany({}),
+    inviteCodesCol().deleteMany({}),
   ]);
 });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const createUser = (key, name, pin = '1234') =>
-  request(app).post('/api/users').send({ key, name, pin, starterId: 1, starterSlug: 'bulbasaur' });
+const getAdminToken = async () => {
+  const { body } = await request(app).post('/api/auth/login').send({ userId: 'admin', pin: '0000' });
+  return body.token;
+};
+
+const makeCode = async () => {
+  const token = await getAdminToken();
+  const { body } = await request(app).post('/api/admin/invite-codes').set('Authorization', `Bearer ${token}`);
+  return body.code;
+};
+
+const createUser = async (key, name, pin = '1234') => {
+  const inviteCode = await makeCode();
+  return request(app).post('/api/users').send({ key, name, pin, starterId: 1, starterSlug: 'bulbasaur', inviteCode });
+};
 
 const login = (userId, pin = '1234') =>
   request(app).post('/api/auth/login').send({ userId, pin });

@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import bcrypt from 'bcryptjs';
-import { usersCol, trophiesCol, wordstatsCol, roundhistoryCol, credithistoryCol, weeklyChallengeWordsCol, weeklyStatsCol, friendshipsCol, messagesCol, trophyhistoryCol, giftsCol } from './db.js';
+import { usersCol, trophiesCol, wordstatsCol, roundhistoryCol, credithistoryCol, weeklyChallengeWordsCol, weeklyStatsCol, friendshipsCol, messagesCol, trophyhistoryCol, giftsCol, inviteCodesCol } from './db.js';
 
 const now = () => new Date();
 
@@ -336,6 +336,61 @@ export const cancelPendingGiftsBetween = (userId1, userId2) => {
     },
     { $set: { status: 'cancelled', updated_at: now() } }
   );
+};
+
+// ── Invite Codes ──────────────────────────────────────────────────────────────
+
+const generateCode = () => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no ambiguous I/O/1/0
+  let code = '';
+  for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+};
+
+export const createInviteCode = async (createdBy, createdByName) => {
+  const t = now();
+  let code;
+  // Retry on duplicate code collision (astronomically unlikely but safe)
+  for (let attempt = 0; attempt < 10; attempt++) {
+    code = generateCode();
+    try {
+      const doc = { _id: randomUUID(), code, createdBy, createdByName, usedBy: null, usedByName: null, usedAt: null, created_at: t, updated_at: t };
+      log('insertOne', 'invitecodes', { code, createdBy });
+      await inviteCodesCol().insertOne(doc);
+      return doc;
+    } catch (e) {
+      if (e.code !== 11000) throw e; // re-throw non-duplicate errors
+    }
+  }
+  throw new Error('Failed to generate unique invite code');
+};
+
+export const findInviteCode = (code) => {
+  log('findOne', 'invitecodes', { code });
+  return inviteCodesCol().findOne({ code: code.toUpperCase() });
+};
+
+export const consumeInviteCode = (code, usedById, usedByName) => {
+  log('updateOne', 'invitecodes', { code, op: 'consume' });
+  return inviteCodesCol().updateOne(
+    { code: code.toUpperCase(), usedBy: null },
+    { $set: { usedBy: usedById, usedByName, usedAt: now(), updated_at: now() } }
+  );
+};
+
+export const countUserInviteCodes = (createdBy) => {
+  log('count', 'invitecodes', { createdBy });
+  return inviteCodesCol().countDocuments({ createdBy });
+};
+
+export const getUserInviteCodes = (createdBy) => {
+  log('find', 'invitecodes', { createdBy });
+  return inviteCodesCol().find({ createdBy }).sort({ created_at: -1 }).toArray();
+};
+
+export const getAllInviteCodes = () => {
+  log('find', 'invitecodes (admin)');
+  return inviteCodesCol().find({}).sort({ created_at: -1 }).toArray();
 };
 
 // ── Admin dashboard queries ──────────────────────────────────────────────────

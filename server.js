@@ -17,6 +17,7 @@ import {
   createMessage, getMessages, markMessagesRead, getUnreadCounts,
   createGift, findPendingGift, findGiftById, getUserGifts, countPendingOutgoingGifts, acceptGift, declineGift, cancelPendingGiftsBetween,
   getAdminFriendships,
+  createInviteCode, findInviteCode, consumeInviteCode, countUserInviteCodes, getUserInviteCodes, getAllInviteCodes,
 } from './src/store.js';
 // Inline isPkCaught to avoid importing browser-dependent shared.js
 const pkCount = (owned) => owned?.count != null ? owned.count : (owned?.regular ? 1 : 0);
@@ -136,11 +137,12 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
   res.json({ token, user: publicUser(user) });
 });
 
-// POST /api/users — create new profile
+// POST /api/users — create new profile (requires invite code)
 app.post('/api/users', async (req, res) => {
-  const { key, name, pin, starterId, starterSlug } = req.body;
+  const { key, name, pin, starterId, starterSlug, inviteCode } = req.body;
   if (!key || !name || !pin || !starterId || !starterSlug)
     return res.status(400).json({ error: 'Missing required fields' });
+  if (!inviteCode)                 return res.status(400).json({ error: 'Invite code is required' });
   if (!/^\d{4}$/.test(pin))       return res.status(400).json({ error: 'PIN must be exactly 4 digits' });
   if (key === ADMIN_KEY)           return res.status(400).json({ error: 'That name is reserved' });
   if (key === 'test')              return res.status(400).json({ error: 'That name is reserved' });
@@ -148,7 +150,12 @@ app.post('/api/users', async (req, res) => {
 
   if (await findUser(key)) return res.status(409).json({ error: 'Name already taken' });
 
+  const codeDoc = await findInviteCode(inviteCode);
+  if (!codeDoc)          return res.status(400).json({ error: 'Invalid invite code' });
+  if (codeDoc.usedBy)    return res.status(400).json({ error: 'Invite code already used' });
+
   const user = await createUser({ key, name, pin, starterId, starterSlug });
+  await consumeInviteCode(inviteCode, user._id, user.name);
   res.status(201).json({ ok: true, user: publicUser(user) });
 });
 
@@ -218,6 +225,43 @@ app.get('/api/admin/users', requireAdmin, async (_req, res) => {
 // GET /api/admin/friendships — admin dashboard: all friendships with message stats
 app.get('/api/admin/friendships', requireAdmin, async (_req, res) => {
   res.json(await getAdminFriendships());
+});
+
+// GET /api/admin/invite-codes — admin: all invite codes
+app.get('/api/admin/invite-codes', requireAdmin, async (_req, res) => {
+  res.json(await getAllInviteCodes());
+});
+
+// POST /api/admin/invite-codes — admin: create unlimited invite codes
+app.post('/api/admin/invite-codes', requireAdmin, async (_req, res) => {
+  const code = await createInviteCode('admin', 'Admin');
+  res.status(201).json(code);
+});
+
+// GET /api/invite-codes/validate?code=... — public: check if code is valid & unused
+app.get('/api/invite-codes/validate', async (req, res) => {
+  const { code } = req.query;
+  if (!code) return res.status(400).json({ error: 'code is required' });
+  const doc = await findInviteCode(code);
+  if (!doc || doc.usedBy) return res.json({ valid: false });
+  res.json({ valid: true });
+});
+
+// GET /api/invite-codes — user: list their own created codes
+app.get('/api/invite-codes', requireAuth, async (req, res) => {
+  if (req.jwtUser.isAdmin) return res.json(await getAllInviteCodes());
+  res.json(await getUserInviteCodes(req.jwtUser.id));
+});
+
+// POST /api/invite-codes — user: create invite code (max 5 total per user)
+app.post('/api/invite-codes', requireAuth, async (req, res) => {
+  if (req.jwtUser.isAdmin) return res.status(403).json({ error: 'Use /api/admin/invite-codes' });
+  const user = await findUserById(req.jwtUser.id);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  const count = await countUserInviteCodes(req.jwtUser.id);
+  if (count >= 5) return res.status(400).json({ error: 'You have reached the maximum of 5 invite codes' });
+  const code = await createInviteCode(req.jwtUser.id, user.name);
+  res.status(201).json(code);
 });
 
 app.get('/api/trophy', requireAuth, async (req, res) => {

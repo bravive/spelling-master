@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import request from 'supertest';
 import { MongoMemoryServer } from 'mongodb-memory-server';
-import { connectDb, closeDb, usersCol, trophiesCol, wordstatsCol, roundhistoryCol, credithistoryCol, weeklyChallengeWordsCol, weeklyStatsCol, trophyhistoryCol, giftsCol, friendshipsCol } from '../db.js';
+import { connectDb, closeDb, usersCol, trophiesCol, wordstatsCol, roundhistoryCol, credithistoryCol, weeklyChallengeWordsCol, weeklyStatsCol, trophyhistoryCol, giftsCol, friendshipsCol, inviteCodesCol } from '../db.js';
 import { app } from '../../server.js';
 
 let mongod;
@@ -31,15 +31,30 @@ beforeEach(async () => {
     trophyhistoryCol().deleteMany({}),
     giftsCol().deleteMany({}),
     friendshipsCol().deleteMany({}),
+    inviteCodesCol().deleteMany({}),
   ]);
 });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const createUser = (overrides = {}) =>
-  request(app).post('/api/users').send({
+const getAdminToken = async () => {
+  const { body } = await request(app).post('/api/auth/login').send({ userId: 'admin', pin: '0000' });
+  return body.token;
+};
+
+const makeCode = async () => {
+  const token = await getAdminToken();
+  const { body } = await request(app).post('/api/admin/invite-codes').set('Authorization', `Bearer ${token}`);
+  return body.code;
+};
+
+const createUser = async (overrides = {}) => {
+  const { inviteCode: overrideCode, ...rest } = overrides;
+  const inviteCode = overrideCode ?? await makeCode();
+  return request(app).post('/api/users').send({
     key: 'alice', name: 'Alice', pin: '1234', starterId: 1, starterSlug: 'bulbasaur',
-    ...overrides,
+    inviteCode, ...rest,
   });
+};
 
 const loginUser = (userId = 'alice', pin = '1234') =>
   request(app).post('/api/auth/login').send({ userId, pin });
@@ -1313,4 +1328,110 @@ describe('Invalid JWT returns 401 on all protected routes', () => {
       expect(res.status).toBe(401);
     });
   }
+});
+
+// ── Invite Codes ──────────────────────────────────────────────────────────────
+describe('Invite code system', () => {
+  it('admin can create an invite code', async () => {
+    const token = await getAdminToken();
+    const res = await request(app).post('/api/admin/invite-codes').set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(201);
+    expect(res.body.code).toMatch(/^[A-Z0-9]{8}$/);
+    expect(res.body.usedBy).toBeNull();
+    expect(res.body.createdByName).toBe('Admin');
+  });
+
+  it('admin can list all invite codes', async () => {
+    const token = await getAdminToken();
+    await request(app).post('/api/admin/invite-codes').set('Authorization', `Bearer ${token}`);
+    await request(app).post('/api/admin/invite-codes').set('Authorization', `Bearer ${token}`);
+    const res = await request(app).get('/api/admin/invite-codes').set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(2);
+  });
+
+  it('user can create up to 5 invite codes', async () => {
+    await createUser();
+    const { body: { token } } = await loginUser();
+    for (let i = 0; i < 5; i++) {
+      const res = await request(app).post('/api/invite-codes').set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(201);
+    }
+    const sixth = await request(app).post('/api/invite-codes').set('Authorization', `Bearer ${token}`);
+    expect(sixth.status).toBe(400);
+    expect(sixth.body.error).toMatch(/maximum/i);
+  });
+
+  it('user can list their own codes', async () => {
+    await createUser();
+    const { body: { token } } = await loginUser();
+    await request(app).post('/api/invite-codes').set('Authorization', `Bearer ${token}`);
+    const res = await request(app).get('/api/invite-codes').set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].code).toBeDefined();
+  });
+
+  it('validate endpoint returns true for valid unused code', async () => {
+    const code = await makeCode();
+    const res = await request(app).get(`/api/invite-codes/validate?code=${code}`);
+    expect(res.status).toBe(200);
+    expect(res.body.valid).toBe(true);
+  });
+
+  it('validate endpoint returns false for unknown code', async () => {
+    const res = await request(app).get('/api/invite-codes/validate?code=INVALID1');
+    expect(res.body.valid).toBe(false);
+  });
+
+  it('POST /api/users fails without invite code', async () => {
+    const res = await request(app).post('/api/users').send({
+      key: 'alice', name: 'Alice', pin: '1234', starterId: 1, starterSlug: 'bulbasaur',
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/invite code/i);
+  });
+
+  it('POST /api/users fails with invalid invite code', async () => {
+    const res = await request(app).post('/api/users').send({
+      key: 'alice', name: 'Alice', pin: '1234', starterId: 1, starterSlug: 'bulbasaur', inviteCode: 'INVALID1',
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/invalid/i);
+  });
+
+  it('POST /api/users succeeds with valid invite code and marks it consumed', async () => {
+    const code = await makeCode();
+    const res = await request(app).post('/api/users').send({
+      key: 'alice', name: 'Alice', pin: '1234', starterId: 1, starterSlug: 'bulbasaur', inviteCode: code,
+    });
+    expect(res.status).toBe(201);
+
+    // Code should now be consumed
+    const validateRes = await request(app).get(`/api/invite-codes/validate?code=${code}`);
+    expect(validateRes.body.valid).toBe(false);
+  });
+
+  it('POST /api/users fails when code already consumed', async () => {
+    const code = await makeCode();
+    await request(app).post('/api/users').send({
+      key: 'alice', name: 'Alice', pin: '1234', starterId: 1, starterSlug: 'bulbasaur', inviteCode: code,
+    });
+    const res = await request(app).post('/api/users').send({
+      key: 'bob', name: 'Bob', pin: '1234', starterId: 1, starterSlug: 'bulbasaur', inviteCode: code,
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/already used/i);
+  });
+
+  it('consumed code shows usedByName', async () => {
+    const code = await makeCode();
+    await request(app).post('/api/users').send({
+      key: 'alice', name: 'Alice', pin: '1234', starterId: 1, starterSlug: 'bulbasaur', inviteCode: code,
+    });
+    const adminToken = await getAdminToken();
+    const res = await request(app).get('/api/admin/invite-codes').set('Authorization', `Bearer ${adminToken}`);
+    const doc = res.body.find(c => c.code === code);
+    expect(doc.usedByName).toBe('Alice');
+  });
 });

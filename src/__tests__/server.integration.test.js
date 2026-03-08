@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import request from 'supertest';
 import { MongoMemoryServer } from 'mongodb-memory-server';
-import { connectDb, closeDb, usersCol, trophiesCol, wordstatsCol, roundhistoryCol, weeklyChallengeWordsCol, weeklyStatsCol } from '../db.js';
+import { connectDb, closeDb, usersCol, trophiesCol, wordstatsCol, roundhistoryCol, credithistoryCol, weeklyChallengeWordsCol, weeklyStatsCol } from '../db.js';
 import { app } from '../../server.js';
 
 let mongod;
@@ -25,6 +25,7 @@ beforeEach(async () => {
     trophiesCol().deleteMany({}),
     wordstatsCol().deleteMany({}),
     roundhistoryCol().deleteMany({}),
+    credithistoryCol().deleteMany({}),
     weeklyChallengeWordsCol().deleteMany({}),
     weeklyStatsCol().deleteMany({}),
   ]);
@@ -203,6 +204,33 @@ describe('PUT /api/users/me', () => {
     expect(after.pin).toBe(before.pin);
   });
 
+  it('strips redundant fields that belong in other collections', async () => {
+    await request(app)
+      .put('/api/users/me')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        level: 3,
+        collection: { 1: { count: 1 } },
+        creditHistory: [{ date: '2026-01-01', amount: 5 }],
+        roundHistory: [{ date: '2026-01-01', score: 10 }],
+        wordStats: { cat: { attempts: 3, correct: 3 } },
+        shinyEligible: true,
+        consecutiveRegular: 2,
+        nextPokemonId: 42,
+        bestScores: { 1: 10 },
+      });
+    const after = await usersCol().findOne({ userId: 'alice' });
+    expect(after.level).toBe(3);
+    expect(after.collection).toBeUndefined();
+    expect(after.creditHistory).toBeUndefined();
+    expect(after.roundHistory).toBeUndefined();
+    expect(after.wordStats).toBeUndefined();
+    expect(after.shinyEligible).toBeUndefined();
+    expect(after.consecutiveRegular).toBeUndefined();
+    expect(after.nextPokemonId).toBeUndefined();
+    expect(after.bestScores).toBeUndefined();
+  });
+
   it('returns 401 without token', async () => {
     const res = await request(app).put('/api/users/me').send({ level: 2 });
     expect(res.status).toBe(401);
@@ -377,52 +405,49 @@ describe('GET/PUT /api/roundhistory', () => {
     expect(res.body.roundHistory).toEqual([]);
   });
 
-  it('saves and retrieves creditHistory', async () => {
-    const creditHistory = [
-      { date: '2026-03-06', amount: 5, source: 'round', description: 'Score 10/10' },
-      { date: '2026-03-06', amount: 1, source: 'streak', description: '3-day streak bonus' },
-    ];
-    await request(app).put('/api/roundhistory').set('Authorization', `Bearer ${token}`)
-      .send({ roundHistory: [], bestScores: {}, creditHistory });
-    const res = await request(app).get('/api/roundhistory').set('Authorization', `Bearer ${token}`);
+  it('returns 401 without token', async () => {
+    const res = await request(app).get('/api/roundhistory');
+    expect(res.status).toBe(401);
+  });
+});
+
+// ── Credit history ──────────────────────────────────────────────────────────
+describe('GET/PUT /api/credithistory', () => {
+  let token;
+  beforeEach(async () => {
+    await createUser();
+    const res = await loginUser();
+    token = res.body.token;
+  });
+
+  it('returns empty array for new user', async () => {
+    const res = await request(app).get('/api/credithistory').set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(200);
-    expect(res.body.creditHistory).toHaveLength(2);
-    expect(res.body.creditHistory[0]).toMatchObject({ source: 'round', amount: 5 });
-    expect(res.body.creditHistory[1]).toMatchObject({ source: 'streak', amount: 1 });
+    expect(res.body).toEqual([]);
   });
 
-  it('creditHistory is empty array for new user', async () => {
-    const res = await request(app).get('/api/roundhistory').set('Authorization', `Bearer ${token}`);
-    expect(res.body.creditHistory).toEqual([]);
+  it('saves and retrieves credit history', async () => {
+    const history = [
+      { date: '2026-03-05', amount: 3, source: 'round', description: 'Score 9/10' },
+      { date: '2026-03-06', amount: 5, source: 'round', description: 'Score 10/10' },
+    ];
+    await request(app).put('/api/credithistory').set('Authorization', `Bearer ${token}`).send(history);
+    const res = await request(app).get('/api/credithistory').set('Authorization', `Bearer ${token}`);
+    expect(res.body).toHaveLength(2);
+    expect(res.body[0]).toMatchObject({ amount: 3, source: 'round' });
   });
 
-  it('creditHistory persists across updates', async () => {
-    const firstEvent = { date: '2026-03-05', amount: 3, source: 'round', description: 'Score 9/10' };
-    await request(app).put('/api/roundhistory').set('Authorization', `Bearer ${token}`)
-      .send({ roundHistory: [], bestScores: {}, creditHistory: [firstEvent] });
-
-    const secondEvent = { date: '2026-03-06', amount: 0.5, source: 'weekly', description: 'Week w2026-10: 1 new word(s)' };
-    await request(app).put('/api/roundhistory').set('Authorization', `Bearer ${token}`)
-      .send({ roundHistory: [], bestScores: {}, creditHistory: [firstEvent, secondEvent] });
-
-    const res = await request(app).get('/api/roundhistory').set('Authorization', `Bearer ${token}`);
-    expect(res.body.creditHistory).toHaveLength(2);
-    expect(res.body.creditHistory[1]).toMatchObject({ source: 'weekly', amount: 0.5 });
-  });
-
-  it("does not return another user's creditHistory", async () => {
-    const creditHistory = [{ date: '2026-03-06', amount: 5, source: 'round', description: 'Score 10/10' }];
-    await request(app).put('/api/roundhistory').set('Authorization', `Bearer ${token}`)
-      .send({ roundHistory: [], bestScores: {}, creditHistory });
-
+  it('does not return another user\'s credit history', async () => {
+    await request(app).put('/api/credithistory').set('Authorization', `Bearer ${token}`)
+      .send([{ date: '2026-03-05', amount: 5, source: 'round', description: 'Score 10/10' }]);
     await createUser({ key: 'bob', name: 'Bob' });
     const bobToken = (await loginUser('bob', '1234')).body.token;
-    const res = await request(app).get('/api/roundhistory').set('Authorization', `Bearer ${bobToken}`);
-    expect(res.body.creditHistory).toEqual([]);
+    const res = await request(app).get('/api/credithistory').set('Authorization', `Bearer ${bobToken}`);
+    expect(res.body).toEqual([]);
   });
 
   it('returns 401 without token', async () => {
-    const res = await request(app).get('/api/roundhistory');
+    const res = await request(app).get('/api/credithistory');
     expect(res.status).toBe(401);
   });
 });
@@ -732,6 +757,8 @@ describe('Invalid JWT returns 401 on all protected routes', () => {
     { method: 'put',  path: '/api/wordstats' },
     { method: 'get',  path: '/api/roundhistory' },
     { method: 'put',  path: '/api/roundhistory' },
+    { method: 'get',  path: '/api/credithistory' },
+    { method: 'put',  path: '/api/credithistory' },
     { method: 'get',  path: '/api/weekly-stats' },
     { method: 'put',  path: '/api/weekly-stats/w2026-10' },
     { method: 'put',  path: '/api/users/me' },

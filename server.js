@@ -9,6 +9,7 @@ import {
   getTrophy, saveTrophy,
   getWordStats, saveWordStats,
   getRoundHistory, saveRoundHistory,
+  getCreditHistory, saveCreditHistory,
   getAllWeeks, getAllWeeklyStats, saveWeeklyStats,
   getAdminUsers,
   createFriendship, findFriendship, findFriendshipById, acceptFriendship, deleteFriendship, getUserFriendships,
@@ -151,7 +152,10 @@ app.put('/api/users/me', requireAuth, async (req, res) => {
   const { id } = req.jwtUser;
   if (!await findUserById(id)) return res.status(404).json({ error: 'User not found' });
 
-  const { pin: _pin, _id: __id, id: _id2, ...updates } = req.body;
+  const { pin: _pin, _id: __id, id: _id2,
+          collection: _col, creditHistory: _ch, roundHistory: _rh, wordStats: _ws,
+          shinyEligible: _se, consecutiveRegular: _cr, nextPokemonId: _np,
+          bestScores: _bs, ...updates } = req.body;
   await updateUser(id, updates);
   res.json({ ok: true });
 });
@@ -234,11 +238,21 @@ app.put('/api/wordstats', requireAuth, async (req, res) => {
 
 app.get('/api/roundhistory', requireAuth, async (req, res) => {
   const doc = await getRoundHistory(req.jwtUser.id);
-  res.json(doc ?? { roundHistory: [], bestScores: {}, creditHistory: [] });
+  res.json(doc ?? { roundHistory: [], bestScores: {} });
 });
 
 app.put('/api/roundhistory', requireAuth, async (req, res) => {
   await saveRoundHistory(req.jwtUser.id, req.body);
+  res.json({ ok: true });
+});
+
+app.get('/api/credithistory', requireAuth, async (req, res) => {
+  const history = await getCreditHistory(req.jwtUser.id);
+  res.json(history);
+});
+
+app.put('/api/credithistory', requireAuth, async (req, res) => {
+  await saveCreditHistory(req.jwtUser.id, req.body);
   res.json({ ok: true });
 });
 

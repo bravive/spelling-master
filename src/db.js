@@ -34,6 +34,7 @@ export const usersCol                = () => getDb().collection('users');
 export const trophiesCol             = () => getDb().collection('trophies');
 export const wordstatsCol            = () => getDb().collection('wordstats');
 export const roundhistoryCol         = () => getDb().collection('roundhistory');
+export const credithistoryCol        = () => getDb().collection('credithistory');
 export const weeklyChallengeWordsCol = () => getDb().collection('weeklychallengewords');
 export const weeklyStatsCol          = () => getDb().collection('weeklychallengestats');
 export const friendshipsCol          = () => getDb().collection('friendships');
@@ -46,6 +47,7 @@ const ensureIndexes = async () => {
     trophiesCol().createIndex({ userId: 1 }, { unique: true }),
     wordstatsCol().createIndex({ userId: 1 }, { unique: true }),
     roundhistoryCol().createIndex({ userId: 1 }, { unique: true }),
+    credithistoryCol().createIndex({ userId: 1 }, { unique: true }),
     weeklyChallengeWordsCol().createIndex({ weekId: 1 }, { unique: true }),
     weeklyChallengeWordsCol().createIndex({ startDate: 1 }),
     weeklyStatsCol().createIndex({ userId: 1, weekId: 1 }, { unique: true }),

@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import bcrypt from 'bcryptjs';
-import { usersCol, trophiesCol, wordstatsCol, roundhistoryCol, credithistoryCol, weeklyChallengeWordsCol, weeklyStatsCol, friendshipsCol, messagesCol } from './db.js';
+import { usersCol, trophiesCol, wordstatsCol, roundhistoryCol, credithistoryCol, weeklyChallengeWordsCol, weeklyStatsCol, friendshipsCol, messagesCol, trophyhistoryCol } from './db.js';
 
 const now = () => new Date();
 
@@ -96,12 +96,13 @@ export const deleteUser = async (id) => {
   log('deleteOne', 'users', { _id: id });
   const result = await usersCol().deleteOne({ _id: id });
   if (result.deletedCount === 0) return false;
-  log('deleteOne', 'trophies+wordstats+roundhistory+credithistory+weeklystats', { userId: id });
+  log('deleteOne', 'trophies+wordstats+roundhistory+credithistory+trophyhistory+weeklystats', { userId: id });
   await Promise.all([
     trophiesCol().deleteOne({ userId: id }),
     wordstatsCol().deleteOne({ userId: id }),
     roundhistoryCol().deleteOne({ userId: id }),
     credithistoryCol().deleteOne({ userId: id }),
+    trophyhistoryCol().deleteMany({ userId: id }),
     weeklyStatsCol().deleteMany({ userId: id }),
   ]);
   return true;
@@ -144,6 +145,20 @@ export const getCreditHistory = async (id) => {
 };
 
 export const saveCreditHistory = (id, creditHistory) => upsert(credithistoryCol(), id, { creditHistory });
+
+// ── Trophy history (manage operations log) ─────────────────────────────────
+
+export const getTrophyHistory = async (id) => {
+  log('find', 'trophyhistory', { userId: id });
+  return trophyhistoryCol().find({ userId: id }).sort({ created_at: -1 }).toArray();
+};
+
+export const addTrophyHistoryEntry = (userId, entry) => {
+  log('insertOne', 'trophyhistory', { userId, action: entry.action });
+  return trophyhistoryCol().insertOne({
+    _id: randomUUID(), userId, ...entry, created_at: now(),
+  });
+};
 
 // ── Weekly challenge words ────────────────────────────────────────────────────
 

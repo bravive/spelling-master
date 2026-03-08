@@ -63,13 +63,14 @@ describe('pickNextPokemon', () => {
     delete col[2]; // Ivysaur
     delete col[3]; // Venusaur
     const counts = { 1: 0, 2: 0, 3: 0 };
-    for (let i = 0; i < 300; i++) {
+    for (let i = 0; i < 2000; i++) {
       const result = pickNextPokemon(col);
       counts[result.id]++;
     }
-    // Bulbasaur (base) should be picked most, Venusaur least
-    expect(counts[1]).toBeGreaterThan(counts[3]);
+    // Bulbasaur (base, weight 4) should be picked most, Venusaur (weight 1) least
+    // Expected ratio roughly 4:2:1 → ~57%:29%:14%
     expect(counts[1]).toBeGreaterThan(counts[2]);
+    expect(counts[2]).toBeGreaterThan(counts[3]);
   });
 
   it('uses deterministic rand parameter', () => {

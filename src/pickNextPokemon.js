@@ -59,37 +59,34 @@ export const pickNextPokemon = (collection, rand = Math.random) => {
   const available = ALL_POKEMON.filter(p => !col[p.id]?.regular);
   if (available.length === 0) return null;
 
-  // Fewer than 5 available → just pick randomly
+  const uncaughtSlugs = new Set(available.map(p => p.slug));
+  let picked;
+
   if (available.length < 5) {
-    return available[Math.floor(rand() * available.length)];
+    // Fewer than 5 available → just pick randomly from pool
+    picked = available[Math.floor(rand() * available.length)];
+  } else {
+    // Split into 5 equal buckets (last bucket gets remainder)
+    const bucketSize = Math.floor(available.length / 5);
+    const buckets = [];
+    for (let i = 0; i < 5; i++) {
+      const start = i * bucketSize;
+      const end = i === 4 ? available.length : start + bucketSize;
+      buckets.push(available.slice(start, end));
+    }
+
+    // Pick a bucket, then a random Pokémon from it
+    const bucketIdx = pickBucket(5, rand);
+    picked = buckets[bucketIdx][Math.floor(rand() * buckets[bucketIdx].length)];
   }
 
-  // Split into 5 equal buckets (last bucket gets remainder)
-  const bucketSize = Math.floor(available.length / 5);
-  const buckets = [];
-  for (let i = 0; i < 5; i++) {
-    const start = i * bucketSize;
-    const end = i === 4 ? available.length : start + bucketSize;
-    buckets.push(available.slice(start, end));
-  }
-
-  // Pick a bucket
-  const bucketIdx = pickBucket(5, rand);
-  const bucket = buckets[bucketIdx];
-
-  // Pick a random Pokémon from the bucket
-  const picked = bucket[Math.floor(rand() * bucket.length)];
-
-  // Check if it belongs to an evolution chain
+  // Apply evolution chain bias: if the picked Pokémon belongs to a chain,
+  // re-roll within that chain favoring base forms
   const chain = evolutions[picked.slug];
   if (!chain || chain.length <= 1) return picked;
 
-  // Build set of uncaught slugs for fast lookup
-  const uncaughtSlugs = new Set(available.map(p => p.slug));
-
-  // Pick from the chain with evolution bias
   const chosenSlug = pickFromChain(chain, uncaughtSlugs, rand);
-  if (!chosenSlug) return picked; // fallback
+  if (!chosenSlug) return picked;
 
   return ALL_POKEMON.find(p => p.slug === chosenSlug) || picked;
 };

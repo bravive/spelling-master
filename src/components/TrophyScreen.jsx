@@ -198,7 +198,6 @@ export const TrophyScreen = ({ trophyData, currentUser, setScreen, setGameScreen
                   <div style={{ fontSize, color: unlocked ? '#fff' : C.muted, marginTop: 4, lineHeight: 1.3, fontWeight: layout === 'all' ? 400 : 600 }}>
                     {unlocked ? pk.name : '???'}
                   </div>
-                  {isShiny && <div style={{ fontSize: layout === 'all' ? 9 : 11, fontWeight: 700, color: '#a78bfa', marginTop: 2 }}>✨ SHINY</div>}
                 </div>
               );
             })}

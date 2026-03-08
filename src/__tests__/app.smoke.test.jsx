@@ -39,4 +39,47 @@ describe('App smoke test', () => {
     expect(checkbox).not.toBeNull();
     expect(checkbox.checked).toBe(false);
   });
+
+  it.each(['stage1', 'stage2', 'results'])(
+    'restores to home instead of transient screen "%s" on refresh',
+    async (transientScreen) => {
+      // Simulate a saved session with a transient gameScreen
+      const userData = { name: 'Test', level: 1, creditBank: 0, streak: 0, caught: 0 };
+      global.fetch = vi.fn(() =>
+        Promise.resolve({ ok: true, json: () => Promise.resolve({ testuser: userData }) })
+      );
+      localStorage.setItem('currentUser', 'testuser');
+      localStorage.setItem('screen', 'game');
+      localStorage.setItem('gameScreen', transientScreen);
+      localStorage.setItem('jwt', 'fake-jwt');
+
+      render(<App />);
+
+      // Wait for the fetch/restore effect to run
+      await vi.waitFor(() => {
+        // gameScreen should have been corrected to 'home', which persists back to localStorage
+        expect(localStorage.setItem).toHaveBeenCalledWith('gameScreen', 'home');
+      });
+    }
+  );
+
+  it.each(['home', 'collection', 'stats'])(
+    'restores safe screen "%s" on refresh without changing it',
+    async (safeScreen) => {
+      const userData = { name: 'Test', level: 1, creditBank: 0, streak: 0, caught: 0 };
+      global.fetch = vi.fn(() =>
+        Promise.resolve({ ok: true, json: () => Promise.resolve({ testuser: userData }) })
+      );
+      localStorage.setItem('currentUser', 'testuser');
+      localStorage.setItem('screen', 'game');
+      localStorage.setItem('gameScreen', safeScreen);
+      localStorage.setItem('jwt', 'fake-jwt');
+
+      render(<App />);
+
+      await vi.waitFor(() => {
+        expect(localStorage.setItem).toHaveBeenCalledWith('gameScreen', safeScreen);
+      });
+    }
+  );
 });

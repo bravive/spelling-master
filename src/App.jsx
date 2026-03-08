@@ -179,7 +179,8 @@ export default function App() {
           setScreen('parentMenu');
         } else {
           setScreen('game');
-          setGameScreen(savedGameScreen || 'home');
+          const transientScreens = ['stage1', 'stage2', 'results'];
+          setGameScreen(savedGameScreen && !transientScreens.includes(savedGameScreen) ? savedGameScreen : 'home');
         }
       }
     }).catch(() => {});

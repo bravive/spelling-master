@@ -65,25 +65,31 @@ export const TrophyScreen = ({ trophyData, currentUser, setScreen, setGameScreen
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>Evolution</div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, flexWrap: 'wrap' }}>
-                {chain.map((slug, i) => (
-                  <div key={slug} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    {i > 0 && <span style={{ fontSize: 14, color: C.muted }}>→</span>}
-                    <div style={{ textAlign: 'center', cursor: 'default' }} title={slugToName(slug)}>
-                      <img
-                        src={pkImg(slug)}
-                        alt={slugToName(slug)}
-                        style={{
-                          width: 44, height: 44, objectFit: 'contain', display: 'block',
-                          outline: slug === selectedPk.slug ? '2px solid #fbbf24' : 'none',
-                          borderRadius: 4,
-                        }}
-                      />
-                      <div style={{ fontSize: 10, color: slug === selectedPk.slug ? C.yellow : C.muted, marginTop: 2, maxWidth: 44, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {slugToName(slug)}
+                {chain.map((slug, i) => {
+                  const evoPk = ALL_POKEMON.find(p => p.slug === slug);
+                  const evoOwned = evoPk ? (col[evoPk.id] || {}) : {};
+                  const evoCaught = isAdmin || evoOwned.regular || evoOwned.shiny;
+                  return (
+                    <div key={slug} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      {i > 0 && <span style={{ fontSize: 14, color: C.muted }}>→</span>}
+                      <div style={{ textAlign: 'center', cursor: 'default' }} title={evoCaught ? slugToName(slug) : '???'}>
+                        <img
+                          src={pkImg(slug)}
+                          alt={evoCaught ? slugToName(slug) : '???'}
+                          style={{
+                            width: 44, height: 44, objectFit: 'contain', display: 'block',
+                            filter: !evoCaught ? 'brightness(0) opacity(0.3)' : 'none',
+                            outline: slug === selectedPk.slug ? '2px solid #fbbf24' : 'none',
+                            borderRadius: 4,
+                          }}
+                        />
+                        <div style={{ fontSize: 10, color: slug === selectedPk.slug ? C.yellow : C.muted, marginTop: 2, maxWidth: 44, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {evoCaught ? slugToName(slug) : '???'}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

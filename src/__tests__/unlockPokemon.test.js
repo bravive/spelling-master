@@ -77,4 +77,29 @@ describe('unlockPokemon', () => {
     expect(result.creditBank).toBe(5);
     expect(result.newUnlocks).toHaveLength(1);
   });
+
+  it('returns nextPokemonId for the next unlock', () => {
+    const result = unlockPokemon({ creditBank: 10, consecutiveRegular: 0, shinyEligible: false, collection: {} });
+    // After unlocking one, should pre-compute the next
+    expect(result.nextPokemonId).toBeTypeOf('number');
+    // The next should not be the one just unlocked
+    const unlockedId = result.newUnlocks[0].id;
+    expect(result.nextPokemonId).not.toBe(unlockedId);
+  });
+
+  it('returns null nextPokemonId when all Pokemon are caught', () => {
+    const col = {};
+    const { ALL_POKEMON } = require('../data/pokemon');
+    ALL_POKEMON.forEach(p => { col[p.id] = { regular: true }; });
+    // Leave one uncaught so the unlock works, but after unlocking it all are caught
+    delete col[1];
+    const result = unlockPokemon({ creditBank: 10, consecutiveRegular: 0, shinyEligible: false, collection: col });
+    expect(result.nextPokemonId).toBeNull();
+  });
+
+  it('uses pre-computed nextPokemonId when provided', () => {
+    // Pass nextPokemonId=25 (Pikachu), should unlock that one
+    const result = unlockPokemon({ creditBank: 10, consecutiveRegular: 0, shinyEligible: false, collection: {}, nextPokemonId: 25 });
+    expect(result.newUnlocks[0].id).toBe(25);
+  });
 });

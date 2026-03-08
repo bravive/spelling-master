@@ -8,14 +8,21 @@ import { pickNextPokemon } from './pickNextPokemon';
  * After 3 consecutive regular unlocks, shiny chance activates —
  * the next unlock also awards a bonus shiny version of a random collected Pokemon.
  */
-export const unlockPokemon = ({ creditBank, consecutiveRegular, shinyEligible, collection }) => {
+export const unlockPokemon = ({ creditBank, consecutiveRegular, shinyEligible, collection, nextPokemonId }) => {
   const newUnlocks = [];
   let col = { ...collection };
 
   while (creditBank >= 10) {
     creditBank -= 10;
-    // Pick next Pokemon using weighted bucket + evolution bias
-    const nextPk = pickNextPokemon(col);
+    // Use pre-computed nextPokemonId if available and still uncaught, otherwise pick fresh
+    let nextPk = null;
+    if (nextPokemonId && !col[nextPokemonId]?.regular) {
+      nextPk = ALL_POKEMON.find(p => p.id === nextPokemonId);
+    }
+    if (!nextPk) nextPk = pickNextPokemon(col);
+    // Clear so subsequent loop iterations pick fresh
+    nextPokemonId = null;
+
     if (nextPk) {
       col = { ...col, [nextPk.id]: { ...(col[nextPk.id] || {}), regular: true } };
       newUnlocks.push({ ...nextPk, shiny: false });
@@ -36,5 +43,8 @@ export const unlockPokemon = ({ creditBank, consecutiveRegular, shinyEligible, c
     }
   }
 
-  return { creditBank, consecutiveRegular, shinyEligible, collection: col, newUnlocks };
+  // Pre-compute next Pokemon for silhouette display
+  const nextPk = pickNextPokemon(col);
+
+  return { creditBank, consecutiveRegular, shinyEligible, collection: col, newUnlocks, nextPokemonId: nextPk?.id || null };
 };

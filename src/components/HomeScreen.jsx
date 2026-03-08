@@ -1,4 +1,6 @@
+import { useMemo } from 'react';
 import { ALL_POKEMON, pkImg } from '../data/pokemon';
+import { pickNextPokemon } from '../pickNextPokemon';
 import { selectWords } from '../wordSelection';
 import { todayStr, C, s } from '../shared';
 import { RulesModal } from './RulesModal';
@@ -8,7 +10,12 @@ export const HomeScreen = ({ getUser, wordStats, trophyData, weeklyWords, weekly
   if (!user) return null;
   const col = trophyData?.collection || {};
   const caught = user.caught || 0;
-  const nextPk = ALL_POKEMON.find(p => !col[p.id]?.regular);
+  // Use pre-computed nextPokemonId if available, otherwise pick fresh (memoized to stay stable)
+  const nextPkId = trophyData?.nextPokemonId || user.nextPokemonId;
+  const nextPk = useMemo(
+    () => nextPkId ? ALL_POKEMON.find(p => p.id === nextPkId) : pickNextPokemon(col),
+    [nextPkId, caught]
+  );
 
   const today = todayStr();
   const available = weeklyWords.filter(w => w.startDate <= today);

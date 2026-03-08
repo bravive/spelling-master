@@ -331,22 +331,13 @@ export const ParentMenuScreen = ({ jwt, setScreen, setCurrentUser }) => {
       </>}
 
       {/* ── Invite Codes Tab ─────────────────────────────────────── */}
-      {tab === 'invites' && <>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 16, color: C.yellow }}>Invite Codes</div>
-            <div style={{ fontSize: 12, color: C.muted }}>
-              {inviteCodes.length} total · {inviteCodes.filter(c => !c.usedBy).length} available · {inviteCodes.filter(c => c.usedBy).length} used
-            </div>
-          </div>
-          <button onClick={createAdminCode} disabled={creatingCode} style={{ ...s.btn(C.green, 'sm') }}>
-            {creatingCode ? '...' : '+ Generate Code'}
-          </button>
-        </div>
-        {inviteCodes.length === 0 && (
-          <div style={{ ...s.card, textAlign: 'center', color: C.muted, padding: 32 }}>No codes yet.</div>
-        )}
-        {inviteCodes.map(c => (
+      {tab === 'invites' && (() => {
+        const adminCodes = inviteCodes.filter(c => c.createdBy === 'admin').sort((a, b) => (a.usedBy ? 1 : 0) - (b.usedBy ? 1 : 0));
+        const userCodes = inviteCodes.filter(c => c.createdBy !== 'admin').sort((a, b) => (a.usedBy ? 1 : 0) - (b.usedBy ? 1 : 0));
+        const adminAvailable = adminCodes.filter(c => !c.usedBy).length;
+        const userAvailable = userCodes.filter(c => !c.usedBy).length;
+
+        const renderCodeCard = (c) => (
           <div key={c._id} style={{ ...s.card, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontFamily: 'monospace', fontSize: 18, fontWeight: 700, letterSpacing: 2, color: c.usedBy ? C.muted : C.yellow }}>{c.code}</div>
@@ -372,8 +363,52 @@ export const ParentMenuScreen = ({ jwt, setScreen, setCurrentUser }) => {
             )}
             {c.usedBy && <div style={{ fontSize: 20, color: C.muted }}>✓</div>}
           </div>
-        ))}
-      </>}
+        );
+
+        const codeGroupScrollStyle = { maxHeight: 430, overflowY: 'auto', paddingRight: 4 };
+
+        return <>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 16, color: C.yellow }}>Invite Codes</div>
+              <div style={{ fontSize: 12, color: C.muted }}>
+                {inviteCodes.length} total · {inviteCodes.filter(c => !c.usedBy).length} available · {inviteCodes.filter(c => c.usedBy).length} used
+              </div>
+            </div>
+            <button onClick={createAdminCode} disabled={creatingCode} style={{ ...s.btn(C.green, 'sm') }}>
+              {creatingCode ? '...' : '+ Generate Code'}
+            </button>
+          </div>
+
+          {inviteCodes.length === 0 && (
+            <div style={{ ...s.card, textAlign: 'center', color: C.muted, padding: 32 }}>No codes yet.</div>
+          )}
+
+          {adminCodes.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <div style={{ fontWeight: 700, fontSize: 14, color: C.purple }}>Admin Codes</div>
+                <div style={{ fontSize: 12, color: C.muted }}>{adminAvailable} available / {adminCodes.length} total</div>
+              </div>
+              <div style={codeGroupScrollStyle}>
+                {adminCodes.map(renderCodeCard)}
+              </div>
+            </div>
+          )}
+
+          {userCodes.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <div style={{ fontWeight: 700, fontSize: 14, color: C.blue }}>User Codes</div>
+                <div style={{ fontSize: 12, color: C.muted }}>{userAvailable} available / {userCodes.length} total</div>
+              </div>
+              <div style={codeGroupScrollStyle}>
+                {userCodes.map(renderCodeCard)}
+              </div>
+            </div>
+          )}
+        </>;
+      })()}
     </div>
   );
 };

@@ -24,6 +24,22 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
   const [swapTarget, setSwapTarget] = useState(null);
   const [swapBatchSeed, setSwapBatchSeed] = useState(0); // increment to reshuffle
   const [saving, setSaving] = useState(false);
+  const [sendPokemon, setSendPokemon] = useState(null); // selected pokemon id for gift
+  const [sendFriend, setSendFriend] = useState(null);   // selected friend for gift
+  const [friends, setFriends] = useState([]);
+  const [friendsLoaded, setFriendsLoaded] = useState(false);
+  const [sendError, setSendError] = useState('');
+
+  // Load friends when Send tab is opened
+  useEffect(() => {
+    if (tab === 'send' && !friendsLoaded) {
+      const headers = { Authorization: `Bearer ${jwt}` };
+      apiFetch('/api/friends', { headers }).then(r => r.json()).then(f => {
+        setFriends(f.filter(fr => fr.status === 'accepted'));
+        setFriendsLoaded(true);
+      }).catch(() => setFriendsLoaded(true));
+    }
+  }, [tab, friendsLoaded, jwt, apiFetch]);
 
   const caughtPokemon = useMemo(() =>
     ALL_POKEMON.filter(pk => isPkCaught(col[pk.id])),
@@ -144,14 +160,39 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
     setConfirm(null);
   };
 
-  const TAB_ACCENT = { buy: C.yellow, evolve: C.green, swap: C.blue };
+  const doSend = async () => {
+    if (!sendPokemon || !sendFriend) return;
+    setSaving(true);
+    setSendError('');
+    try {
+      const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` };
+      const res = await apiFetch('/api/gifts/send', {
+        method: 'POST', headers,
+        body: JSON.stringify({ toUserId: sendFriend.friendId, pokemonId: sendPokemon }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setSendError(data.error || 'Failed to send');
+        setSaving(false);
+        return;
+      }
+      setSendPokemon(null);
+      setSendFriend(null);
+      setConfirm(null);
+    } catch {
+      setSendError('Failed to send gift');
+    }
+    setSaving(false);
+  };
+
+  const TAB_ACCENT = { buy: C.yellow, evolve: C.green, swap: C.blue, send: C.pink };
 
   const tabBtn = (key, label) => {
     const active = tab === key;
     return (
       <button
         key={key}
-        onClick={() => { setTab(key); setConfirm(null); setSwapSources([]); setSwapTarget(null); }}
+        onClick={() => { setTab(key); setConfirm(null); setSwapSources([]); setSwapTarget(null); setSendPokemon(null); setSendFriend(null); setSendError(''); }}
         style={{
           width: '100%', padding: '12px 6px', border: 'none', cursor: 'pointer',
           borderRadius: active ? '10px 0 0 10px' : 10,
@@ -191,6 +232,7 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
             {tabBtn('buy', 'Buy')}
             {tabBtn('evolve', 'Evolve')}
             {tabBtn('swap', 'Swap')}
+            {tabBtn('send', 'Send')}
           </div>
 
           {/* Content column — description bar + scrollable grid */}
@@ -444,6 +486,115 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
               </div>
             </div>
           )}
+
+          {/* ── Send tab ── */}
+          {tab === 'send' && (
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+              {descBar('Gift 1 to a friend (free!)', C.pink)}
+              <div style={{ height: 1, background: C.border, marginBottom: 8 }} />
+              {sendError && <div style={{ color: C.red, fontSize: 12, marginBottom: 6 }}>{sendError}</div>}
+              <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+              {confirm?.type === 'send' ? (() => {
+                const pk = ALL_POKEMON.find(p => p.id === sendPokemon);
+                return (
+                  <div style={{ textAlign: 'center', padding: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 12 }}>
+                      <div>
+                        <img src={pkImg(pk.slug)} alt="" style={{ width: 56, height: 56, objectFit: 'contain' }} />
+                        <div style={{ fontSize: 11, fontWeight: 700 }}>{pk.name}</div>
+                      </div>
+                      <span style={{ fontSize: 24, color: C.muted }}>→</span>
+                      <div>
+                        <img src={pkImg(sendFriend.starterSlug)} alt="" style={{ width: 48, height: 48, objectFit: 'contain' }} />
+                        <div style={{ fontSize: 11, fontWeight: 700 }}>{sendFriend.name}</div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                      <button style={{ ...s.btn(C.pink, 'sm') }} disabled={saving} onClick={doSend}>
+                        {saving ? 'Sending...' : 'Send!'}
+                      </button>
+                      <button style={{ ...s.btn('rgba(255,255,255,0.12)', 'sm'), color: C.muted }} onClick={() => { setConfirm(null); setSendPokemon(null); setSendFriend(null); }}>Cancel</button>
+                    </div>
+                  </div>
+                );
+              })() : (
+                <div style={{ display: 'flex', gap: 8, flex: 1, minHeight: 0 }}>
+                  {/* Left: pick a Pokemon */}
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.yellow, marginBottom: 6 }}>Pokemon</div>
+                    <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+                      {caughtPokemon.length === 0 ? (
+                        <div style={{ color: C.muted, textAlign: 'center', padding: '24px 0', fontSize: 12 }}>No Pokemon to send.</div>
+                      ) : (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+                          {caughtPokemon.map(pk => {
+                            const selected = sendPokemon === pk.id;
+                            const owned = col[pk.id] || {};
+                            const count = pkCount(owned);
+                            const hasShiny = owned.shiny;
+                            return (
+                              <div
+                                key={pk.id}
+                                onClick={() => setSendPokemon(selected ? null : pk.id)}
+                                style={{
+                                  background: selected ? 'rgba(244,114,182,0.15)' : C.card,
+                                  borderRadius: 8, padding: 4, textAlign: 'center', cursor: 'pointer',
+                                  border: selected ? `2px solid ${C.pink}` : hasShiny ? `1px solid #a78bfa` : `1px solid ${C.border}`,
+                                  position: 'relative',
+                                }}
+                              >
+                                {count > 1 && (
+                                  <div style={{ position: 'absolute', top: 1, right: 3, fontSize: 9, fontWeight: 800, color: C.yellow }}>x{count}</div>
+                                )}
+                                {hasShiny && (
+                                  <div style={{ position: 'absolute', top: 1, left: 3, fontSize: 8 }}>✨</div>
+                                )}
+                                <img src={pkImg(pk.slug)} alt={pk.name} style={{ width: 32, height: 32, objectFit: 'contain' }} />
+                                <div style={{ fontSize: 8, color: hasShiny ? '#a78bfa' : '#fff', marginTop: 1 }}>{pk.name}</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Arrow */}
+                  <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0, fontSize: 20, color: C.muted }}>→</div>
+
+                  {/* Right: pick a friend */}
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, opacity: !sendPokemon ? 0.35 : 1, pointerEvents: !sendPokemon ? 'none' : 'auto' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.pink, marginBottom: 6 }}>Friend</div>
+                    <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+                      {!friendsLoaded ? (
+                        <div style={{ color: C.muted, textAlign: 'center', padding: '24px 0', fontSize: 12 }}>Loading...</div>
+                      ) : friends.length === 0 ? (
+                        <div style={{ color: C.muted, textAlign: 'center', padding: '24px 0', fontSize: 12 }}>No friends yet!</div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          {friends.map(f => (
+                            <div
+                              key={f.friendshipId}
+                              onClick={() => { setSendFriend(f); setConfirm({ type: 'send' }); }}
+                              style={{
+                                background: C.card, borderRadius: 8, padding: 8,
+                                display: 'flex', alignItems: 'center', gap: 8,
+                                cursor: 'pointer', border: `1px solid ${C.border}`,
+                              }}
+                            >
+                              <img src={pkImg(f.starterSlug)} alt="" style={{ width: 28, height: 28, objectFit: 'contain', flexShrink: 0 }} />
+                              <div style={{ fontSize: 11, fontWeight: 700, color: '#fff', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+              </div>
+            </div>
+          )}
           </div>
         </div>
       </div>
@@ -458,18 +609,9 @@ export const TrophyScreen = ({ trophyData, currentUser, setScreen, setGameScreen
   const [layout, setLayout] = useState('all'); // 'all' | 'collected'
   const [showManage, setShowManage] = useState(false);
 
-  const [trophyHistory, setTrophyHistory] = useState([]);
-  const [showHistory, setShowHistory] = useState(false);
-
   const col = isAdmin ? {} : (trophyData?.collection || {});
   const regular = isAdmin ? ALL_POKEMON.length : Object.values(col).filter(c => isPkCaught(c)).length;
   const shiny   = isAdmin ? ALL_POKEMON.length : Object.values(col).filter(c => c.shiny).length;
-
-  useEffect(() => {
-    if (isAdmin || !jwt) return;
-    const headers = { Authorization: `Bearer ${jwt}` };
-    apiFetch('/api/trophyhistory', { headers }).then(r => r.json()).then(setTrophyHistory).catch(() => {});
-  }, [isAdmin, jwt, apiFetch]);
 
   const selectedPk = selectedId != null ? ALL_POKEMON.find(p => p.id === selectedId) : null;
 
@@ -612,56 +754,8 @@ export const TrophyScreen = ({ trophyData, currentUser, setScreen, setGameScreen
             transition: 'all 0.15s',
           }}
         >
-          <span style={{ fontSize: 14, fontWeight: 700, color: C.purple }}>Buy · Evolve · Swap</span>
+          <span style={{ fontSize: 14, fontWeight: 700, color: C.purple }}>Buy · Evolve · Swap · Send</span>
         </button>
-      )}
-
-      {/* Trophy history */}
-      {!isAdmin && trophyHistory.length > 0 && (
-        <div style={{ marginBottom: 12 }}>
-          <button
-            onClick={() => setShowHistory(!showHistory)}
-            style={{
-              width: '100%', background: C.card, border: `1px solid ${C.border}`,
-              borderRadius: 10, padding: '8px 12px', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            }}
-          >
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>History ({trophyHistory.length})</span>
-            <span style={{ fontSize: 12, color: C.muted }}>{showHistory ? '▲' : '▼'}</span>
-          </button>
-          {showHistory && (
-            <div style={{ marginTop: 6, maxHeight: 200, overflowY: 'auto', background: C.card, borderRadius: 10, border: `1px solid ${C.border}`, padding: 8 }}>
-              {trophyHistory.map(entry => (
-                <div key={entry._id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 4px', borderBottom: `1px solid ${C.border}` }}>
-                  <span style={{ fontSize: 14, width: 24, textAlign: 'center' }}>
-                    {entry.action === 'buy' ? '💰' : entry.action === 'evolve' ? '⬆️' : entry.action === 'gift_sent' || entry.action === 'gift_received' ? '🎁' : '🔄'}
-                  </span>
-                  <div style={{ flex: 1, fontSize: 12 }}>
-                    {entry.action === 'buy' && (
-                      <span>Bought <b style={{ color: C.yellow }}>{slugToName(entry.pokemon)}</b> for {entry.cost} credits</span>
-                    )}
-                    {entry.action === 'evolve' && (
-                      <span>Evolved <b style={{ color: C.green }}>{slugToName(entry.from)}</b> → <b style={{ color: C.green }}>{slugToName(entry.to)}</b></span>
-                    )}
-                    {entry.action === 'swap' && (
-                      <span>Swapped {entry.given.map(slugToName).join(', ')} → <b style={{ color: C.blue }}>{slugToName(entry.received)}</b></span>
-                    )}
-                    {entry.action === 'gift_sent' && (
-                      <span>Gifted <b style={{ color: C.pink }}>{slugToName(entry.pokemon)}</b> to {entry.toUser}</span>
-                    )}
-                    {entry.action === 'gift_received' && (
-                      <span>Received <b style={{ color: C.pink }}>{slugToName(entry.pokemon)}</b> from {entry.fromUser}</span>
-                    )}
-                  </div>
-                  <span style={{ fontSize: 10, color: C.muted, flexShrink: 0 }}>
-                    {new Date(entry.created_at).toLocaleDateString()}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
       )}
 
       <DetailOverlay />

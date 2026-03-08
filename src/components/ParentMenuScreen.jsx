@@ -34,17 +34,21 @@ export const ParentMenuScreen = ({ jwt, setScreen, setCurrentUser }) => {
   const [creatingCode, setCreatingCode] = useState(false);
   const [codeCopied, setCodeCopied] = useState('');
 
+  const [refreshing, setRefreshing] = useState(false);
   const adminHeaders = { Authorization: `Bearer ${jwt}`, 'Content-Type': 'application/json' };
 
-  useEffect(() => {
+  const fetchAll = (showSpinner = false) => {
     if (!jwt) return;
-    Promise.all([
+    if (showSpinner) setRefreshing(true);
+    return Promise.all([
       fetch('/api/admin/users', { headers: adminHeaders }).then(r => r.json()),
       fetch('/api/admin/friendships', { headers: adminHeaders }).then(r => r.json()),
       fetch('/api/admin/invite-codes', { headers: adminHeaders }).then(r => r.json()),
-    ]).then(([u, f, codes]) => { setUsers(u); setFriendships(f); setInviteCodes(codes); setLoading(false); })
-      .catch(() => setLoading(false));
-  }, [jwt]);
+    ]).then(([u, f, codes]) => { setUsers(u); setFriendships(f); setInviteCodes(codes); setLoading(false); setRefreshing(false); })
+      .catch(() => { setLoading(false); setRefreshing(false); });
+  };
+
+  useEffect(() => { fetchAll(); }, [jwt]);
 
   const createAdminCode = async () => {
     setCreatingCode(true);
@@ -111,10 +115,19 @@ export const ParentMenuScreen = ({ jwt, setScreen, setCurrentUser }) => {
           <h2 style={{ color: C.yellow, margin: 0, fontSize: 24 }}>Admin Dashboard</h2>
           <div style={{ color: C.muted, fontSize: 13 }}>{today}</div>
         </div>
-        <button style={{ ...s.btn(C.red, 'sm') }}
-          onClick={() => { setCurrentUser(null); setScreen('adminLogin'); }}>
-          Logout
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            style={{ ...s.btn('rgba(255,255,255,0.12)', 'sm'), fontSize: 18, padding: '8px 12px' }}
+            title="Refresh data"
+            onClick={() => fetchAll(true)}
+            disabled={refreshing}>
+            {refreshing ? '⏳' : '🔄'}
+          </button>
+          <button style={{ ...s.btn(C.red, 'sm') }}
+            onClick={() => { setCurrentUser(null); setScreen('adminLogin'); }}>
+            Logout
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}

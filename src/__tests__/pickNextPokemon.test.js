@@ -22,7 +22,7 @@ describe('pickNextPokemon', () => {
     ALL_POKEMON.slice(0, 500).forEach(p => { col[p.id] = { regular: true }; });
     for (let i = 0; i < 100; i++) {
       const result = pickNextPokemon(col);
-      expect(col[result.id]?.regular).toBeFalsy();
+      expect(col[result.id]).toBeUndefined();
     }
   });
 

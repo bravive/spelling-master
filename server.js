@@ -299,7 +299,7 @@ app.get('/api/friends', requireAuth, async (req, res) => {
     const u = userMap[friendId] || {};
     const t = trophyMap[friendId] || {};
     const col = t.collection || {};
-    const caught = Object.values(col).filter(c => c.regular).length;
+    const caught = Object.values(col).filter(c => (c.count || (c.regular ? 1 : 0)) >= 1).length;
     const shinyCount = Object.values(col).filter(c => c.shiny).length;
     return {
       friendshipId: f._id,

@@ -14,6 +14,10 @@ export const speakTimes = (text, times, onDone) => {
 };
 export const speak = (text) => speakTimes(text, 1, null);
 
+// ─── Pokemon collection helpers ──────────────────────────────────────────────
+export const pkCount = (owned) => owned?.count || (owned?.regular ? 1 : 0);
+export const isPkCaught = (owned) => pkCount(owned) >= 1;
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 export const localDateStr = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 export const todayStr = () => localDateStr();

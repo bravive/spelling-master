@@ -102,4 +102,21 @@ describe('unlockPokemon', () => {
     const result = unlockPokemon({ creditBank: 10, consecutiveRegular: 0, shinyEligible: false, collection: {}, nextPokemonId: 25 });
     expect(result.newUnlocks[0].id).toBe(25);
   });
+
+  it('uses count-based format instead of regular: true', () => {
+    const result = unlockPokemon({ creditBank: 10, consecutiveRegular: 0, shinyEligible: false, collection: {} });
+    const unlockedId = result.newUnlocks[0].id;
+    expect(result.collection[unlockedId].count).toBe(1);
+    expect(result.collection[unlockedId].regular).toBeUndefined();
+  });
+
+  it('handles backward-compatible regular: true in input collection', () => {
+    // Old format: { regular: true } should be treated as caught
+    const collection = { 1: { regular: true }, 2: { regular: true } };
+    const result = unlockPokemon({ creditBank: 10, consecutiveRegular: 0, shinyEligible: false, collection });
+    // Should not re-unlock id 1 or 2
+    const unlockedId = result.newUnlocks[0].id;
+    expect(unlockedId).not.toBe(1);
+    expect(unlockedId).not.toBe(2);
+  });
 });

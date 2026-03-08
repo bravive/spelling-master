@@ -1,5 +1,6 @@
 import { ALL_POKEMON } from './data/pokemon';
 import { pickNextPokemon } from './pickNextPokemon';
+import { isPkCaught } from './shared';
 
 /**
  * Process Pokemon unlocks from credit bank.
@@ -16,7 +17,7 @@ export const unlockPokemon = ({ creditBank, consecutiveRegular, shinyEligible, c
     creditBank -= 10;
     // Use pre-computed nextPokemonId if available and still uncaught, otherwise pick fresh
     let nextPk = null;
-    if (nextPokemonId && !col[nextPokemonId]?.regular) {
+    if (nextPokemonId && !isPkCaught(col[nextPokemonId])) {
       nextPk = ALL_POKEMON.find(p => p.id === nextPokemonId);
     }
     if (!nextPk) nextPk = pickNextPokemon(col);
@@ -24,14 +25,14 @@ export const unlockPokemon = ({ creditBank, consecutiveRegular, shinyEligible, c
     nextPokemonId = null;
 
     if (nextPk) {
-      col = { ...col, [nextPk.id]: { ...(col[nextPk.id] || {}), regular: true } };
+      col = { ...col, [nextPk.id]: { ...(col[nextPk.id] || {}), count: (col[nextPk.id]?.count || 0) + 1 } };
       newUnlocks.push({ ...nextPk, shiny: false });
       consecutiveRegular = (consecutiveRegular || 0) + 1;
       if (consecutiveRegular >= 3) shinyEligible = true;
     }
     // Bonus shiny when eligible
     if (shinyEligible) {
-      const eligible = Object.entries(col).filter(([, v]) => v.regular && !v.shiny).map(([id]) => parseInt(id));
+      const eligible = Object.entries(col).filter(([, v]) => isPkCaught(v) && !v.shiny).map(([id]) => parseInt(id));
       if (eligible.length > 0) {
         const shinyId = eligible[Math.floor(Math.random() * eligible.length)];
         const pk = ALL_POKEMON.find(p => p.id === shinyId);

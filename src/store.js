@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import bcrypt from 'bcryptjs';
-import { usersCol, trophiesCol, wordstatsCol, roundhistoryCol, weeklyChallengeWordsCol, weeklyStatsCol, friendshipsCol, messagesCol } from './db.js';
+import { usersCol, trophiesCol, wordstatsCol, roundhistoryCol, credithistoryCol, weeklyChallengeWordsCol, weeklyStatsCol, friendshipsCol, messagesCol } from './db.js';
 
 const now = () => new Date();
 
@@ -51,11 +51,12 @@ export const createUser = async ({ key, name, pin, starterId, starterSlug }) => 
 
   // Related collections use the user's UUID as the foreign key
   const colBase = { created_at: t, updated_at: t };
-  log('insertOne', 'trophies+wordstats+roundhistory', { userId: user._id });
+  log('insertOne', 'trophies+wordstats+roundhistory+credithistory', { userId: user._id });
   await Promise.all([
     trophiesCol().insertOne({ _id: randomUUID(), userId: user._id, collection: {}, shinyEligible: false, consecutiveRegular: 0, ...colBase }),
     wordstatsCol().insertOne({ _id: randomUUID(), userId: user._id, stats: {}, ...colBase }),
-    roundhistoryCol().insertOne({ _id: randomUUID(), userId: user._id, roundHistory: [], bestScores: {}, creditHistory: [], ...colBase }),
+    roundhistoryCol().insertOne({ _id: randomUUID(), userId: user._id, roundHistory: [], bestScores: {}, ...colBase }),
+    credithistoryCol().insertOne({ _id: randomUUID(), userId: user._id, creditHistory: [], ...colBase }),
   ]);
 
   return user;
@@ -95,11 +96,12 @@ export const deleteUser = async (id) => {
   log('deleteOne', 'users', { _id: id });
   const result = await usersCol().deleteOne({ _id: id });
   if (result.deletedCount === 0) return false;
-  log('deleteOne', 'trophies+wordstats+roundhistory+weeklystats', { userId: id });
+  log('deleteOne', 'trophies+wordstats+roundhistory+credithistory+weeklystats', { userId: id });
   await Promise.all([
     trophiesCol().deleteOne({ userId: id }),
     wordstatsCol().deleteOne({ userId: id }),
     roundhistoryCol().deleteOne({ userId: id }),
+    credithistoryCol().deleteOne({ userId: id }),
     weeklyStatsCol().deleteMany({ userId: id }),
   ]);
   return true;
@@ -132,6 +134,16 @@ export const getRoundHistory = (id) => {
 };
 
 export const saveRoundHistory = (id, data) => upsert(roundhistoryCol(), id, data);
+
+// ── Credit history ───────────────────────────────────────────────────────────
+
+export const getCreditHistory = async (id) => {
+  log('findOne', 'credithistory', { userId: id });
+  const doc = await credithistoryCol().findOne({ userId: id });
+  return doc?.creditHistory ?? [];
+};
+
+export const saveCreditHistory = (id, creditHistory) => upsert(credithistoryCol(), id, { creditHistory });
 
 // ── Weekly challenge words ────────────────────────────────────────────────────
 

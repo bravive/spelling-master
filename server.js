@@ -448,7 +448,7 @@ app.post('/api/friends/:friendId/messages', requireAuth, async (req, res) => {
 // Send a gift
 app.post('/api/gifts/send', requireAuth, async (req, res) => {
   const myId = req.jwtUser.id;
-  const { toUserId, pokemonId } = req.body;
+  const { toUserId, pokemonId, isShiny = false } = req.body;
   if (!toUserId || pokemonId == null) return res.status(400).json({ error: 'toUserId and pokemonId are required' });
 
   // Must be accepted friends
@@ -459,15 +459,23 @@ app.post('/api/gifts/send', requireAuth, async (req, res) => {
   const trophy = await getTrophy(myId);
   const col = trophy?.collection || {};
   const owned = col[pokemonId];
-  const count = pkCount(owned);
-  if (count < 1) return res.status(400).json({ error: 'You do not own this Pokemon' });
 
-  // Account for pending outgoing gifts
-  const pendingCount = await countPendingOutgoingGifts(myId, pokemonId);
-  if (count - pendingCount < 1) return res.status(400).json({ error: 'All copies are reserved for pending gifts' });
+  if (isShiny) {
+    // Validate sender owns the shiny variant
+    if (!owned?.shiny) return res.status(400).json({ error: 'You do not own the shiny of this Pokemon' });
+    // Only one shiny can be pending at a time (you only have one)
+    const pendingShiny = await countPendingOutgoingGifts(myId, pokemonId, true);
+    if (pendingShiny >= 1) return res.status(400).json({ error: 'Your shiny is already reserved for a pending gift' });
+  } else {
+    const count = pkCount(owned);
+    if (count < 1) return res.status(400).json({ error: 'You do not own this Pokemon' });
+    // Account for pending outgoing regular gifts
+    const pendingCount = await countPendingOutgoingGifts(myId, pokemonId, false);
+    if (count - pendingCount < 1) return res.status(400).json({ error: 'All copies are reserved for pending gifts' });
+  }
 
-  // Prevent duplicate pending gift
-  const existing = await findPendingGift(myId, toUserId, pokemonId);
+  // Prevent duplicate pending gift of same type
+  const existing = await findPendingGift(myId, toUserId, pokemonId, isShiny);
   if (existing) return res.status(409).json({ error: 'Gift already pending for this Pokemon' });
 
   // Resolve slug
@@ -475,7 +483,7 @@ app.post('/api/gifts/send', requireAuth, async (req, res) => {
   const pk = ALL_POKEMON.find(p => p.id === pokemonId);
   if (!pk) return res.status(400).json({ error: 'Invalid Pokemon' });
 
-  const gift = await createGift(myId, toUserId, pokemonId, pk.slug);
+  const gift = await createGift(myId, toUserId, pokemonId, pk.slug, isShiny);
   res.status(201).json({ ok: true, giftId: gift._id });
 });
 
@@ -513,35 +521,52 @@ app.put('/api/gifts/:giftId/accept', requireAuth, async (req, res) => {
   if (gift.status !== 'pending') return res.status(400).json({ error: 'Gift is no longer pending' });
   if (gift.toUserId !== req.jwtUser.id) return res.status(403).json({ error: 'Not your gift to accept' });
 
-  // Re-validate sender still owns the pokemon
+  // Re-validate sender still owns the pokemon (or its shiny)
   const senderTrophy = await getTrophy(gift.fromUserId);
   const senderCol = senderTrophy?.collection || {};
   const senderOwned = senderCol[gift.pokemonId];
-  const senderCount = pkCount(senderOwned);
-  const otherPending = await countPendingOutgoingGifts(gift.fromUserId, gift.pokemonId);
-  // This gift is one of the pending, so available = count - (otherPending - 1)
-  if (senderCount - (otherPending - 1) < 1) {
-    await declineGift(gift._id);
-    return res.status(400).json({ error: 'Sender no longer has this Pokemon available' });
-  }
-
-  // Transfer: decrement sender, increment recipient
-  const newSenderCount = senderCount - 1;
   const newSenderCol = { ...senderCol };
-  if (newSenderCount <= 0) {
-    delete newSenderCol[gift.pokemonId];
-  } else {
-    newSenderCol[gift.pokemonId] = { ...senderOwned, count: newSenderCount };
-  }
-  await saveTrophy(gift.fromUserId, { collection: newSenderCol });
 
   const recipientTrophy = await getTrophy(gift.toUserId);
   const recipientCol = recipientTrophy?.collection || {};
   const recipientOwned = recipientCol[gift.pokemonId] || {};
-  const newRecipientCol = {
-    ...recipientCol,
-    [gift.pokemonId]: { ...recipientOwned, count: pkCount(recipientOwned) + 1 },
-  };
+  const newRecipientCol = { ...recipientCol };
+
+  if (gift.isShiny) {
+    // Re-validate sender still has the shiny
+    if (!senderOwned?.shiny) {
+      await declineGift(gift._id);
+      return res.status(400).json({ error: 'Sender no longer has the shiny of this Pokemon' });
+    }
+    // Remove shiny from sender; keep regular copies if any
+    const updatedSender = { ...senderOwned, shiny: false };
+    if (pkCount(updatedSender) === 0 && !updatedSender.shiny) {
+      delete newSenderCol[gift.pokemonId];
+    } else {
+      newSenderCol[gift.pokemonId] = updatedSender;
+    }
+    // Add shiny to recipient (keep their regular copies intact)
+    newRecipientCol[gift.pokemonId] = { ...recipientOwned, shiny: true };
+  } else {
+    const senderCount = pkCount(senderOwned);
+    const otherPending = await countPendingOutgoingGifts(gift.fromUserId, gift.pokemonId, false);
+    // This gift is one of the pending, so available = count - (otherPending - 1)
+    if (senderCount - (otherPending - 1) < 1) {
+      await declineGift(gift._id);
+      return res.status(400).json({ error: 'Sender no longer has this Pokemon available' });
+    }
+    // Decrement sender count
+    const newSenderCount = senderCount - 1;
+    if (newSenderCount <= 0 && !senderOwned?.shiny) {
+      delete newSenderCol[gift.pokemonId];
+    } else {
+      newSenderCol[gift.pokemonId] = { ...senderOwned, count: newSenderCount };
+    }
+    // Increment recipient count
+    newRecipientCol[gift.pokemonId] = { ...recipientOwned, count: pkCount(recipientOwned) + 1 };
+  }
+
+  await saveTrophy(gift.fromUserId, { collection: newSenderCol });
   await saveTrophy(gift.toUserId, { collection: newRecipientCol });
 
   // Update caught counts for both users

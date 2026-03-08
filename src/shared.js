@@ -22,6 +22,10 @@ export const isPkCaught = (owned) => pkCount(owned) >= 1;
 export const localDateStr = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 export const todayStr = () => localDateStr();
 
+/** Convert a display name to a valid user key: lowercase, spaces→_, strip everything else. */
+export const generateKey = (name) =>
+  name.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+
 export const newUser = (name, pin, starterId, starterSlug) => ({
   name, pin, starterId, starterSlug,
   level: 1,

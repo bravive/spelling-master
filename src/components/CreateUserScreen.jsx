@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { STARTER_POKEMON, pkImg } from '../data/pokemon';
-import { C, s } from '../shared';
+import { C, s, generateKey } from '../shared';
 import { NumPad } from './NumPad';
 
 export const CreateUserScreen = ({ users, saveUsers, createStep, setCreateStep, newName, setNewName, newStarter, setNewStarter, newPin, setNewPin, confirmPin, setConfirmPin, inviteCode, setInviteCode, setScreen }) => {
@@ -58,7 +58,8 @@ export const CreateUserScreen = ({ users, saveUsers, createStep, setCreateStep, 
               const trimmed = newName.trim();
               if (!trimmed) { setErr('Please enter a name.'); return; }
               if (trimmed.toLowerCase() === 'test') { setErr('That name is reserved.'); return; }
-              const key = trimmed.toLowerCase().replace(/\s+/g, '_');
+              const key = generateKey(trimmed);
+              if (!key) { setErr('Name must contain at least one letter or number.'); return; }
               if (Object.values(users).some(u => u.userId === key)) { setErr('Name already taken.'); return; }
               setNewName(trimmed); setCreateStep(2);
             }}>Next →</button>
@@ -98,7 +99,7 @@ export const CreateUserScreen = ({ users, saveUsers, createStep, setCreateStep, 
           <p style={{ color: C.muted }}>Confirm your PIN</p>
           <NumPad value={confirmPin} onChange={setConfirmPin} onSubmit={async (pin) => {
             if (pin !== newPin) { setConfirmPin(''); setErr('PINs do not match!'); return; }
-            const key = newName.toLowerCase().replace(/\s+/g, '_');
+            const key = generateKey(newName);
             try {
               const res = await fetch('/api/users', {
                 method: 'POST',

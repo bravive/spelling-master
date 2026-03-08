@@ -189,7 +189,8 @@ app.put('/api/users/me/profile', requireAuth, async (req, res) => {
   if (newName !== undefined) {
     const trimmed = newName.trim();
     if (!trimmed) return res.status(400).json({ error: 'Name cannot be empty' });
-    const key = trimmed.toLowerCase().replace(/\s+/g, '_');
+    const key = trimmed.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+    if (!key) return res.status(400).json({ error: 'Name must contain at least one letter or number' });
     if (key === ADMIN_KEY || key === 'test') return res.status(400).json({ error: 'That name is reserved' });
     if (!/^[a-z0-9_]+$/.test(key)) return res.status(400).json({ error: 'Invalid name format' });
     const existing = await findUser(key);

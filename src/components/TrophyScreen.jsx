@@ -178,6 +178,7 @@ export const TrophyScreen = ({ trophyData, currentUser, setScreen, setGameScreen
 
               return (
                 <div
+                  className="trophy-card"
                   key={pk.id}
                   onClick={() => handleCardClick(pk.id)}
                   style={{

@@ -79,6 +79,7 @@ export const injectCSS = () => {
     .pk-face { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
     .pk-back  { backface-visibility: hidden; -webkit-backface-visibility: hidden; transform: rotateY(180deg); }
     .word-card:hover { background: rgba(255,255,255,0.16) !important; }
+    .trophy-card:hover { transform: scale(1.08) !important; }
     .wk-hint-wrap:hover .wk-hint { display: block !important; }
     * { box-sizing: border-box; }
     body { margin: 0; }

@@ -918,6 +918,65 @@ describe('Gifts API', () => {
     expect(bobTrophy.body.collection['1'].count).toBe(1);
   });
 
+  it('increments count when recipient already has the pokemon', async () => {
+    await makeFriends();
+    await giveAlicePokemon(1, 2);
+    // Bob already has one copy
+    await request(app).put('/api/trophy')
+      .set('Authorization', `Bearer ${bobToken}`)
+      .send({ collection: { 1: { count: 1 } } });
+
+    const sendRes = await request(app).post('/api/gifts/send')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({ toUserId: bobId, pokemonId: 1 });
+    await request(app).put(`/api/gifts/${sendRes.body.giftId}/accept`)
+      .set('Authorization', `Bearer ${bobToken}`);
+
+    const bobTrophy = await request(app).get('/api/trophy')
+      .set('Authorization', `Bearer ${bobToken}`);
+    expect(bobTrophy.body.collection['1'].count).toBe(2); // was 1, now 2
+  });
+
+  it('preserves recipient shiny when accepting a regular gift', async () => {
+    await makeFriends();
+    await giveAlicePokemon(1, 2);
+    // Bob has a shiny of pokemon 1
+    await request(app).put('/api/trophy')
+      .set('Authorization', `Bearer ${bobToken}`)
+      .send({ collection: { 1: { count: 1, shiny: true } } });
+
+    const sendRes = await request(app).post('/api/gifts/send')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({ toUserId: bobId, pokemonId: 1 });
+    await request(app).put(`/api/gifts/${sendRes.body.giftId}/accept`)
+      .set('Authorization', `Bearer ${bobToken}`);
+
+    const bobTrophy = await request(app).get('/api/trophy')
+      .set('Authorization', `Bearer ${bobToken}`);
+    expect(bobTrophy.body.collection['1'].count).toBe(2);    // count went up
+    expect(bobTrophy.body.collection['1'].shiny).toBe(true); // shiny preserved
+  });
+
+  it('preserves recipient regular count when accepting a shiny gift', async () => {
+    await makeFriends();
+    await giveAliceShiny(1);
+    // Bob has a regular copy
+    await request(app).put('/api/trophy')
+      .set('Authorization', `Bearer ${bobToken}`)
+      .send({ collection: { 1: { count: 1, shiny: false } } });
+
+    const sendRes = await request(app).post('/api/gifts/send')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({ toUserId: bobId, pokemonId: 1, isShiny: true });
+    await request(app).put(`/api/gifts/${sendRes.body.giftId}/accept`)
+      .set('Authorization', `Bearer ${bobToken}`);
+
+    const bobTrophy = await request(app).get('/api/trophy')
+      .set('Authorization', `Bearer ${bobToken}`);
+    expect(bobTrophy.body.collection['1'].count).toBe(1);    // regular count untouched
+    expect(bobTrophy.body.collection['1'].shiny).toBe(true); // shiny inherited
+  });
+
   it('declines a gift without transfer', async () => {
     await makeFriends();
     await giveAlicePokemon(1, 2);

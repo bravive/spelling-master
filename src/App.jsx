@@ -412,7 +412,7 @@ export default function App() {
       {screen === 'game' && gameScreen === 'weeklyStage2' && <Stage2Screen words={words} processRound={processWeeklyRound} setRoundResults={setRoundResults} setGameScreen={setGameScreen} resultsScreen="weeklyResults" discardScreen="weekly" onQuit={handleWeeklyQuit} unlimitedRetries allowSkip />}
       {screen === 'game' && gameScreen === 'weeklyResults' && <WeeklyResultsScreen roundResults={roundResults} setGameScreen={setGameScreen} />}
       {screen === 'game' && gameScreen === 'editProfile' && <EditProfileScreen user={getUser()} jwt={jwt} saveUsers={saveUsers} users={users} currentUser={currentUser} setGameScreen={setGameScreen} />}
-      {screen === 'game' && gameScreen === 'friends' && <FriendsScreen jwt={jwt} currentUser={currentUser} myStarterSlug={getUser()?.starterSlug} setGameScreen={setGameScreen} />}
+      {screen === 'game' && gameScreen === 'friends' && <FriendsScreen jwt={jwt} currentUser={currentUser} myStarterSlug={getUser()?.starterSlug} setGameScreen={setGameScreen} setTrophyData={setTrophyData} />}
 
     </div>
   );

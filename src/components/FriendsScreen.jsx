@@ -495,6 +495,7 @@ export const FriendsScreen = ({ jwt, currentUser, myStarterSlug, setGameScreen, 
   const [tab, setTab] = useState('friends');
   const [friends, setFriends] = useState([]);
   const [unread, setUnread] = useState({});
+  const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -583,14 +584,17 @@ export const FriendsScreen = ({ jwt, currentUser, myStarterSlug, setGameScreen, 
     <div style={{ width: '100%', maxWidth: 480 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
         <button style={{ ...s.backBtn }} onClick={() => setGameScreen('home')}>←</button>
-        <h2 style={{ color: C.yellow, margin: 0, fontSize: 22 }}>Friends</h2>
+        <h2 style={{ color: C.yellow, margin: 0, fontSize: 22, flex: 1 }}>Friends</h2>
+        <button
+          onClick={() => { setSearchOpen(true); setSearchQuery(''); setSearchResults([]); }}
+          title="Search users"
+          style={{ ...s.backBtn, fontSize: 18 }}>🔍</button>
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         <Tab active={tab === 'friends'} label="Friends" badge={totalUnread} onClick={() => setTab('friends')} />
         <Tab active={tab === 'requests'} label="Requests" badge={pendingReceived.length} onClick={() => setTab('requests')} />
         <Tab active={tab === 'gifts'} label="Gifts" badge={incomingGifts.length} onClick={() => setTab('gifts')} />
-        <Tab active={tab === 'search'} label="Search" onClick={() => setTab('search')} />
         <Tab active={tab === 'codes'} label="Codes" onClick={() => setTab('codes')} />
       </div>
 
@@ -632,42 +636,60 @@ export const FriendsScreen = ({ jwt, currentUser, myStarterSlug, setGameScreen, 
         </>
       )}
 
-      {!loading && tab === 'search' && (
-        <>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-            <input
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && doSearch()}
-              placeholder="Search by username..."
-              style={{ ...s.input, flex: 1, fontSize: 14 }}
-            />
-            <button onClick={doSearch} disabled={searching} style={{ ...s.btn(C.yellow, 'sm') }}>
-              {searching ? '...' : 'Search'}
-            </button>
-          </div>
-          {searchResults.map(u => {
-            const alreadyFriend = friends.some(f => f.friendId === u.id);
-            return (
-              <div key={u.id} style={{ ...s.card, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, padding: 14 }}>
-                <img src={pkImg(u.starterSlug)} alt="" style={{ width: 40, height: 40, objectFit: 'contain' }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 15 }}>{u.name}</div>
-                  <div style={{ color: C.muted, fontSize: 12 }}>Level {u.level}</div>
-                </div>
-                {alreadyFriend
-                  ? <span style={{ color: C.muted, fontSize: 13 }}>Added</span>
-                  : <button onClick={() => invite(u.id)} style={{ ...s.btn(C.green, 'sm'), padding: '6px 12px', fontSize: 13 }}>
-                      Add Friend
-                    </button>
-                }
-              </div>
-            );
-          })}
-        </>
-      )}
-
       {!loading && tab === 'codes' && <InviteCodesTab jwt={jwt} />}
+
+      {searchOpen && (
+        <div onClick={() => setSearchOpen(false)} style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
+          display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+          zIndex: 1000, padding: '60px 16px 16px',
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background: '#1e1b3a', border: `1px solid ${C.border}`, borderRadius: 16,
+            width: '100%', maxWidth: 420, padding: 16,
+            maxHeight: 'calc(100dvh - 80px)', display: 'flex', flexDirection: 'column',
+            animation: 'popIn 0.2s ease',
+          }}>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexShrink: 0 }}>
+              <input
+                autoFocus
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && doSearch()}
+                placeholder="Search by username..."
+                style={{ ...s.input, flex: 1, fontSize: 14 }}
+              />
+              <button onClick={doSearch} disabled={searching} style={{ ...s.btn(C.yellow, 'sm') }}>
+                {searching ? '...' : '🔍'}
+              </button>
+              <button onClick={() => setSearchOpen(false)} style={{ ...s.backBtn, fontSize: 18, lineHeight: '36px' }}>✕</button>
+            </div>
+            <div style={{ overflowY: 'auto', flex: 1, minHeight: 0 }}>
+              {searchResults.length === 0 && searchQuery && !searching && (
+                <div style={{ color: C.muted, textAlign: 'center', padding: 24 }}>No users found.</div>
+              )}
+              {searchResults.map(u => {
+                const alreadyFriend = friends.some(f => f.friendId === u.id);
+                return (
+                  <div key={u.id} style={{ ...s.card, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, padding: 14 }}>
+                    <img src={pkImg(u.starterSlug)} alt="" style={{ width: 40, height: 40, objectFit: 'contain' }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: 15 }}>{u.name}</div>
+                      <div style={{ color: C.muted, fontSize: 12 }}>Level {u.level}</div>
+                    </div>
+                    {alreadyFriend
+                      ? <span style={{ color: C.muted, fontSize: 13 }}>Added</span>
+                      : <button onClick={() => { invite(u.id); setSearchOpen(false); }} style={{ ...s.btn(C.green, 'sm'), padding: '6px 12px', fontSize: 13 }}>
+                          Add Friend
+                        </button>
+                    }
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {selectedFriend && (
         <FriendDetailModal

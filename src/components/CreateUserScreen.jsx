@@ -57,6 +57,7 @@ export const CreateUserScreen = ({ users, saveUsers, createStep, setCreateStep, 
             onClick={() => {
               const trimmed = newName.trim();
               if (!trimmed) { setErr('Please enter a name.'); return; }
+              if (trimmed.length < 4) { setErr('Name must be at least 4 characters.'); return; }
               if (trimmed.toLowerCase() === 'test') { setErr('That name is reserved.'); return; }
               const key = generateKey(trimmed);
               if (!key) { setErr('Name must contain at least one letter or number.'); return; }

@@ -256,6 +256,7 @@ npm run build
 
 ## UI / UX Conventions
 
+- **Responsive modals/floating pages**: All modals and floating pages must fit correctly on any screen size (especially iPhone). Use `dvh` units (`max-height: calc(100dvh - Xpx)`) instead of fixed pixel heights. Content areas should use `flex: 1; min-height: 0; overflow-y: auto` to scroll within the available space. Never use fixed `height` for modal content.
 - Dark purple gradient background: `linear-gradient(135deg, #0f0c29, #302b63, #24243e)`
 - Colour palette: yellow `#fbbf24`, pink `#f472b6`, blue `#60a5fa`, green `#10b981`, red `#ef4444`, muted `#94a3b8`, purple `#c4b5fd`
 - Card bg: `rgba(255,255,255,0.08)`, border: `rgba(255,255,255,0.12)`

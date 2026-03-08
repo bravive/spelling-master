@@ -42,7 +42,7 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
     ALL_POKEMON.filter(pk => !isPkCaught(col[pk.id])),
   [col]);
 
-  const SWAP_BATCH_SIZE = 12;
+  const SWAP_BATCH_SIZE = 9;
   const swapBatch = useMemo(() => {
     if (uncaughtPokemon.length <= SWAP_BATCH_SIZE) return uncaughtPokemon;
     // Fisher-Yates shuffle a copy, take first 12
@@ -149,17 +149,15 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
     </div>
   );
 
-  const CONTENT_HEIGHT = 360;
-
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 600, padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: '#1e1b3a', borderRadius: 20, padding: 20, width: '100%', maxWidth: 520, display: 'flex', flexDirection: 'column', animation: 'popIn 0.35s ease', border: `1px solid ${C.border}` }}>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 600, padding: 12 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: '#1e1b3a', borderRadius: 20, padding: '16px 16px 12px', width: '100%', maxWidth: 520, maxHeight: 'calc(100dvh - 48px)', display: 'flex', flexDirection: 'column', animation: 'popIn 0.35s ease', border: `1px solid ${C.border}` }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div style={{ fontWeight: 800, fontSize: 18 }}>Manage Trophies</div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: C.muted, fontSize: 20, cursor: 'pointer', padding: 4 }}>✕</button>
         </div>
 
-        <div style={{ display: 'flex', gap: 0 }}>
+        <div style={{ display: 'flex', gap: 0, flex: 1, minHeight: 0 }}>
           {/* Side tabs */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0, width: 68, paddingRight: 10, borderRight: `1px solid ${C.border}` }}>
             {tabBtn('buy', 'Buy')}
@@ -168,7 +166,7 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
           </div>
 
           {/* Content column — description bar + scrollable grid */}
-          <div style={{ flex: 1, height: CONTENT_HEIGHT, display: 'flex', flexDirection: 'column', minHeight: 0, paddingLeft: 12 }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, paddingLeft: 12 }}>
           {/* ── Buy tab ── */}
           {tab === 'buy' && (
             <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -343,6 +341,9 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
                         {caughtPokemon.map(pk => {
                           const selected = swapSources.includes(pk.id);
+                          const owned = col[pk.id] || {};
+                          const count = pkCount(owned);
+                          const hasShiny = owned.shiny;
                           return (
                             <div
                               key={pk.id}
@@ -353,15 +354,18 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
                               style={{
                                 background: selected ? 'rgba(251,191,36,0.15)' : C.card,
                                 borderRadius: 8, padding: 4, textAlign: 'center', cursor: 'pointer',
-                                border: selected ? `2px solid ${C.yellow}` : `1px solid ${C.border}`,
+                                border: selected ? `2px solid ${C.yellow}` : hasShiny ? `1px solid #a78bfa` : `1px solid ${C.border}`,
                                 position: 'relative',
                               }}
                             >
-                              {pkCount(col[pk.id]) > 1 && (
-                                <div style={{ position: 'absolute', top: 1, right: 3, fontSize: 9, fontWeight: 800, color: C.yellow }}>x{pkCount(col[pk.id])}</div>
+                              {count > 1 && (
+                                <div style={{ position: 'absolute', top: 1, right: 3, fontSize: 9, fontWeight: 800, color: C.yellow }}>x{count}</div>
+                              )}
+                              {hasShiny && (
+                                <div style={{ position: 'absolute', top: 1, left: 3, fontSize: 8 }}>✨</div>
                               )}
                               <img src={pkImg(pk.slug)} alt={pk.name} style={{ width: 32, height: 32, objectFit: 'contain' }} />
-                              <div style={{ fontSize: 8, color: '#fff', marginTop: 1 }}>{pk.name}</div>
+                              <div style={{ fontSize: 8, color: hasShiny ? '#a78bfa' : '#fff', marginTop: 1 }}>{pk.name}</div>
                             </div>
                           );
                         })}
@@ -571,7 +575,6 @@ export const TrophyScreen = ({ trophyData, currentUser, setScreen, setGameScreen
             transition: 'all 0.15s',
           }}
         >
-          <span style={{ fontSize: 16 }}>&#9881;</span>
           <span style={{ fontSize: 14, fontWeight: 700, color: C.purple }}>Buy · Evolve · Swap</span>
         </button>
       )}

@@ -131,15 +131,21 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
     </button>
   );
 
+  const infoIcon = (tip) => (
+    <span title={tip} style={{ cursor: 'help', fontSize: 14, color: C.muted, marginLeft: 4, verticalAlign: 'middle' }}>&#9432;</span>
+  );
+
+  const CONTENT_HEIGHT = 360;
+
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 600, padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: '#1e1b3a', borderRadius: 20, padding: 20, width: '100%', maxWidth: 480, maxHeight: '85vh', display: 'flex', flexDirection: 'column', animation: 'popIn 0.35s ease', border: `1px solid ${C.border}` }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: '#1e1b3a', borderRadius: 20, padding: 20, width: '100%', maxWidth: 520, display: 'flex', flexDirection: 'column', animation: 'popIn 0.35s ease', border: `1px solid ${C.border}` }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div style={{ fontWeight: 800, fontSize: 18 }}>Manage Trophies</div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: C.muted, fontSize: 20, cursor: 'pointer', padding: 4 }}>✕</button>
         </div>
 
-        <div style={{ display: 'flex', gap: 12, flex: 1, minHeight: 0 }}>
+        <div style={{ display: 'flex', gap: 12 }}>
           {/* Side tabs */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0, width: 64 }}>
             {tabBtn('buy', 'Buy')}
@@ -147,23 +153,24 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
             {tabBtn('swap', 'Swap')}
           </div>
 
-          {/* Content */}
-          <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+          {/* Content — fixed height, scrollable */}
+          <div style={{ flex: 1, height: CONTENT_HEIGHT, overflowY: 'auto', minHeight: 0 }}>
           {/* ── Buy tab ── */}
           {tab === 'buy' && (
             <div>
-              <div style={{ color: C.muted, fontSize: 13, marginBottom: 12 }}>
-                Spend <span style={{ color: C.yellow, fontWeight: 700 }}>3 credits</span> to buy a copy of a caught Pokemon.
-                {creditBank < 3 && <span style={{ color: C.red }}> (Not enough credits: {creditBank}/3)</span>}
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
+                <span style={{ fontWeight: 700, fontSize: 14 }}>Pick one</span>
+                {infoIcon('Spend 3 credits to buy a copy of a caught Pokemon')}
+                {creditBank < 3 && <span style={{ color: C.red, fontSize: 11, marginLeft: 8 }}>({creditBank}/3 credits)</span>}
               </div>
               {confirm?.type === 'buy' ? (
                 <div style={{ textAlign: 'center', padding: 16 }}>
                   <img src={pkImg(confirm.pk.slug)} alt={confirm.pk.name} style={{ width: 80, height: 80, objectFit: 'contain' }} />
-                  <div style={{ fontWeight: 700, fontSize: 16, marginTop: 8 }}>Spend 3 credits for another {confirm.pk.name}?</div>
-                  <div style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>Current count: x{pkCount(col[confirm.pk.id])}</div>
+                  <div style={{ fontWeight: 700, fontSize: 16, marginTop: 8 }}>Buy {confirm.pk.name}?</div>
+                  <div style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>x{pkCount(col[confirm.pk.id])} owned</div>
                   <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'center' }}>
                     <button style={{ ...s.btn(C.yellow, 'sm') }} disabled={saving} onClick={() => doDuplicate(confirm.pk)}>
-                      {saving ? 'Saving...' : 'Confirm (-3 credits)'}
+                      {saving ? 'Saving...' : '-3 credits'}
                     </button>
                     <button style={{ ...s.btn('rgba(255,255,255,0.12)', 'sm'), color: C.muted }} onClick={() => setConfirm(null)}>Cancel</button>
                   </div>
@@ -199,8 +206,9 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
           {/* ── Evolve tab ── */}
           {tab === 'evolve' && (
             <div>
-              <div style={{ color: C.muted, fontSize: 13, marginBottom: 12 }}>
-                Trade <span style={{ color: C.yellow, fontWeight: 700 }}>3 of the same</span> Pokemon for its next evolution.
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
+                <span style={{ fontWeight: 700, fontSize: 14 }}>3 same → next stage</span>
+                {infoIcon('Trade 3 copies of the same Pokemon for its next evolution')}
               </div>
               {confirm?.type === 'evolve' ? (() => {
                 const chain = POKEMON_EVOLUTIONS[confirm.pk.slug];
@@ -231,7 +239,7 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
               })() : evolveCandidates.length === 0 ? (
                 <div style={{ color: C.muted, textAlign: 'center', padding: '24px 0' }}>
                   No Pokemon with 3+ copies that can evolve.
-                  <br />Duplicate first to get enough copies!
+                  <br />Buy copies first!
                 </div>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
@@ -264,28 +272,31 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
           {/* ── Swap tab ── */}
           {tab === 'swap' && (
             <div>
-              <div style={{ color: C.muted, fontSize: 13, marginBottom: 12 }}>
-                Give away <span style={{ color: C.yellow, fontWeight: 700 }}>3 different</span> caught Pokemon to pick any 1 uncaught Pokemon.
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
+                <span style={{ fontWeight: 700, fontSize: 14 }}>3 different → 1 new</span>
+                {infoIcon('Give away 3 different caught Pokemon to pick any 1 uncaught Pokemon')}
               </div>
               {confirm?.type === 'swap' ? (
                 <div style={{ textAlign: 'center', padding: 16 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12 }}>
-                    {swapSources.map(id => {
-                      const pk = ALL_POKEMON.find(p => p.id === id);
-                      return (
-                        <div key={id}>
-                          <img src={pkImg(pk.slug)} alt="" style={{ width: 48, height: 48, objectFit: 'contain' }} />
-                          <div style={{ fontSize: 10 }}>{pk.name}</div>
-                        </div>
-                      );
-                    })}
+                    <div>
+                      {swapSources.map(id => {
+                        const pk = ALL_POKEMON.find(p => p.id === id);
+                        return (
+                          <div key={id} style={{ marginBottom: 4 }}>
+                            <img src={pkImg(pk.slug)} alt="" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+                            <div style={{ fontSize: 9 }}>{pk.name}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
                     <span style={{ fontSize: 24, color: C.muted }}>→</span>
                     {(() => {
                       const pk = ALL_POKEMON.find(p => p.id === swapTarget);
                       return (
                         <div>
-                          <img src={pkImg(pk.slug)} alt="" style={{ width: 48, height: 48, objectFit: 'contain' }} />
-                          <div style={{ fontSize: 10 }}>{pk.name}</div>
+                          <img src={pkImg(pk.slug)} alt="" style={{ width: 56, height: 56, objectFit: 'contain' }} />
+                          <div style={{ fontSize: 11, fontWeight: 700 }}>{pk.name}</div>
                         </div>
                       );
                     })()}
@@ -297,18 +308,13 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
                     <button style={{ ...s.btn('rgba(255,255,255,0.12)', 'sm'), color: C.muted }} onClick={() => { setConfirm(null); setSwapSources([]); setSwapTarget(null); }}>Cancel</button>
                   </div>
                 </div>
-              ) : swapTarget !== null ? (
-                // Step 2: already have 3 sources, now picking target — should not reach here but just in case
-                null
               ) : (
-                <>
-                  {/* Step 1 or 2 */}
-                  {swapSources.length < 3 ? (
-                    <>
-                      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8, color: C.yellow }}>
-                        Step 1: Select 3 Pokemon to give away ({swapSources.length}/3)
-                      </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 8, height: CONTENT_HEIGHT - 32 }}>
+                  {/* Left: caught (give away) */}
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.yellow, marginBottom: 6 }}>Give ({swapSources.length}/3)</div>
+                    <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
                         {caughtPokemon.map(pk => {
                           const selected = swapSources.includes(pk.id);
                           return (
@@ -320,66 +326,62 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
                               }}
                               style={{
                                 background: selected ? 'rgba(251,191,36,0.15)' : C.card,
-                                borderRadius: 10, padding: 8, textAlign: 'center', cursor: 'pointer',
+                                borderRadius: 8, padding: 4, textAlign: 'center', cursor: 'pointer',
                                 border: selected ? `2px solid ${C.yellow}` : `1px solid ${C.border}`,
                                 position: 'relative',
                               }}
                             >
                               {pkCount(col[pk.id]) > 1 && (
-                                <div style={{ position: 'absolute', top: 2, right: 4, fontSize: 10, fontWeight: 800, color: C.yellow }}>x{pkCount(col[pk.id])}</div>
+                                <div style={{ position: 'absolute', top: 1, right: 3, fontSize: 9, fontWeight: 800, color: C.yellow }}>x{pkCount(col[pk.id])}</div>
                               )}
-                              <img src={pkImg(pk.slug)} alt={pk.name} style={{ width: 40, height: 40, objectFit: 'contain' }} />
-                              <div style={{ fontSize: 10, color: '#fff', marginTop: 2 }}>{pk.name}</div>
+                              <img src={pkImg(pk.slug)} alt={pk.name} style={{ width: 32, height: 32, objectFit: 'contain' }} />
+                              <div style={{ fontSize: 8, color: '#fff', marginTop: 1 }}>{pk.name}</div>
                             </div>
                           );
                         })}
                       </div>
-                    </>
-                  ) : (
-                    <>
-                      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8, color: C.blue }}>
-                        Step 2: Pick 1 Pokemon to receive
-                      </div>
-                      <div style={{ display: 'flex', gap: 4, marginBottom: 8, flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: 12, color: C.muted }}>Giving:</span>
-                        {swapSources.map(id => {
-                          const pk = ALL_POKEMON.find(p => p.id === id);
-                          return <span key={id} style={{ fontSize: 12, color: C.yellow }}>{pk.name}</span>;
-                        })}
-                        <button onClick={() => setSwapSources([])} style={{ fontSize: 11, color: C.red, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Reset</button>
-                      </div>
+                    </div>
+                  </div>
+
+                  {/* Arrow */}
+                  <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0, fontSize: 20, color: C.muted }}>→</div>
+
+                  {/* Right: uncaught (receive) */}
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, opacity: swapSources.length < 3 ? 0.35 : 1, pointerEvents: swapSources.length < 3 ? 'none' : 'auto' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.blue, marginBottom: 6 }}>Receive</div>
+                    <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
                       {uncaughtPokemon.length === 0 ? (
-                        <div style={{ color: C.muted, textAlign: 'center', padding: '24px 0' }}>All Pokemon caught!</div>
+                        <div style={{ color: C.muted, textAlign: 'center', padding: '24px 0', fontSize: 12 }}>All caught!</div>
                       ) : (
                         <>
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
                             {swapBatch.map(pk => (
                               <div
                                 key={pk.id}
                                 onClick={() => { setSwapTarget(pk.id); setConfirm({ type: 'swap' }); }}
                                 style={{
-                                  background: C.card, borderRadius: 10, padding: 8, textAlign: 'center',
+                                  background: C.card, borderRadius: 8, padding: 4, textAlign: 'center',
                                   cursor: 'pointer', border: `1px solid ${C.border}`,
                                 }}
                               >
-                                <img src={pkImg(pk.slug)} alt={pk.name} style={{ width: 40, height: 40, objectFit: 'contain' }} />
-                                <div style={{ fontSize: 10, color: '#fff', marginTop: 2 }}>{pk.name}</div>
+                                <img src={pkImg(pk.slug)} alt={pk.name} style={{ width: 32, height: 32, objectFit: 'contain' }} />
+                                <div style={{ fontSize: 8, color: '#fff', marginTop: 1 }}>{pk.name}</div>
                               </div>
                             ))}
                           </div>
                           {uncaughtPokemon.length > SWAP_BATCH_SIZE && (
                             <button
-                              onClick={() => setSwapBatchSeed(s => s + 1)}
-                              style={{ ...s.btn('rgba(255,255,255,0.12)', 'sm'), color: C.muted, width: '100%', marginTop: 10 }}
+                              onClick={() => setSwapBatchSeed(sv => sv + 1)}
+                              style={{ ...s.btn('rgba(255,255,255,0.12)', 'sm'), color: C.muted, width: '100%', marginTop: 6, fontSize: 10, padding: '6px 8px' }}
                             >
-                              Next batch ({uncaughtPokemon.length - SWAP_BATCH_SIZE} more available)
+                              Next ({uncaughtPokemon.length - SWAP_BATCH_SIZE} more)
                             </button>
                           )}
                         </>
                       )}
-                    </>
-                  )}
-                </>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           )}

@@ -89,6 +89,15 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
     setConfirm(null);
   };
 
+  // Remove entries with count <= 0 from collection
+  const pruneEmpty = (c) => {
+    const pruned = { ...c };
+    for (const id of Object.keys(pruned)) {
+      if (pkCount(pruned[id]) <= 0) delete pruned[id];
+    }
+    return pruned;
+  };
+
   const doEvolve = async (pk) => {
     const chain = POKEMON_EVOLUTIONS[pk.slug];
     const idx = chain.indexOf(pk.slug);
@@ -97,11 +106,11 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
     if (!nextPk) return;
     const srcCount = pkCount(col[pk.id]) - 3;
     const tgtEntry = col[nextPk.id] || {};
-    const newCol = {
+    const newCol = pruneEmpty({
       ...col,
       [pk.id]: { ...col[pk.id], count: srcCount },
       [nextPk.id]: { ...tgtEntry, count: pkCount(tgtEntry) + 1 },
-    };
+    });
     await saveChanges(newCol, undefined, {
       action: 'evolve', from: pk.slug, to: nextSlug,
     });
@@ -119,7 +128,8 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
     const tgtPk = ALL_POKEMON.find(p => p.id === swapTarget);
     const tgtEntry = newCol[swapTarget] || {};
     newCol[swapTarget] = { ...tgtEntry, count: pkCount(tgtEntry) + 1 };
-    await saveChanges(newCol, undefined, {
+    const prunedCol = pruneEmpty(newCol);
+    await saveChanges(prunedCol, undefined, {
       action: 'swap', given: givenSlugs, received: tgtPk?.slug,
     });
     setSwapSources([]);

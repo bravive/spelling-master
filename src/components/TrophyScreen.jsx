@@ -72,18 +72,18 @@ export const TrophyScreen = ({ trophyData, currentUser, setScreen, setGameScreen
                   return (
                     <div key={slug} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       {i > 0 && <span style={{ fontSize: 14, color: C.muted }}>→</span>}
-                      <div style={{ textAlign: 'center', cursor: 'default' }} title={evoCaught ? slugToName(slug) : '???'}>
+                      <div style={{ textAlign: 'center', cursor: 'default', width: 52, flexShrink: 0 }} title={evoCaught ? slugToName(slug) : '???'}>
                         <img
                           src={pkImg(slug)}
                           alt={evoCaught ? slugToName(slug) : '???'}
                           style={{
-                            width: 44, height: 44, objectFit: 'contain', display: 'block',
+                            width: 44, height: 44, objectFit: 'contain', display: 'block', margin: '0 auto',
                             filter: !evoCaught ? 'brightness(0) opacity(0.3)' : 'none',
                             outline: slug === selectedPk.slug ? '2px solid #fbbf24' : 'none',
                             borderRadius: 4,
                           }}
                         />
-                        <div style={{ fontSize: 10, color: slug === selectedPk.slug ? C.yellow : C.muted, marginTop: 2, maxWidth: 44, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontSize: 10, color: slug === selectedPk.slug ? C.yellow : C.muted, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {evoCaught ? slugToName(slug) : '???'}
                         </div>
                       </div>

@@ -1071,6 +1071,143 @@ describe('Gifts API', () => {
       .set('Authorization', `Bearer ${aliceToken}`);
     expect(aliceTrophy.body.collection['1']).toBeUndefined();
   });
+
+  // ── Shiny gift tests ─────────────────────────────────────────────────────
+
+  const giveAliceShiny = async (pokemonId) => {
+    const aliceTrophy = await request(app).get('/api/trophy')
+      .set('Authorization', `Bearer ${aliceToken}`);
+    const existing = aliceTrophy.body.collection[pokemonId] || {};
+    await request(app).put('/api/trophy')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({ collection: { ...aliceTrophy.body.collection, [pokemonId]: { ...existing, shiny: true } } });
+  };
+
+  it('sends a shiny gift when sender owns the shiny', async () => {
+    await makeFriends();
+    await giveAliceShiny(1);
+    const res = await request(app).post('/api/gifts/send')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({ toUserId: bobId, pokemonId: 1, isShiny: true });
+    expect(res.status).toBe(201);
+    expect(res.body.ok).toBe(true);
+    // Gift document has isShiny: true
+    const gifts = await request(app).get('/api/gifts')
+      .set('Authorization', `Bearer ${aliceToken}`);
+    expect(gifts.body[0].isShiny).toBe(true);
+  });
+
+  it('rejects shiny gift when sender has no shiny', async () => {
+    await makeFriends();
+    await giveAlicePokemon(1, 1); // regular copy only, no shiny
+    const res = await request(app).post('/api/gifts/send')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({ toUserId: bobId, pokemonId: 1, isShiny: true });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('shiny');
+  });
+
+  it('prevents sending two pending shiny gifts for same pokemon', async () => {
+    await makeFriends();
+    const c = await createUser({ key: 'carol', name: 'Carol' });
+    const carolId = c.body.user.id;
+    const carolToken = (await loginUser('carol', '1234')).body.token;
+    await request(app).post('/api/friends/invite')
+      .set('Authorization', `Bearer ${aliceToken}`).send({ toUserId: carolId });
+    const carolFriends = await request(app).get('/api/friends').set('Authorization', `Bearer ${carolToken}`);
+    const carolPending = carolFriends.body.find(f => f.status === 'pending');
+    await request(app).put(`/api/friends/${carolPending.friendshipId}/accept`)
+      .set('Authorization', `Bearer ${carolToken}`);
+
+    await giveAliceShiny(1);
+    await request(app).post('/api/gifts/send')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({ toUserId: bobId, pokemonId: 1, isShiny: true });
+
+    const res = await request(app).post('/api/gifts/send')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({ toUserId: carolId, pokemonId: 1, isShiny: true });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('reserved');
+  });
+
+  it('accepts shiny gift: transfers shiny flag from sender to recipient', async () => {
+    await makeFriends();
+    await giveAlicePokemon(1, 2);
+    await giveAliceShiny(1);
+
+    const sendRes = await request(app).post('/api/gifts/send')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({ toUserId: bobId, pokemonId: 1, isShiny: true });
+
+    await request(app).put(`/api/gifts/${sendRes.body.giftId}/accept`)
+      .set('Authorization', `Bearer ${bobToken}`);
+
+    const aliceTrophy = await request(app).get('/api/trophy')
+      .set('Authorization', `Bearer ${aliceToken}`);
+    expect(aliceTrophy.body.collection['1'].shiny).toBe(false); // shiny gone from sender
+
+    const bobTrophy = await request(app).get('/api/trophy')
+      .set('Authorization', `Bearer ${bobToken}`);
+    expect(bobTrophy.body.collection['1'].shiny).toBe(true); // shiny landed on recipient
+  });
+
+  it('accepts shiny gift and removes sender entry when they had only the shiny', async () => {
+    await makeFriends();
+    await giveAliceShiny(1); // shiny only, no regular count
+
+    const sendRes = await request(app).post('/api/gifts/send')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({ toUserId: bobId, pokemonId: 1, isShiny: true });
+
+    await request(app).put(`/api/gifts/${sendRes.body.giftId}/accept`)
+      .set('Authorization', `Bearer ${bobToken}`);
+
+    const aliceTrophy = await request(app).get('/api/trophy')
+      .set('Authorization', `Bearer ${aliceToken}`);
+    // Entry should be gone since sender had no regular copies
+    expect(aliceTrophy.body.collection['1']).toBeUndefined();
+
+    const bobTrophy = await request(app).get('/api/trophy')
+      .set('Authorization', `Bearer ${bobToken}`);
+    expect(bobTrophy.body.collection['1'].shiny).toBe(true);
+  });
+
+  it('declines shiny gift: no collection change on either side', async () => {
+    await makeFriends();
+    await giveAliceShiny(1);
+
+    const sendRes = await request(app).post('/api/gifts/send')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({ toUserId: bobId, pokemonId: 1, isShiny: true });
+
+    await request(app).put(`/api/gifts/${sendRes.body.giftId}/decline`)
+      .set('Authorization', `Bearer ${bobToken}`);
+
+    const aliceTrophy = await request(app).get('/api/trophy')
+      .set('Authorization', `Bearer ${aliceToken}`);
+    expect(aliceTrophy.body.collection['1'].shiny).toBe(true); // still has shiny
+
+    const bobTrophy = await request(app).get('/api/trophy')
+      .set('Authorization', `Bearer ${bobToken}`);
+    expect(bobTrophy.body.collection['1']).toBeUndefined(); // bob got nothing
+  });
+
+  it('allows one pending regular and one pending shiny gift for same pokemon', async () => {
+    await makeFriends();
+    await giveAlicePokemon(1, 1);
+    await giveAliceShiny(1);
+    // Send regular
+    const r1 = await request(app).post('/api/gifts/send')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({ toUserId: bobId, pokemonId: 1, isShiny: false });
+    expect(r1.status).toBe(201);
+    // Send shiny — different isShiny so not a duplicate
+    const r2 = await request(app).post('/api/gifts/send')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({ toUserId: bobId, pokemonId: 1, isShiny: true });
+    expect(r2.status).toBe(201);
+  });
 });
 
 describe('Invalid JWT returns 401 on all protected routes', () => {

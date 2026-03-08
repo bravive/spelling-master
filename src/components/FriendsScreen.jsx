@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ALL_POKEMON, pkImg } from '../data/pokemon';
+import { ALL_POKEMON, pkImg, pkShiny } from '../data/pokemon';
 import { isPkCaught, pkCount, C, s } from '../shared';
 
 const Tab = ({ active, label, badge, onClick }) => (
@@ -232,15 +232,22 @@ const MessageDialog = ({ friend, jwt, myId, myStarterSlug, onClose }) => {
 const GiftPendingCard = ({ gift, myId, onAccept, onDecline }) => {
   const isSent = gift.fromUserId === myId;
   const displayName = isSent ? gift.toName : gift.fromName;
-  const displaySlug = isSent ? gift.toStarterSlug : gift.fromStarterSlug;
+  const pokeName = gift.pokemonSlug.charAt(0).toUpperCase() + gift.pokemonSlug.slice(1);
+  const imgSrc = gift.isShiny ? pkShiny(gift.pokemonSlug) : pkImg(gift.pokemonSlug);
+  const cardBorder = gift.isShiny ? `1px solid #c4b5fd` : `1px solid ${C.border}`;
   return (
-    <div style={{ ...s.card, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, padding: 14 }}>
-      <img src={pkImg(gift.pokemonSlug)} alt="" style={{ width: 44, height: 44, objectFit: 'contain' }} />
+    <div style={{ ...s.card, border: cardBorder, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, padding: 14 }}>
+      <div style={{ position: 'relative', flexShrink: 0 }}>
+        <img src={imgSrc} alt="" style={{ width: 44, height: 44, objectFit: 'contain' }} />
+        {gift.isShiny && (
+          <span style={{ position: 'absolute', top: -4, right: -6, fontSize: 13 }}>✨</span>
+        )}
+      </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontWeight: 700, fontSize: 14 }}>
           {isSent
-            ? <span>You sent <b style={{ color: C.pink }}>{gift.pokemonSlug.charAt(0).toUpperCase() + gift.pokemonSlug.slice(1)}</b> to {displayName}</span>
-            : <span><b>{displayName}</b> sent you <b style={{ color: C.pink }}>{gift.pokemonSlug.charAt(0).toUpperCase() + gift.pokemonSlug.slice(1)}</b></span>
+            ? <span>You sent <b style={{ color: gift.isShiny ? '#c4b5fd' : C.pink }}>{gift.isShiny ? '✨ Shiny ' : ''}{pokeName}</b> to {displayName}</span>
+            : <span><b>{displayName}</b> sent you <b style={{ color: gift.isShiny ? '#c4b5fd' : C.pink }}>{gift.isShiny ? '✨ Shiny ' : ''}{pokeName}</b></span>
           }
         </div>
         <div style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>
@@ -259,6 +266,7 @@ const GiftPendingCard = ({ gift, myId, onAccept, onDecline }) => {
 
 const GiftModal = ({ friend, jwt, onClose, onSent }) => {
   const [trophyData, setTrophyData] = useState(null);
+  // confirm = { pk, isShiny }
   const [confirm, setConfirm] = useState(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
@@ -269,15 +277,17 @@ const GiftModal = ({ friend, jwt, onClose, onSent }) => {
   }, []);
 
   const col = trophyData?.collection || {};
-  const giftablePokemon = ALL_POKEMON.filter(pk => isPkCaught(col[pk.id]));
+  const regularGiftable = ALL_POKEMON.filter(pk => isPkCaught(col[pk.id]));
+  const shinyGiftable = ALL_POKEMON.filter(pk => col[pk.id]?.shiny);
+  const hasAny = regularGiftable.length > 0 || shinyGiftable.length > 0;
 
-  const sendGift = async (pk) => {
+  const sendGift = async ({ pk, isShiny }) => {
     setSending(true);
     setError('');
     try {
       const res = await fetch('/api/gifts/send', {
         method: 'POST', headers,
-        body: JSON.stringify({ toUserId: friend.friendId, pokemonId: pk.id }),
+        body: JSON.stringify({ toUserId: friend.friendId, pokemonId: pk.id, isShiny }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -327,30 +337,36 @@ const GiftModal = ({ friend, jwt, onClose, onSent }) => {
         <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
           {confirm ? (
             <div style={{ textAlign: 'center', padding: 20 }}>
-              <img src={pkImg(confirm.slug)} alt={confirm.name} style={{ width: 80, height: 80, objectFit: 'contain' }} />
-              <div style={{ fontWeight: 700, fontSize: 16, marginTop: 8 }}>Send {confirm.name} to {friend.name}?</div>
+              <img
+                src={confirm.isShiny ? pkShiny(confirm.pk.slug) : pkImg(confirm.pk.slug)}
+                alt={confirm.pk.name}
+                style={{ width: 80, height: 80, objectFit: 'contain' }}
+              />
+              <div style={{ fontWeight: 700, fontSize: 16, marginTop: 8 }}>
+                Send {confirm.isShiny ? '✨ Shiny ' : ''}{confirm.pk.name} to {friend.name}?
+              </div>
               <div style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>
-                You have x{pkCount(col[confirm.id])}
+                {confirm.isShiny ? 'Your shiny copy' : `You have x${pkCount(col[confirm.pk.id])}`}
               </div>
               <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'center' }}>
-                <button disabled={sending} onClick={() => sendGift(confirm)} style={{ ...s.btn(C.pink, 'sm') }}>
+                <button disabled={sending} onClick={() => sendGift(confirm)} style={{ ...s.btn(confirm.isShiny ? '#c4b5fd' : C.pink, 'sm') }}>
                   {sending ? 'Sending...' : 'Send!'}
                 </button>
                 <button onClick={() => setConfirm(null)} style={{ ...s.btn('rgba(255,255,255,0.12)', 'sm'), color: C.muted }}>Cancel</button>
               </div>
             </div>
-          ) : giftablePokemon.length === 0 ? (
+          ) : !hasAny ? (
             <div style={{ color: C.muted, textAlign: 'center', padding: '32px 0' }}>
               No Pokemon available to gift.
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-              {giftablePokemon.map(pk => {
+              {regularGiftable.map(pk => {
                 const count = pkCount(col[pk.id]);
                 return (
                   <div
-                    key={pk.id}
-                    onClick={() => setConfirm(pk)}
+                    key={`r-${pk.id}`}
+                    onClick={() => setConfirm({ pk, isShiny: false })}
                     style={{
                       background: C.card, borderRadius: 10, padding: 8, textAlign: 'center',
                       cursor: 'pointer', border: `1px solid ${C.border}`, position: 'relative',
@@ -364,6 +380,20 @@ const GiftModal = ({ friend, jwt, onClose, onSent }) => {
                   </div>
                 );
               })}
+              {shinyGiftable.map(pk => (
+                <div
+                  key={`s-${pk.id}`}
+                  onClick={() => setConfirm({ pk, isShiny: true })}
+                  style={{
+                    background: 'rgba(196,181,253,0.08)', borderRadius: 10, padding: 8, textAlign: 'center',
+                    cursor: 'pointer', border: '1px solid #c4b5fd', position: 'relative',
+                  }}
+                >
+                  <span style={{ position: 'absolute', top: 2, right: 4, fontSize: 11 }}>✨</span>
+                  <img src={pkShiny(pk.slug)} alt={pk.name} style={{ width: 40, height: 40, objectFit: 'contain' }} />
+                  <div style={{ fontSize: 10, color: '#c4b5fd', marginTop: 2 }}>{pk.name}</div>
+                </div>
+              ))}
             </div>
           )}
         </div>

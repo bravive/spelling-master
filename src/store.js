@@ -274,20 +274,20 @@ export const getUnreadCounts = async (userId) => {
 
 // ── Gifts (Pokemon gifting between friends) ─────────────────────────────────
 
-export const createGift = async (fromUserId, toUserId, pokemonId, pokemonSlug) => {
+export const createGift = async (fromUserId, toUserId, pokemonId, pokemonSlug, isShiny = false) => {
   const t = now();
   const doc = {
-    _id: randomUUID(), fromUserId, toUserId, pokemonId, pokemonSlug,
+    _id: randomUUID(), fromUserId, toUserId, pokemonId, pokemonSlug, isShiny,
     status: 'pending', created_at: t, updated_at: t,
   };
-  log('insertOne', 'gifts', { fromUserId, toUserId, pokemonId });
+  log('insertOne', 'gifts', { fromUserId, toUserId, pokemonId, isShiny });
   await giftsCol().insertOne(doc);
   return doc;
 };
 
-export const findPendingGift = (fromUserId, toUserId, pokemonId) => {
-  log('findOne', 'gifts', { fromUserId, toUserId, pokemonId, status: 'pending' });
-  return giftsCol().findOne({ fromUserId, toUserId, pokemonId, status: 'pending' });
+export const findPendingGift = (fromUserId, toUserId, pokemonId, isShiny = false) => {
+  log('findOne', 'gifts', { fromUserId, toUserId, pokemonId, isShiny, status: 'pending' });
+  return giftsCol().findOne({ fromUserId, toUserId, pokemonId, isShiny, status: 'pending' });
 };
 
 export const findGiftById = (id) => {
@@ -303,9 +303,9 @@ export const getUserGifts = (userId) => {
   }).sort({ created_at: -1 }).toArray();
 };
 
-export const countPendingOutgoingGifts = (fromUserId, pokemonId) => {
-  log('count', 'gifts', { fromUserId, pokemonId, status: 'pending' });
-  return giftsCol().countDocuments({ fromUserId, pokemonId, status: 'pending' });
+export const countPendingOutgoingGifts = (fromUserId, pokemonId, isShiny = false) => {
+  log('count', 'gifts', { fromUserId, pokemonId, isShiny, status: 'pending' });
+  return giftsCol().countDocuments({ fromUserId, pokemonId, isShiny, status: 'pending' });
 };
 
 export const acceptGift = (id) => {

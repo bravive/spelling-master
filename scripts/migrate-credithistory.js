@@ -13,7 +13,7 @@ if (!uri) { console.error('MONGO_URL not set'); process.exit(1); }
 
 const client = new MongoClient(uri);
 await client.connect();
-const db = client.db();
+const db = client.db(process.env.MONGODATABASE || 'spell-master');
 
 const users = await db.collection('users').find({}).toArray();
 const roundhistory = db.collection('roundhistory');

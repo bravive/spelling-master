@@ -21,6 +21,7 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
   const [confirm, setConfirm] = useState(null); // { type, ... }
   const [swapSources, setSwapSources] = useState([]); // array of pokemon ids
   const [swapTarget, setSwapTarget] = useState(null);
+  const [swapBatchSeed, setSwapBatchSeed] = useState(0); // increment to reshuffle
   const [saving, setSaving] = useState(false);
 
   const caughtPokemon = useMemo(() =>
@@ -40,6 +41,18 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
   const uncaughtPokemon = useMemo(() =>
     ALL_POKEMON.filter(pk => !isPkCaught(col[pk.id])),
   [col]);
+
+  const SWAP_BATCH_SIZE = 12;
+  const swapBatch = useMemo(() => {
+    if (uncaughtPokemon.length <= SWAP_BATCH_SIZE) return uncaughtPokemon;
+    // Fisher-Yates shuffle a copy, take first 12
+    const arr = [...uncaughtPokemon];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr.slice(0, SWAP_BATCH_SIZE);
+  }, [uncaughtPokemon, swapBatchSeed]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const saveChanges = async (newCol, newCreditBank) => {
     setSaving(true);
@@ -336,21 +349,31 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
                       {uncaughtPokemon.length === 0 ? (
                         <div style={{ color: C.muted, textAlign: 'center', padding: '24px 0' }}>All Pokemon caught!</div>
                       ) : (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-                          {uncaughtPokemon.map(pk => (
-                            <div
-                              key={pk.id}
-                              onClick={() => { setSwapTarget(pk.id); setConfirm({ type: 'swap' }); }}
-                              style={{
-                                background: C.card, borderRadius: 10, padding: 8, textAlign: 'center',
-                                cursor: 'pointer', border: `1px solid ${C.border}`,
-                              }}
+                        <>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                            {swapBatch.map(pk => (
+                              <div
+                                key={pk.id}
+                                onClick={() => { setSwapTarget(pk.id); setConfirm({ type: 'swap' }); }}
+                                style={{
+                                  background: C.card, borderRadius: 10, padding: 8, textAlign: 'center',
+                                  cursor: 'pointer', border: `1px solid ${C.border}`,
+                                }}
+                              >
+                                <img src={pkImg(pk.slug)} alt={pk.name} style={{ width: 40, height: 40, objectFit: 'contain' }} />
+                                <div style={{ fontSize: 10, color: '#fff', marginTop: 2 }}>{pk.name}</div>
+                              </div>
+                            ))}
+                          </div>
+                          {uncaughtPokemon.length > SWAP_BATCH_SIZE && (
+                            <button
+                              onClick={() => setSwapBatchSeed(s => s + 1)}
+                              style={{ ...s.btn('rgba(255,255,255,0.12)', 'sm'), color: C.muted, width: '100%', marginTop: 10 }}
                             >
-                              <img src={pkImg(pk.slug)} alt={pk.name} style={{ width: 40, height: 40, objectFit: 'contain' }} />
-                              <div style={{ fontSize: 10, color: '#fff', marginTop: 2 }}>{pk.name}</div>
-                            </div>
-                          ))}
-                        </div>
+                              Next batch ({uncaughtPokemon.length - SWAP_BATCH_SIZE} more available)
+                            </button>
+                          )}
+                        </>
                       )}
                     </>
                   )}

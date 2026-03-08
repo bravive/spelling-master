@@ -9,10 +9,12 @@ Follow these steps for every change, no matter how small:
 - Keep commit messages brief and descriptive (what + why)
 - Stage only the files relevant to that change — never bulk-commit unrelated edits
 
-### 2. Write tests for every change
+### 2. Write tests for every change — BEFORE marking work as done
 - All new logic must have corresponding tests in `src/__tests__/`
+- Update existing tests that are affected by your change
 - Run tests before committing: `npm test`
 - Bug fixes must include a regression test
+- Tests must pass before the change is considered complete — do not commit or announce completion until tests are green
 - Use Vitest (`npm test`) for unit tests; test pure logic functions (scoring, word selection, level-up, streak, Pokémon unlock) directly without a browser
 
 ### 3. Update README.md for feature or requirement changes
@@ -149,7 +151,7 @@ npm run build
 - After every 3 consecutive regular Pokémon → shiny chance activates
 - Next 10-credit unlock: guaranteed bonus shiny alongside the regular unlock
 - Shiny = shiny variant of a random collected Pokémon that doesn't have one yet
-- Pulsing "✨ Shiny chance active!" banner on home screen when eligible
+- "✨ Shiny chance active!" banner on home screen when eligible (not shown on trophy page)
 
 ### Trophy Unlock Modal
 - Full-screen overlay, animated Pokémon image (grow-in)
@@ -191,6 +193,11 @@ npm run build
 - Collected → full colour, bronze glow border
 - Shiny → purple glow, shimmer animation, ✨ badge
 - Counter: "X / 60 caught · Y ✨ shiny"
+- Count badge (x2, x3…) on cards with multiple copies
+- "Manage" button opens ManageModal with 3 tabs:
+  - **Duplicate**: spend 3 credits for a copy of a caught Pokémon
+  - **Evolve**: trade 3 of the same Pokémon for its next evolution stage
+  - **Swap**: sacrifice 3 different caught Pokémon to pick any 1 uncaught Pokémon
 
 ---
 
@@ -205,7 +212,7 @@ npm run build
   streak: 0,
   lastPlayed: null,     // date string YYYY-MM-DD
   streakDates: [],      // last 90 days played
-  collection: {},       // { [pokemonId]: { regular: bool, shiny: bool } }
+  collection: {},       // { [pokemonId]: { count: N, shiny: bool } } — use pkCount()/isPkCaught() helpers from shared.js; backward compat with old { regular: true } format
   shinyEligible: false,
   consecutiveRegular: 0,
   wordStats: {},        // { [word]: { attempts, correct, weight } }

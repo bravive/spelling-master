@@ -122,8 +122,7 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
   const expiry = rememberMe ? '30d' : '8h';
 
   if (userId === ADMIN_KEY) {
-    const adminMatch = pin === ADMIN_PIN || (pin.startsWith('88') && pin.length === 6 && pin.slice(2) === ADMIN_PIN);
-    if (!adminMatch) return res.status(401).json({ error: 'Wrong PIN' });
+    if (pin !== ADMIN_PIN) return res.status(401).json({ error: 'Wrong password' });
     const token = jwt.sign({ id: ADMIN_ID, isAdmin: true }, JWT_SECRET, { expiresIn: expiry });
     return res.json({ token, user: { name: 'Admin', isAdmin: true } });
   }

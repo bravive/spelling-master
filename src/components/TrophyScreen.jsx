@@ -1,8 +1,10 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { ALL_POKEMON, pkImg, pkShiny } from '../data/pokemon';
 import POKEMON_STATS from '../data/pokemon-stats.json';
 import POKEMON_EVOLUTIONS from '../data/pokemon-evolutions.json';
 import { isPkCaught, pkCount, C, s } from '../shared';
+
+const BATCH_SIZE = 40;
 import { pickNextPokemon } from '../pickNextPokemon';
 
 const STAT_META = [
@@ -281,7 +283,7 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
                         {count > 1 && (
                           <div style={{ position: 'absolute', top: 2, right: 4, fontSize: 10, fontWeight: 800, color: C.yellow }}>x{count}</div>
                         )}
-                        <img src={pkImg(pk.slug)} alt={pk.name} style={{ width: 40, height: 40, objectFit: 'contain' }} />
+                        <img loading="lazy" src={pkImg(pk.slug)} alt={pk.name} style={{ width: 40, height: 40, objectFit: 'contain' }} />
                         <div style={{ fontSize: 10, color: '#fff', marginTop: 2 }}>{pk.name}</div>
                       </div>
                     );
@@ -346,7 +348,7 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
                         }}
                       >
                         <div style={{ position: 'absolute', top: 2, right: 4, fontSize: 10, fontWeight: 800, color: C.yellow }}>x{count}</div>
-                        <img src={pkImg(pk.slug)} alt={pk.name} style={{ width: 40, height: 40, objectFit: 'contain' }} />
+                        <img loading="lazy" src={pkImg(pk.slug)} alt={pk.name} style={{ width: 40, height: 40, objectFit: 'contain' }} />
                         <div style={{ fontSize: 10, color: '#fff', marginTop: 2 }}>{pk.name}</div>
                         <div style={{ fontSize: 9, color: C.green, marginTop: 1 }}>→ {slugToName(nextSlug)}</div>
                       </div>
@@ -434,7 +436,7 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
                               {hasShiny && (
                                 <div style={{ position: 'absolute', top: 1, left: 3, fontSize: 8 }}>✨</div>
                               )}
-                              <img src={pkImg(pk.slug)} alt={pk.name} style={{ width: 32, height: 32, objectFit: 'contain' }} />
+                              <img loading="lazy" src={pkImg(pk.slug)} alt={pk.name} style={{ width: 32, height: 32, objectFit: 'contain' }} />
                               <div style={{ fontSize: 8, color: hasShiny ? C.shiny : '#fff', marginTop: 1 }}>{pk.name}</div>
                             </div>
                           );
@@ -464,7 +466,7 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
                                   cursor: 'pointer', border: `1px solid ${C.border}`,
                                 }}
                               >
-                                <img src={pkImg(pk.slug)} alt={pk.name} style={{ width: 32, height: 32, objectFit: 'contain' }} />
+                                <img loading="lazy" src={pkImg(pk.slug)} alt={pk.name} style={{ width: 32, height: 32, objectFit: 'contain' }} />
                                 <div style={{ fontSize: 8, color: '#fff', marginTop: 1 }}>{pk.name}</div>
                               </div>
                             ))}
@@ -549,7 +551,7 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
                                 {hasShiny && (
                                   <div style={{ position: 'absolute', top: 1, left: 3, fontSize: 8 }}>✨</div>
                                 )}
-                                <img src={pkImg(pk.slug)} alt={pk.name} style={{ width: 32, height: 32, objectFit: 'contain' }} />
+                                <img loading="lazy" src={pkImg(pk.slug)} alt={pk.name} style={{ width: 32, height: 32, objectFit: 'contain' }} />
                                 <div style={{ fontSize: 8, color: hasShiny ? C.shiny : '#fff', marginTop: 1 }}>{pk.name}</div>
                               </div>
                             );
@@ -608,6 +610,11 @@ export const TrophyScreen = ({ trophyData, currentUser, setScreen, setGameScreen
   const [selectedId, setSelectedId] = useState(null);
   const [layout, setLayout] = useState('all'); // 'all' | 'collected'
   const [showManage, setShowManage] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(BATCH_SIZE);
+  const sentinelRef = useRef(null);
+
+  // Reset visible count when layout changes
+  useEffect(() => { setVisibleCount(BATCH_SIZE); }, [layout]);
 
   const col = isAdmin ? {} : (trophyData?.collection || {});
   const regular = isAdmin ? ALL_POKEMON.length : Object.values(col).filter(c => isPkCaught(c)).length;
@@ -774,61 +781,94 @@ export const TrophyScreen = ({ trophyData, currentUser, setScreen, setGameScreen
         />
       )}
 
-      {(() => {
-        const cols     = layout === 'all' ? 5 : 3;
-        const imgSize  = layout === 'all' ? 48 : 72;
-        const fontSize = layout === 'all' ? 10 : 13;
-        const visiblePokemon = layout === 'collected'
-          ? ALL_POKEMON.filter(pk => { const o = col[pk.id] || {}; return isAdmin || isPkCaught(o); })
-          : ALL_POKEMON;
-
-        if (layout === 'collected' && visiblePokemon.length === 0) {
-          return <div style={{ color: C.muted, textAlign: 'center', padding: '40px 0' }}>No Pokémon caught yet — complete a round to earn credits!</div>;
-        }
-
-        return (
-          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 8 }}>
-            {visiblePokemon.map(pk => {
-              const owned = col[pk.id] || {};
-              const isShiny    = isAdmin || owned.shiny;
-              const isRegular  = isAdmin || isPkCaught(owned);
-              const unlocked   = isRegular || isShiny;
-              const isSelected = selectedId === pk.id;
-              const border     = isShiny ? `2px solid ${C.shiny}` : isRegular ? '2px solid #b45309' : `1px solid ${C.border}`;
-              const count      = pkCount(owned);
-
-              return (
-                <div
-                  className="trophy-card"
-                  key={pk.id}
-                  onClick={() => handleCardClick(pk.id)}
-                  style={{
-                    background: C.card, borderRadius: 12, padding: layout === 'all' ? 8 : 12,
-                    textAlign: 'center', position: 'relative', cursor: 'pointer', border,
-                    animation: isShiny ? 'shimmer 2s ease infinite' : 'none',
-                    transform: isSelected ? 'scale(1.05)' : 'scale(1)',
-                    transition: 'transform 0.15s',
-                    outline: isSelected ? `2px solid ${C.yellow}` : 'none',
-                  }}
-                >
-                  {isShiny && <div style={{ position: 'absolute', top: 4, right: 6, fontSize: layout === 'all' ? 11 : 14 }}>✨</div>}
-                  {count > 1 && !isAdmin && (
-                    <div style={{ position: 'absolute', top: 4, left: 6, fontSize: layout === 'all' ? 9 : 11, fontWeight: 800, color: C.yellow }}>x{count}</div>
-                  )}
-                  <img
-                    src={isShiny ? pkShiny(pk.slug) : pkImg(pk.slug)}
-                    alt={pk.name}
-                    style={{ width: imgSize, height: imgSize, objectFit: 'contain', filter: !unlocked ? 'brightness(0) opacity(0.3)' : 'none' }}
-                  />
-                  <div style={{ fontSize, color: isShiny ? C.shiny : unlocked ? '#fff' : C.muted, marginTop: 4, lineHeight: 1.3, fontWeight: isShiny ? 700 : layout === 'all' ? 400 : 600 }}>
-                    {unlocked ? (isShiny ? `✨ ${pk.name}` : pk.name) : '???'}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        );
-      })()}
+      <TrophyGrid
+        layout={layout}
+        col={col}
+        isAdmin={isAdmin}
+        selectedId={selectedId}
+        handleCardClick={handleCardClick}
+        visibleCount={visibleCount}
+        setVisibleCount={setVisibleCount}
+        sentinelRef={sentinelRef}
+      />
     </div>
+  );
+};
+
+// Separate component to avoid re-rendering the entire TrophyScreen on scroll
+const TrophyGrid = ({ layout, col, isAdmin, selectedId, handleCardClick, visibleCount, setVisibleCount, sentinelRef }) => {
+  const cols     = layout === 'all' ? 5 : 3;
+  const imgSize  = layout === 'all' ? 48 : 72;
+  const fontSize = layout === 'all' ? 10 : 13;
+
+  const allVisible = useMemo(() =>
+    layout === 'collected'
+      ? ALL_POKEMON.filter(pk => { const o = col[pk.id] || {}; return isAdmin || isPkCaught(o); })
+      : ALL_POKEMON,
+  [layout, col, isAdmin]);
+
+  const rendered = allVisible.slice(0, visibleCount);
+  const hasMore = visibleCount < allVisible.length;
+
+  // IntersectionObserver to load more when sentinel is visible
+  useEffect(() => {
+    if (!hasMore || !sentinelRef.current) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) setVisibleCount(v => v + BATCH_SIZE); },
+      { rootMargin: '200px' },
+    );
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+  }, [hasMore, visibleCount, sentinelRef, setVisibleCount]);
+
+  if (layout === 'collected' && allVisible.length === 0) {
+    return <div style={{ color: C.muted, textAlign: 'center', padding: '40px 0' }}>No Pokémon caught yet — complete a round to earn credits!</div>;
+  }
+
+  return (
+    <>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 8 }}>
+        {rendered.map(pk => {
+          const owned = col[pk.id] || {};
+          const isShiny    = isAdmin || owned.shiny;
+          const isRegular  = isAdmin || isPkCaught(owned);
+          const unlocked   = isRegular || isShiny;
+          const isSelected = selectedId === pk.id;
+          const border     = isShiny ? `2px solid ${C.shiny}` : isRegular ? '2px solid #b45309' : `1px solid ${C.border}`;
+          const count      = pkCount(owned);
+
+          return (
+            <div
+              className="trophy-card"
+              key={pk.id}
+              onClick={() => handleCardClick(pk.id)}
+              style={{
+                background: C.card, borderRadius: 12, padding: layout === 'all' ? 8 : 12,
+                textAlign: 'center', position: 'relative', cursor: 'pointer', border,
+                animation: isShiny ? 'shimmer 2s ease infinite' : 'none',
+                transform: isSelected ? 'scale(1.05)' : 'scale(1)',
+                transition: 'transform 0.15s',
+                outline: isSelected ? `2px solid ${C.yellow}` : 'none',
+              }}
+            >
+              {isShiny && <div style={{ position: 'absolute', top: 4, right: 6, fontSize: layout === 'all' ? 11 : 14 }}>✨</div>}
+              {count > 1 && !isAdmin && (
+                <div style={{ position: 'absolute', top: 4, left: 6, fontSize: layout === 'all' ? 9 : 11, fontWeight: 800, color: C.yellow }}>x{count}</div>
+              )}
+              <img
+                loading="lazy"
+                src={isShiny ? pkShiny(pk.slug) : pkImg(pk.slug)}
+                alt={pk.name}
+                style={{ width: imgSize, height: imgSize, objectFit: 'contain', filter: !unlocked ? 'brightness(0) opacity(0.3)' : 'none' }}
+              />
+              <div style={{ fontSize, color: isShiny ? C.shiny : unlocked ? '#fff' : C.muted, marginTop: 4, lineHeight: 1.3, fontWeight: isShiny ? 700 : layout === 'all' ? 400 : 600 }}>
+                {unlocked ? (isShiny ? `✨ ${pk.name}` : pk.name) : '???'}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {hasMore && <div ref={sentinelRef} style={{ height: 1 }} />}
+    </>
   );
 };

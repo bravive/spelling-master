@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { ALL_POKEMON, pkImg, pkShiny } from '../data/pokemon';
 import POKEMON_STATS from '../data/pokemon-stats.json';
 import POKEMON_EVOLUTIONS from '../data/pokemon-evolutions.json';
@@ -54,7 +54,7 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
     return arr.slice(0, SWAP_BATCH_SIZE);
   }, [uncaughtPokemon, swapBatchSeed]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const saveChanges = async (newCol, newCreditBank) => {
+  const saveChanges = async (newCol, newCreditBank, historyEntry) => {
     setSaving(true);
     try {
       const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` };
@@ -63,13 +63,16 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
       await apiFetch('/api/trophy', { method: 'PUT', headers, body: JSON.stringify(newTrophy) });
       setTrophyData(newTrophy);
       // Save user data if credits changed
+      const caught = Object.values(newCol).filter(c => isPkCaught(c)).length;
       if (newCreditBank !== undefined) {
-        const caught = Object.values(newCol).filter(c => isPkCaught(c)).length;
-        updateUser(u => ({ ...u, creditBank: newCreditBank, caught, collection: newCol }));
+        updateUser(u => ({ ...u, creditBank: newCreditBank, caught }));
         await apiFetch('/api/users/me', { method: 'PUT', headers, body: JSON.stringify({ creditBank: newCreditBank, caught }) });
       } else {
-        const caught = Object.values(newCol).filter(c => isPkCaught(c)).length;
-        updateUser(u => ({ ...u, caught, collection: newCol }));
+        updateUser(u => ({ ...u, caught }));
+      }
+      // Log to trophy history
+      if (historyEntry) {
+        apiFetch('/api/trophyhistory', { method: 'POST', headers, body: JSON.stringify(historyEntry) }).catch(() => {});
       }
     } catch (e) {
       console.error('Save failed:', e);
@@ -80,7 +83,9 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
   const doDuplicate = async (pk) => {
     if (creditBank < 3) return;
     const newCol = { ...col, [pk.id]: { ...col[pk.id], count: pkCount(col[pk.id]) + 1 } };
-    await saveChanges(newCol, creditBank - 3);
+    await saveChanges(newCol, creditBank - 3, {
+      action: 'buy', cost: 3, pokemon: pk.slug,
+    });
     setConfirm(null);
   };
 
@@ -97,20 +102,26 @@ const ManageModal = ({ col, creditBank, jwt, apiFetch, getUser, updateUser, setT
       [pk.id]: { ...col[pk.id], count: srcCount },
       [nextPk.id]: { ...tgtEntry, count: pkCount(tgtEntry) + 1 },
     };
-    await saveChanges(newCol);
+    await saveChanges(newCol, undefined, {
+      action: 'evolve', from: pk.slug, to: nextSlug,
+    });
     setConfirm(null);
   };
 
   const doSwap = async () => {
     if (swapSources.length !== 3 || !swapTarget) return;
     const newCol = { ...col };
+    const givenSlugs = swapSources.map(id => ALL_POKEMON.find(p => p.id === id)?.slug);
     for (const srcId of swapSources) {
       const c = pkCount(newCol[srcId]) - 1;
       newCol[srcId] = { ...newCol[srcId], count: c };
     }
+    const tgtPk = ALL_POKEMON.find(p => p.id === swapTarget);
     const tgtEntry = newCol[swapTarget] || {};
     newCol[swapTarget] = { ...tgtEntry, count: pkCount(tgtEntry) + 1 };
-    await saveChanges(newCol);
+    await saveChanges(newCol, undefined, {
+      action: 'swap', given: givenSlugs, received: tgtPk?.slug,
+    });
     setSwapSources([]);
     setSwapTarget(null);
     setConfirm(null);
@@ -430,9 +441,18 @@ export const TrophyScreen = ({ trophyData, currentUser, setScreen, setGameScreen
   const [layout, setLayout] = useState('all'); // 'all' | 'collected'
   const [showManage, setShowManage] = useState(false);
 
+  const [trophyHistory, setTrophyHistory] = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
+
   const col = isAdmin ? {} : (trophyData?.collection || {});
   const regular = isAdmin ? ALL_POKEMON.length : Object.values(col).filter(c => isPkCaught(c)).length;
   const shiny   = isAdmin ? ALL_POKEMON.length : Object.values(col).filter(c => c.shiny).length;
+
+  useEffect(() => {
+    if (isAdmin || !jwt) return;
+    const headers = { Authorization: `Bearer ${jwt}` };
+    apiFetch('/api/trophyhistory', { headers }).then(r => r.json()).then(setTrophyHistory).catch(() => {});
+  }, [isAdmin, jwt, apiFetch]);
 
   const selectedPk = selectedId != null ? ALL_POKEMON.find(p => p.id === selectedId) : null;
 
@@ -579,6 +599,48 @@ export const TrophyScreen = ({ trophyData, currentUser, setScreen, setGameScreen
         </button>
       )}
 
+      {/* Trophy history */}
+      {!isAdmin && trophyHistory.length > 0 && (
+        <div style={{ marginBottom: 12 }}>
+          <button
+            onClick={() => setShowHistory(!showHistory)}
+            style={{
+              width: '100%', background: C.card, border: `1px solid ${C.border}`,
+              borderRadius: 10, padding: '8px 12px', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            }}
+          >
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>History ({trophyHistory.length})</span>
+            <span style={{ fontSize: 12, color: C.muted }}>{showHistory ? '▲' : '▼'}</span>
+          </button>
+          {showHistory && (
+            <div style={{ marginTop: 6, maxHeight: 200, overflowY: 'auto', background: C.card, borderRadius: 10, border: `1px solid ${C.border}`, padding: 8 }}>
+              {trophyHistory.map(entry => (
+                <div key={entry._id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 4px', borderBottom: `1px solid ${C.border}` }}>
+                  <span style={{ fontSize: 14, width: 24, textAlign: 'center' }}>
+                    {entry.action === 'buy' ? '💰' : entry.action === 'evolve' ? '⬆️' : '🔄'}
+                  </span>
+                  <div style={{ flex: 1, fontSize: 12 }}>
+                    {entry.action === 'buy' && (
+                      <span>Bought <b style={{ color: C.yellow }}>{slugToName(entry.pokemon)}</b> for {entry.cost} credits</span>
+                    )}
+                    {entry.action === 'evolve' && (
+                      <span>Evolved <b style={{ color: C.green }}>{slugToName(entry.from)}</b> → <b style={{ color: C.green }}>{slugToName(entry.to)}</b></span>
+                    )}
+                    {entry.action === 'swap' && (
+                      <span>Swapped {entry.given.map(slugToName).join(', ')} → <b style={{ color: C.blue }}>{slugToName(entry.received)}</b></span>
+                    )}
+                  </div>
+                  <span style={{ fontSize: 10, color: C.muted, flexShrink: 0 }}>
+                    {new Date(entry.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <DetailOverlay />
 
       {showManage && !isAdmin && (
@@ -591,7 +653,11 @@ export const TrophyScreen = ({ trophyData, currentUser, setScreen, setGameScreen
           updateUser={updateUser}
           setTrophyData={setTrophyData}
           trophyData={trophyData}
-          onClose={() => setShowManage(false)}
+          onClose={() => {
+            setShowManage(false);
+            const headers = { Authorization: `Bearer ${jwt}` };
+            apiFetch('/api/trophyhistory', { headers }).then(r => r.json()).then(setTrophyHistory).catch(() => {});
+          }}
         />
       )}
 

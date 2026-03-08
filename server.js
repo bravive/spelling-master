@@ -10,6 +10,7 @@ import {
   getWordStats, saveWordStats,
   getRoundHistory, saveRoundHistory,
   getCreditHistory, saveCreditHistory,
+  getTrophyHistory, addTrophyHistoryEntry,
   getAllWeeks, getAllWeeklyStats, saveWeeklyStats,
   getAdminUsers,
   createFriendship, findFriendship, findFriendshipById, acceptFriendship, deleteFriendship, getUserFriendships,
@@ -254,6 +255,15 @@ app.get('/api/credithistory', requireAuth, async (req, res) => {
 
 app.put('/api/credithistory', requireAuth, async (req, res) => {
   await saveCreditHistory(req.jwtUser.id, req.body);
+  res.json({ ok: true });
+});
+
+app.get('/api/trophyhistory', requireAuth, async (req, res) => {
+  res.json(await getTrophyHistory(req.jwtUser.id));
+});
+
+app.post('/api/trophyhistory', requireAuth, async (req, res) => {
+  await addTrophyHistoryEntry(req.jwtUser.id, req.body);
   res.json({ ok: true });
 });
 

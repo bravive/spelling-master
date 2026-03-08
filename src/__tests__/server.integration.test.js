@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import request from 'supertest';
 import { MongoMemoryServer } from 'mongodb-memory-server';
-import { connectDb, closeDb, usersCol, trophiesCol, wordstatsCol, roundhistoryCol, credithistoryCol, weeklyChallengeWordsCol, weeklyStatsCol } from '../db.js';
+import { connectDb, closeDb, usersCol, trophiesCol, wordstatsCol, roundhistoryCol, credithistoryCol, weeklyChallengeWordsCol, weeklyStatsCol, trophyhistoryCol } from '../db.js';
 import { app } from '../../server.js';
 
 let mongod;
@@ -28,6 +28,7 @@ beforeEach(async () => {
     credithistoryCol().deleteMany({}),
     weeklyChallengeWordsCol().deleteMany({}),
     weeklyStatsCol().deleteMany({}),
+    trophyhistoryCol().deleteMany({}),
   ]);
 });
 
@@ -452,6 +453,49 @@ describe('GET/PUT /api/credithistory', () => {
   });
 });
 
+// ── Trophy history ──────────────────────────────────────────────────────────
+describe('GET/POST /api/trophyhistory', () => {
+  let token;
+  beforeEach(async () => {
+    await createUser();
+    const res = await loginUser();
+    token = res.body.token;
+  });
+
+  it('returns empty array for new user', async () => {
+    const res = await request(app).get('/api/trophyhistory').set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([]);
+  });
+
+  it('creates and retrieves trophy history entries', async () => {
+    await request(app).post('/api/trophyhistory').set('Authorization', `Bearer ${token}`)
+      .send({ action: 'buy', cost: 3, pokemon: 'pikachu' });
+    await request(app).post('/api/trophyhistory').set('Authorization', `Bearer ${token}`)
+      .send({ action: 'evolve', from: 'charmander', to: 'charmeleon' });
+    const res = await request(app).get('/api/trophyhistory').set('Authorization', `Bearer ${token}`);
+    expect(res.body).toHaveLength(2);
+    // Sorted newest first
+    expect(res.body[0].action).toBe('evolve');
+    expect(res.body[1].action).toBe('buy');
+    expect(res.body[1].pokemon).toBe('pikachu');
+  });
+
+  it('does not return another user\'s history', async () => {
+    await request(app).post('/api/trophyhistory').set('Authorization', `Bearer ${token}`)
+      .send({ action: 'buy', cost: 3, pokemon: 'bulbasaur' });
+    await createUser({ key: 'bob', name: 'Bob' });
+    const bobToken = (await loginUser('bob', '1234')).body.token;
+    const res = await request(app).get('/api/trophyhistory').set('Authorization', `Bearer ${bobToken}`);
+    expect(res.body).toEqual([]);
+  });
+
+  it('returns 401 without token', async () => {
+    const res = await request(app).get('/api/trophyhistory');
+    expect(res.status).toBe(401);
+  });
+});
+
 // ── Update profile ───────────────────────────────────────────────────────────
 describe('PUT /api/users/me/profile', () => {
   let token;
@@ -759,6 +803,8 @@ describe('Invalid JWT returns 401 on all protected routes', () => {
     { method: 'put',  path: '/api/roundhistory' },
     { method: 'get',  path: '/api/credithistory' },
     { method: 'put',  path: '/api/credithistory' },
+    { method: 'get',  path: '/api/trophyhistory' },
+    { method: 'post', path: '/api/trophyhistory' },
     { method: 'get',  path: '/api/weekly-stats' },
     { method: 'put',  path: '/api/weekly-stats/w2026-10' },
     { method: 'put',  path: '/api/users/me' },
